@@ -1,0 +1,33 @@
+name: PR Build & Test
+
+# PR 이벤트 트리거 (main, dev 브랜치 대상으로)
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 저장소 체크아웃
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Java 21 설치
+      - name: Set up Java 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'   # Eclipse Temurin JDK
+          java-version: '21'        # Gradle build.gradle toolchain에 맞춤
+
+      # Build (테스트 제외)
+      - name: Build project
+        run: ./gradlew clean build -x test
+
+      # Test 실행
+      - name: Run tests
+        run: ./gradlew test
