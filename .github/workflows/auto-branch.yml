@@ -24,12 +24,15 @@ jobs:
       - name: Create branch from issue
         run: |
           issue_number=${{ github.event.issue.number }}
-          issue_title=${{ github.event.issue.title }}
-          
-          safe_title=$(echo "$issue_title" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-')
-          branch_name="issue/${issue_number}-${safe_title}"
+          issue_title="${{ github.event.issue.title }}"
+
+          # 콜론(:) 앞 단어를 prefix로 추출
+          prefix=$(echo "$issue_title" | cut -d':' -f1 | tr -d '[:space:]')
+
+          branch_name="${prefix}/${issue_number}"
+
           echo "📌 Creating branch: $branch_name from origin/main"
-          
+
           git fetch origin main
           git checkout -b "$branch_name" origin/main
           git push origin "$branch_name"
