@@ -22,6 +22,9 @@ spring:
         highlight_sql: true
         use_sql_comments: true
 
+springdoc:
+  default-produces-media-type: application/json;charset=UTF-8
+
 logging:
   level:
     org.hibernate.orm.jdbc.bind: trace
