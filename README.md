@@ -75,7 +75,7 @@ Feat/1
 3. 해당 브런치에서 작업 후, dev 브런치에 PR 요청
 4. PR 요청 시, 빌드 & 테스트(status check) 통과 후, 2명 이상의 승인 필요
 5. 승인받은 후, Squash & merge 진행
-6. merge 후에는 브런치를 삭제해주시고, `git fetch --prune`을 통해 로컬에 남아있는 원격 레포지토리를 정리해주세요.
+6. merge 후에는 delete branch를 눌러 feature 브런치를 삭제해주세요. (Github Actions로 자동화 예정)
 
 
 
