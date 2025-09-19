@@ -75,7 +75,7 @@ Feat/1
 3. 해당 브랜치에서 작업 후, dev 브랜치에 PR 요청
 4. PR 요청 시, 빌드 & 테스트(status check) 통과 후, 2명 이상의 승인 필요
 5. 승인받은 후, Squash & merge 진행
-6. merge 후에는 delete branch를 눌러 feature 브랜치를 삭제해주세요. (Github Actions로 자동화 예정)
+6. merge 후에는 delete branch를 눌러 feature 브랜치를 삭제해주세요. (Github Actions로 자동화 완료)
 
 
 
