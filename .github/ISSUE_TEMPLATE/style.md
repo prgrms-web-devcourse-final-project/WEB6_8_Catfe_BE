@@ -1,7 +1,7 @@
 ---
 name: style
 about: 코드 포맷팅, 세미콜론 누락 등 코드 스타일 관련 변경
-title: "[style] "
+title: "Style: "
 labels: style
 ---
 

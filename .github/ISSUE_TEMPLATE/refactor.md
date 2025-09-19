@@ -1,7 +1,7 @@
 ---
 name: refactor
 about: 기능 변화 없는 리팩토링
-title: "[refactor] "
+title: "Refactor: "
 labels: refactor
 ---
 

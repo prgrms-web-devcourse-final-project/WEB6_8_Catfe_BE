@@ -1,7 +1,7 @@
 ---
 name: test
 about: 테스트 추가/수정
-title: "[test] "
+title: "Test: "
 labels: test
 ---
 

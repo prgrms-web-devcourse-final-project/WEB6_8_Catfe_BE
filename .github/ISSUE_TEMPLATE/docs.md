@@ -1,7 +1,7 @@
 ---
 name: docs
 about: 문서 수정
-title: "[docs] "
+title: "Docs: "
 labels: docs
 ---
 

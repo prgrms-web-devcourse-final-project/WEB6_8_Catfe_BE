@@ -1,7 +1,7 @@
 ---
 name: chore
 about: 설정/환경/기타 작업
-title: "[chore] "
+title: "Chore: "
 labels: chore
 ---
 

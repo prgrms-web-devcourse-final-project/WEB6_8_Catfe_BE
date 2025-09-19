@@ -1,7 +1,7 @@
 ---
 name: performance
 about: 성능 개선
-title: "[perf] "
+title: "Perf: "
 labels: perf
 ---
 
