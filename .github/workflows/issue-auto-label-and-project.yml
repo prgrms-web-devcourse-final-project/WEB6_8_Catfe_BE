@@ -1,0 +1,69 @@
+name: 이슈 자동화
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  automate-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      # === 자동 라벨 할당 ===
+      - name: "feature 라벨 할당"
+        if: contains(github.event.issue.title, 'feat')
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: feature
+
+      - name: "fix 라벨 할당"
+        if: contains(github.event.issue.title, 'fix')
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: fix
+
+      - name: "hore 라벨 할당"
+        if: contains(github.event.issue.title, 'chore')
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: chore
+
+      - name: "docs 라벨 할당"
+        if: contains(github.event.issue.title, 'docs')
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: docs
+
+      - name: "style 라벨 할당"
+        if: contains(github.event.issue.title, 'style')
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: style
+
+      - name: "refactor 라벨 할당"
+        if: contains(github.event.issue.title, 'refactor')
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: refactor
+
+      - name: "test 라벨 할당"
+        if: contains(github.event.issue.title, 'test')
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: test
+
+      - name: "perf 라벨 할당"
+        if: contains(github.event.issue.title, 'perf')
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: perf
+
+      # === GitHub Project 자동 추가 ===
+      - name: 이슈를 프로젝트의 Backlog 컬럼에 추가
+        uses: actions/add-to-project@v1.0.2
+        with:
+          project-url: "https://github.com/orgs/prgrms-web-devcourse-final-project/projects/147"
+          github-token: ${{ secrets.PROJECT_ACCESS_TOKEN }}
