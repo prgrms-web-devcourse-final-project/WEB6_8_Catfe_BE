@@ -31,8 +31,8 @@ jobs:
 
           branch_name="${prefix}/${issue_number}"
 
-          echo "📌 Creating branch: $branch_name from origin/main"
+          echo "📌 Creating branch: $branch_name from origin/dev"
 
-          git fetch origin main
-          git checkout -b "$branch_name" origin/main
+          git fetch origin dev
+          git checkout -b "$branch_name" origin/dev
           git push origin "$branch_name"
