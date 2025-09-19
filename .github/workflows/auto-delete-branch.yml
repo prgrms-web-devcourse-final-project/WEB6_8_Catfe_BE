@@ -36,11 +36,18 @@ jobs:
                   state: "closed"
                 });
               }
-            }
+            
+            // 🗑️ 병합된 브랜치 삭제 (main, dev 보호)
+            const headBranch = pr.head.ref;
+            const protectedBranches = ['main', 'dev'];
 
-      - name: Delete merged branch
-        uses: peter-evans/delete-branch@v2
-        with:
-          branch: ${{ github.event.pull_request.head.ref }}  # PR source branch
-          token: ${{ secrets.PROJECT_GITHUB_TOKEN }}
-          exclude: main, dev
+            if (!protectedBranches.includes(headBranch)) {
+              console.log(`🗑️ Deleting branch: ${headBranch}`);
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${headBranch}`
+              });
+            } else {
+              console.log(`⚠️ Skipping deletion of protected branch: ${headBranch}`);
+            }
