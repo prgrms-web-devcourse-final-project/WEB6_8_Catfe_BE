@@ -16,7 +16,7 @@ jobs:
       - name: Close linked issues
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.PROJECT_GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
             const text = `${pr.title}\n${pr.body || ''}`;
@@ -36,6 +36,7 @@ jobs:
                   state: "closed"
                 });
               }
+            }
             
             // 🗑️ 병합된 브랜치 삭제 (main, dev 보호)
             const headBranch = pr.head.ref;
