@@ -1,0 +1,33 @@
+name: Auto Format PR Title
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  format-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update PR title with issue number from branch
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const branch = pr.head.ref;
+            
+            // 브랜치 명에서 숫자 추출
+            const issueMatch = branch.match(/(\d+)/);
+            
+            if (issueMatch) {
+              const newTitle = `${pr.title} (#${issueMatch[1]})`;
+              console.log(`✏️ Updating PR title: ${newTitle}`);
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                title: newTitle
+              });
+            } else {
+              console.log("⚠️ No issue number found in branch name");
+            }
