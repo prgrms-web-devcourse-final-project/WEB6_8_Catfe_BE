@@ -1,0 +1,46 @@
+name: Auto Delete Branch
+
+on:
+  pull_request:
+    types: [ closed ]
+
+jobs:
+  delete-branch:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'dev'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # PR과 연관된 이슈들 닫기
+      - name: Close linked issues
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.PROJECT_GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const text = `${pr.title}\n${pr.body || ''}`;
+
+            // 🔍 (#123) 같은 패턴 찾기
+            const issueMatches = [...text.matchAll(/\(#(\d+)\)/g)].map(m => m[1]);
+            
+            if (issueMatches.length === 0) {
+              console.log('ℹ️ No linked issues found in PR');
+            } else {
+              for (const issueNumber of issueMatches) {
+                console.log(`✅ Closing issue #${issueNumber}`);
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  state: "closed"
+                });
+              }
+            }
+
+      - name: Delete merged branch
+        uses: peter-evans/delete-branch@v2
+        with:
+          branch: ${{ github.event.pull_request.head.ref }}  # PR source branch
+          token: ${{ secrets.PROJECT_GITHUB_TOKEN }}
+          exclude: main, dev
