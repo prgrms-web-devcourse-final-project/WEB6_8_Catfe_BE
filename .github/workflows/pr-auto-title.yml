@@ -16,6 +16,13 @@ jobs:
             const pr = context.payload.pull_request;
             const branch = pr.head.ref;
             
+            // 제목에 이미 (#숫자) 패턴이 있는지 먼저 확인
+            const hasIssueTag = /\(#\d+\)$/.test(pr.title);
+            if (hasIssueTag) {
+              console.log(`✅ PR title already has issue tag, skipping update`);
+              return;
+            }
+            
             // 브랜치 명에서 숫자 추출
             const issueMatch = branch.match(/(\d+)/);
             
