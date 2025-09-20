@@ -6,7 +6,7 @@
 
 # 개발 및 배포 프로세스 & Git 컨벤션 가이드
 해당 프로젝트는 `dev` 브랜치에서 개발하고, `main`브랜치에서 배포합니다. <br/> <br/>
-아래에 브랜치 전략, 커밋/PR 컨벤션, Github 자동화 워크플로우, 브랜치 보호 규칙을 정리해두었습니다.
+아래에 브랜치 전략, 커밋/PR 컨벤션, Github 자동화 워크플로우, 브랜치 보호 규칙, 응답 데이터 및 예외처리 전략을 정리해두었습니다.
 <br/>
 <br/>
 
@@ -75,7 +75,103 @@ Feat/1
 3. 해당 브랜치에서 작업 후, dev 브랜치에 PR 요청
 4. PR 요청 시, 빌드 & 테스트(status check) 통과 후, 2명 이상의 승인 필요
 5. 승인받은 후, Squash & merge 진행
-6. merge 후에는 delete branch를 눌러 feature 브랜치를 삭제해주세요. (Github Actions로 자동화 완료)
+6. merge 후, 브랜치 자동 삭제 및 이슈가 자동으로 닫힘.
+
+<br/>
+
+## 6. 응답 데이터 및 예외처리 전략
+
+### 서비스로부터 성공적으로 데이터를 받아온 경우
+
+- 성공 응답 -> 컨트롤러에서 HTTP 상태 코드 + 응답 데이터(`RsData.success`) 반환
+
+```java
+// 컨트롤러 메서드 예시
+
+@GetMapping("/api/v1/example")
+public ResponseEntity<RsData<T>> example() {
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("message", data);
+}
+```
+<br/>
+
+
+```java
+// 응답 데이터 예시 (json)
+
+{
+  "code": "SUCCESS_200",
+  "message": "message",
+  "data": {...} or {null},
+  "success": true
+}
+```
+
+<br/>
+
+### 예외처리
+
+- `CustomException()` 활용하여 예외를 던짐.
+```java
+// 예시 - findById() 사용할 때, 대상 엔티티가 존재하지 않는 경우
+
+Example example = ExampleRepository
+                    .findById(id)
+                    .orElseThrow(() ->
+                        new CustomException(ErrorCode.EXAMPLE_NOT_FOUND)
+                    );
+```
+
+
+<br/>
+
+- `GlobalExceptionHandler`에서 해당 예외를 처리 → HTTP 상태 코드 + 응답 데이터(`RsData.fail`) 반환
+```java
+// GlobalExceptionHandler의 CustomException 처리 메서드
+
+@ExceptionHandler(CustomException.class)
+public ResponseEntity<RsData<Void>> handleCustomException(
+        CustomException ex
+) {
+    ErrorCode errorCode = ex.getErrorCode();
+
+    return ResponseEntity
+            .status(errorCode.getStatus())
+            .body(RsData.fail(errorCode));
+}
+```
+
+```java
+// 응답 데이터 예시 (json)
+
+{
+  "code": ErrorCode.code,
+  "message": ErrorCode.message,
+  "data": {...} or {null},
+  "success": false
+}
+```
+
+<br/>
+
+### 정리
+
+```java
+서비스(Service)
+   └── 성공: 데이터 반환
+   └── 실패: CustomException(ErrorCode) 던짐
+        ↓
+컨트롤러(Controller)
+   └── 성공: HTTP 상태 + RsData.success 반환
+   └── 실패: ControllerAdvice로 자동 처리
+        ↓
+GlobalExceptionHandler
+   └── 예외 잡기 → HTTP 상태 + RsData.fail 반환
+```
+
+
 
 
 
