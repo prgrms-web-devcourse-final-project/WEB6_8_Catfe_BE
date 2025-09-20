@@ -19,7 +19,12 @@ public class HomeController {
     // CORS 스프링 시큐리티 필터 테스트용 컨트롤러 메서드
     @GetMapping("/api/test")
     @ResponseBody
-    public String test() {
-        return "Hello World";
+    public ResponseEntity<RsData<String>> test() {
+        String data = "안녕하세요";
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("message", data)
+                );
     }
 }

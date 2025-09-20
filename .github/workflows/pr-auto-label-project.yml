@@ -2,7 +2,9 @@ name: PR 자동화
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - dev
     types: [opened]
 
 jobs:
