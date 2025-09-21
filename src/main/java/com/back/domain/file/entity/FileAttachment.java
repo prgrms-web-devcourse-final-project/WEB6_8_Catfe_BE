@@ -25,7 +25,7 @@ public class FileAttachment extends BaseEntity {
     private MimeType mimeType;
 
     // 업로드 유저
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "uploaded_by")
     private User user;
 

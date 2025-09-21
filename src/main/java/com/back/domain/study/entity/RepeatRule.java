@@ -18,7 +18,7 @@ public class RepeatRule extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private Frequency frequency;
 
-    private int interval;
+    private int RepeatInterval;
 
     @Enumerated(EnumType.STRING)
     private DayOfWeek byDay;

@@ -30,7 +30,7 @@ public class Room extends BaseEntity {
 
     private boolean allowScreenShare;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "theme_id")
     private RoomTheme theme;
 
