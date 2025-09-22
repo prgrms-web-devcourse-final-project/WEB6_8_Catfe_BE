@@ -1,4 +1,4 @@
-package com.back.domain.study.entity;
+package com.back.domain.study.plan.entity;
 
 import com.back.domain.user.entity.User;
 import com.back.global.entity.BaseEntity;
@@ -27,9 +27,6 @@ public class StudyPlan extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     private Color color;
-
-    @Enumerated(EnumType.STRING)
-    private RepeatType repeatType;
 
     @OneToOne(mappedBy = "studyPlan")
     private RepeatRule repeatRule;

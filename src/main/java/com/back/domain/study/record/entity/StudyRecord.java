@@ -1,5 +1,6 @@
-package com.back.domain.study.entity;
+package com.back.domain.study.record.entity;
 
+import com.back.domain.study.todo.entity.Todo;
 import com.back.domain.studyroom.entity.Room;
 import com.back.global.entity.BaseEntity;
 import jakarta.persistence.Entity;
