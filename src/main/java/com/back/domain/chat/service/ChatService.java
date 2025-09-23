@@ -85,24 +85,4 @@ public class ChatService {
                 .build();
     }
 
-    // 방 채팅 메시지 삭제
-    @Transactional
-    public void deleteRoomMessage(Long roomId, Long messageId, Long currentUserId) {
-        // 메시지 존재 여부 확인
-        RoomChatMessage message = roomChatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new CustomException(ErrorCode.MESSAGE_NOT_FOUND));
-
-        // 방 ID 검증
-        if (!message.getRoom().getId().equals(roomId)) {
-            throw new CustomException(ErrorCode.BAD_REQUEST);
-        }
-
-        // 작성자 권한 확인
-        if (!message.getUser().getId().equals(currentUserId)) {
-            throw new CustomException(ErrorCode.MESSAGE_FORBIDDEN);
-        }
-
-        // 메시지 삭제
-        roomChatMessageRepository.delete(message);
-    }
 }

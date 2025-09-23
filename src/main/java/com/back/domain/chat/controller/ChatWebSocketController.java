@@ -74,4 +74,5 @@ public class ChatWebSocketController {
             messagingTemplate.convertAndSendToUser(sessionId, "/queue/errors", errorResponse);
         }
     }
+
 }

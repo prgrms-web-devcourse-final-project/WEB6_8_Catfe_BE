@@ -42,28 +42,4 @@ public class ChatApiController {
                 .body(RsData.success("채팅 기록 조회 성공", chatHistory));
     }
 
-    // 방 채팅 메시지 삭제
-    @DeleteMapping("/rooms/{roomId}/messages/{messageId}")
-    public ResponseEntity<RsData<Map<String, Object>>> deleteRoomMessage(
-            @PathVariable Long roomId,
-            @PathVariable Long messageId,
-            @RequestHeader("Authorization") String authorization) {
-
-        // TODO: JWT 토큰에서 사용자 정보 추출
-
-        // 임시로 하드코딩 (테스트용)
-        Long currentUserId = 1L;
-
-        // 메시지 삭제 로직 실행
-        chatService.deleteRoomMessage(roomId, messageId, currentUserId);
-
-        Map<String, Object> responseData = Map.of(
-                "messageId", messageId,
-                "deletedAt", LocalDateTime.now()
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(RsData.success("메시지 삭제 성공", responseData));
-    }
 }
