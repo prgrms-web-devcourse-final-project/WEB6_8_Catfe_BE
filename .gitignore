@@ -40,3 +40,9 @@ out/
 db_dev.mv.db
 db_dev.trace.db
 .env
+
+### Terraform ###
+/infra/terraform/.terraform
+/infra/terraform/.terraform.lock.hcl
+/infra/terraform/terraform.tfstate
+/infra/terraform/terraform.tfstate.backup
