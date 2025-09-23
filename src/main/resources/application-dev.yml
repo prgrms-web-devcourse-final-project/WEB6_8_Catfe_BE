@@ -25,6 +25,8 @@ springdoc:
 logging:
   level:
     org.hibernate.orm.jdbc.bind: trace
+    org.springframework.web.socket: DEBUG
+    org.springframework.messaging: DEBUG
 
 jwt:
   secret: ${JWT_SECRET:test-jwt-secret-key-12345678901234567890} # 운영 시에는 반드시 환경 변수로 설정할 것

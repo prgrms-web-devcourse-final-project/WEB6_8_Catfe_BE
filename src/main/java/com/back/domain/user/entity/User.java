@@ -80,4 +80,22 @@ public class User extends BaseEntity {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FileAttachment> fileAttachments = new ArrayList<>();
+
+    // -------------------- 헬퍼 메서드 --------------------
+    // 현재 사용자의 닉네임 조회
+    public String getNickname() {
+        return userProfiles.stream()
+                .findFirst()
+                .map(UserProfile::getNickname)
+                .filter(nickname -> nickname != null && !nickname.trim().isEmpty())
+                .orElse(this.username);
+    }
+
+    // 현재 사용자의 프로필 이미지 URL 조회
+    public String getProfileImageUrl() {
+        return userProfiles.stream()
+                .findFirst()
+                .map(UserProfile::getProfileImageUrl)
+                .orElse(null);
+    }
 }

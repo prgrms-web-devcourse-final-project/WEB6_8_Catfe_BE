@@ -22,4 +22,11 @@ public class RoomChatMessage extends BaseEntity {
     private User user;
 
     private String content;
+
+    // 채팅 메세지 생성자
+    public RoomChatMessage(Room room, User user, String content) {
+        this.room = room;
+        this.user = user;
+        this.content = content;
+    }
 }
