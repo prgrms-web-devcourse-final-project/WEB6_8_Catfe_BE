@@ -25,39 +25,25 @@ repositories {
 }
 
 dependencies {
-    // Spring
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
-
-    // Database & JPA
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    testImplementation("org.springframework.security:spring-security-test")
+    compileOnly("org.projectlombok:lombok")
+    developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("com.h2database:h2")
     runtimeOnly("com.mysql:mysql-connector-j")
-
-    // QueryDSL
-    implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")
-    annotationProcessor("com.querydsl:querydsl-apt:5.0.0:jakarta")
-    annotationProcessor("jakarta.persistence:jakarta.persistence-api")
-    annotationProcessor("jakarta.annotation:jakarta.annotation-api")
-
-    // Security
-    implementation("org.springframework.boot:spring-boot-starter-security")
-
-    // Development Tools
-    compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
-    developmentOnly("org.springframework.boot:spring-boot-devtools")
-
-    // Swagger
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13")
-
-    // Env
     implementation ("io.github.cdimascio:dotenv-java:3.0.0")
 
-    // Test
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("org.springframework.security:spring-security-test")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // JWT
+    implementation("io.jsonwebtoken:jjwt-api:0.12.6")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
 }
 
 tasks.withType<Test> {
