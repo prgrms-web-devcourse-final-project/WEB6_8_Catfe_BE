@@ -2,31 +2,5 @@ spring:
   application:
     name: catfe-backend
 
-  datasource:
-    url: jdbc:h2:./db_dev;MODE=MySQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-
-  config:
-    import: optional:file:.env
-
-  jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
-    hibernate:
-      ddl-auto: update      # [none | validate | update | create | create-drop]
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-        highlight_sql: true
-        use_sql_comments: true
-
-springdoc:
-  default-produces-media-type: application/json;charset=UTF-8
-
-logging:
-  level:
-    org.hibernate.orm.jdbc.bind: trace
-    org.springframework.web.socket: DEBUG
-    org.springframework.messaging: DEBUG
+  profiles:
+    active: dev
