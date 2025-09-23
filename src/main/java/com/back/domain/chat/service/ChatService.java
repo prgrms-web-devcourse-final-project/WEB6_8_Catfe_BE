@@ -1,4 +1,4 @@
-package com.back.domain.websocket.service;
+package com.back.domain.chat.service;
 
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomChatMessage;
@@ -6,8 +6,8 @@ import com.back.domain.studyroom.repository.RoomChatMessageRepository;
 import com.back.domain.studyroom.repository.RoomRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
-import com.back.domain.websocket.dto.ChatMessageDto;
-import com.back.domain.websocket.dto.ChatPageResponse;
+import com.back.domain.chat.dto.ChatMessageDto;
+import com.back.domain.chat.dto.ChatPageResponse;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;

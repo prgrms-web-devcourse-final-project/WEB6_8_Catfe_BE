@@ -1,11 +1,10 @@
-package com.back.domain.websocket.controller;
+package com.back.domain.chat.controller;
 
 import com.back.domain.studyroom.entity.RoomChatMessage;
-import com.back.domain.websocket.dto.ChatMessageDto;
-import com.back.domain.websocket.dto.WebSocketErrorResponse;
-import com.back.domain.websocket.service.ChatService;
+import com.back.domain.chat.dto.ChatMessageDto;
+import com.back.global.websocket.dto.WebSocketErrorResponse;
+import com.back.domain.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;

@@ -1,7 +1,7 @@
-package com.back.domain.websocket.controller;
+package com.back.domain.chat.controller;
 
-import com.back.domain.websocket.dto.ChatPageResponse;
-import com.back.domain.websocket.service.ChatService;
+import com.back.domain.chat.dto.ChatPageResponse;
+import com.back.domain.chat.service.ChatService;
 import com.back.global.common.dto.RsData;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;

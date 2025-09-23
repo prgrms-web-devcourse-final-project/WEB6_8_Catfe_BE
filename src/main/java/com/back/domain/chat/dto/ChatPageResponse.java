@@ -1,4 +1,4 @@
-package com.back.domain.websocket.dto;
+package com.back.domain.chat.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

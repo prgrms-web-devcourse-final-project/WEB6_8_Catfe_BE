@@ -1,4 +1,4 @@
-package com.back.domain.websocket.controller;
+package com.back.global.websocket.controller;
 
 import com.back.global.common.dto.RsData;
 import lombok.extern.slf4j.Slf4j;
