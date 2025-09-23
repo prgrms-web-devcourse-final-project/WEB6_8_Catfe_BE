@@ -25,3 +25,5 @@ springdoc:
 logging:
   level:
     org.hibernate.orm.jdbc.bind: trace
+    org.springframework.web.socket: DEBUG
+    org.springframework.messaging: DEBUG
