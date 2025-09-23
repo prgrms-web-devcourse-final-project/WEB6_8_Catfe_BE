@@ -1,0 +1,78 @@
+package com.back.domain.websocket.controller;
+
+import com.back.domain.studyroom.entity.RoomChatMessage;
+import com.back.domain.websocket.dto.ChatMessageDto;
+import com.back.domain.websocket.dto.WebSocketErrorResponse;
+import com.back.domain.websocket.service.ChatService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Controller;
+
+@Controller
+@RequiredArgsConstructor
+public class ChatWebSocketController {
+
+    private final ChatService chatService;
+    private final SimpMessagingTemplate messagingTemplate;
+
+    /**
+     * 방 채팅 메시지 처리
+     * 클라이언트가 /app/chat/room/{roomId}로 메시지 전송 시 호출
+     *
+     * @param roomId 스터디룸 ID
+     * @param chatMessage 채팅 메시지 (content, messageType, attachmentId)
+     * @param headerAccessor WebSocket 헤더 정보
+     */
+    @MessageMapping("/chat/room/{roomId}")
+    public void handleRoomChat(@DestinationVariable Long roomId,
+                               ChatMessageDto chatMessage,
+                               SimpMessageHeaderAccessor headerAccessor) {
+
+        try {
+            // TODO: WebSocket 세션에서 사용자 정보 추출
+
+            // 임시 하드코딩 (나중에 JWT 인증으로 교체)
+            Long currentUserId = 1L;
+            String currentUserNickname = "테스트사용자";
+
+            // 메시지 정보 보완
+            chatMessage.setRoomId(roomId);
+            chatMessage.setUserId(currentUserId);
+            chatMessage.setNickname(currentUserNickname);
+
+            // DB에 메시지 저장
+            RoomChatMessage savedMessage = chatService.saveRoomChatMessage(chatMessage);
+
+            // 저장된 메시지 정보로 응답 DTO 생성
+            ChatMessageDto responseMessage = ChatMessageDto.builder()
+                    .messageId(savedMessage.getId())
+                    .roomId(roomId)
+                    .userId(savedMessage.getUser().getId())
+                    .nickname(savedMessage.getUser().getNickname())
+                    .profileImageUrl(savedMessage.getUser().getProfileImageUrl())
+                    .content(savedMessage.getContent())
+                    .messageType(chatMessage.getMessageType())
+                    .attachment(null) // 텍스트 채팅에서는 null
+                    .createdAt(savedMessage.getCreatedAt())
+                    .build();
+
+            // 해당 방의 모든 구독자에게 브로드캐스트
+            messagingTemplate.convertAndSend("/topic/room/" + roomId, responseMessage);
+
+        } catch (Exception e) {
+            // 에러 응답을 해당 사용자에게만 전송
+            WebSocketErrorResponse errorResponse = WebSocketErrorResponse.create(
+                    "WS_ROOM_NOT_FOUND",
+                    "존재하지 않는 방입니다"
+            );
+
+            // 에러를 발생시킨 사용자에게만 전송
+            String sessionId = headerAccessor.getSessionId();
+            messagingTemplate.convertAndSendToUser(sessionId, "/queue/errors", errorResponse);
+        }
+    }
+}

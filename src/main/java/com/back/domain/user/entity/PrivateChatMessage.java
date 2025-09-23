@@ -21,4 +21,6 @@ public class PrivateChatMessage extends BaseEntity {
     private User toUser;
 
     private String content;
+
+    private boolean isRead = false;
 }

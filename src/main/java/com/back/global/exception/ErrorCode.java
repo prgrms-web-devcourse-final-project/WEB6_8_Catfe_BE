@@ -7,6 +7,21 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
+
+    // ======================== 사용자 관련 ========================
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "존재하지 않는 사용자입니다."),
+
+    // ======================== 스터디룸 관련 ========================
+    ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_001", "존재하지 않는 방입니다."),
+    ROOM_FORBIDDEN(HttpStatus.FORBIDDEN, "ROOM_002", "방에 대한 접근 권한이 없습니다."),
+
+    // ======================== 메시지 관련 ========================
+    MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MESSAGE_001", "존재하지 않는 메시지입니다."),
+    MESSAGE_FORBIDDEN(HttpStatus.FORBIDDEN, "MESSAGE_002", "자신의 메시지만 삭제할 수 있습니다."),
+
+    // ======================== WebSocket 관련 ========================
+    WS_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "WS_001", "존재하지 않는 방입니다"),
+
     // ======================== 공통 에러 ========================
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON_400", "잘못된 요청입니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON_403", "접근 권한이 없습니다."),

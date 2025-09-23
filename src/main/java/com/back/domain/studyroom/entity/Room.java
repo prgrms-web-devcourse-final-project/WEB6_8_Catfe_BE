@@ -1,6 +1,7 @@
 package com.back.domain.studyroom.entity;
 
 import com.back.domain.study.entity.StudyRecord;
+import com.back.domain.user.entity.User;
 import com.back.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -14,6 +15,7 @@ import java.util.List;
 @Getter
 public class Room extends BaseEntity {
     private String title;
+
     private String description;
 
     private boolean isPrivate;
@@ -29,6 +31,10 @@ public class Room extends BaseEntity {
     private boolean allowAudio;
 
     private boolean allowScreenShare;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private User createdBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "theme_id")
