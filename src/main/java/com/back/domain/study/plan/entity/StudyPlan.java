@@ -34,22 +34,14 @@ public class StudyPlan extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private Color color;
 
-    // 부모 계획과의 연관관계
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_plan_id",
-            foreignKey = @ForeignKey(name = "fk_study_plan_parent"))
-    private StudyPlan parentPlan;
-
-    // 자식 계획들과 연관관계
-    @OneToMany(mappedBy = "parentPlan", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<StudyPlan> childPlans = new ArrayList<>();
 
     @OneToOne(mappedBy = "studyPlan",cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private RepeatRule repeatRule;
 
-    @OneToMany(mappedBy = "todo", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "studyPlan", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StudyRecord> studyRecords;
 
+    //반복 주기 설정 시 예외 리스트
     @OneToMany(mappedBy = "studyPlan", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<StudyPlanException> exceptions = new ArrayList<>();
 }

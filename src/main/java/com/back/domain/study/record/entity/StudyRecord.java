@@ -1,7 +1,6 @@
 package com.back.domain.study.record.entity;
 
 import com.back.domain.study.plan.entity.StudyPlan;
-import com.back.domain.study.todo.entity.Todo;
 import com.back.domain.studyroom.entity.Room;
 import com.back.global.entity.BaseEntity;
 import jakarta.persistence.Entity;
@@ -19,7 +18,7 @@ import java.time.LocalDateTime;
 public class StudyRecord extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id")
-    private StudyPlan plan;
+    private StudyPlan studyPlan;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id")

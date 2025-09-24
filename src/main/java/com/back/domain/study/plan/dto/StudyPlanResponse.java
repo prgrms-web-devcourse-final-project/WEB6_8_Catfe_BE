@@ -1,6 +1,7 @@
 package com.back.domain.study.plan.dto;
 
 import com.back.domain.study.plan.entity.Color;
+import com.back.domain.study.plan.entity.DayOfWeek;
 import com.back.domain.study.plan.entity.Frequency;
 import com.back.domain.study.plan.entity.StudyPlan;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -10,6 +11,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -55,6 +57,17 @@ public class StudyPlanResponse {
                 this.until = repeatRule.getUntilDate();
             }
         }
+
+        // 요일을 리스트로 접근 ("MON,TUE" -> [MON, TUE])
+        public List<DayOfWeek> getByDaysList() {
+            if (byDay == null || byDay.isEmpty()) {
+                return List.of();
+            }
+            return Arrays.stream(byDay.split(","))
+                    .map(String::trim)
+                    .map(com.back.domain.study.plan.entity.DayOfWeek::valueOf)
+                    .collect(Collectors.toList());
+        }
     }
     //엔티티를 DTO로 변환하는 생성자
     public StudyPlanResponse(StudyPlan studyPlan) {
@@ -65,17 +78,6 @@ public class StudyPlanResponse {
             this.endDate = studyPlan.getEndDate();
             this.color = studyPlan.getColor();
 
-            // 부모 계획 ID 설정
-            if (studyPlan.getParentPlan() != null) {
-                this.parentPlanId = studyPlan.getParentPlan().getId();
-            }
-
-            // 자식 계획들 변환
-            if (studyPlan.getChildPlans() != null && !studyPlan.getChildPlans().isEmpty()) {
-                this.childPlans = studyPlan.getChildPlans().stream()
-                        .map(StudyPlanResponse::new)
-                        .collect(Collectors.toList());
-            }
 
             // RepeatRule 변환
             if (studyPlan.getRepeatRule() != null) {

@@ -26,7 +26,6 @@ public class StudyPlanService{
         studyPlan.setStartDate(request.getStartDate());
         studyPlan.setEndDate(request.getEndDate());
         studyPlan.setColor(request.getColor());
-        studyPlan.setParentPlan(null);
 
         // 반복 규칙 설정
         if (request.getRepeatRule() != null) {
@@ -54,6 +53,7 @@ public class StudyPlanService{
             studyPlan.setRepeatRule(repeatRule);
         }
 
+        //추후 변수명이나 리턴 형식은 수정 예정
         StudyPlanResponse rs =new StudyPlanResponse(studyPlanRepository.save(studyPlan));
         return rs;
     }
