@@ -1,5 +1,6 @@
 package com.back.domain.study.plan.entity;
 
+import com.back.domain.study.record.entity.StudyRecord;
 import com.back.domain.user.entity.User;
 import com.back.global.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -45,4 +46,10 @@ public class StudyPlan extends BaseEntity {
 
     @OneToOne(mappedBy = "studyPlan",cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private RepeatRule repeatRule;
+
+    @OneToMany(mappedBy = "todo", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<StudyRecord> studyRecords;
+
+    @OneToMany(mappedBy = "studyPlan", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<StudyPlanException> exceptions = new ArrayList<>();
 }

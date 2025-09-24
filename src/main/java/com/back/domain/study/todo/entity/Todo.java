@@ -24,6 +24,4 @@ public class Todo extends BaseEntity {
 
     private LocalDateTime date;
 
-    @OneToMany(mappedBy = "todo", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<StudyRecord> studyRecords;
 }
