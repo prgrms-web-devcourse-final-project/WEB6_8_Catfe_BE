@@ -5,6 +5,7 @@ import com.back.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.List;
 @Entity
 @NoArgsConstructor
 @Getter
+@Setter
 public class StudyPlan extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -21,8 +23,6 @@ public class StudyPlan extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String subject;
 
-    @Enumerated(EnumType.STRING)
-    private StudyStatus status;
 
     @Column(name = "start_date", nullable = false)
     private LocalDateTime startDate;

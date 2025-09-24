@@ -27,7 +27,7 @@ public class RepeatRule extends BaseEntity {
 
     //필요 시 요일 지정
     @Enumerated(EnumType.STRING)
-    private DayOfWeek byDay;
+    private String byDay;
 
-    private LocalDateTime until;
+    private LocalDateTime untilDate;
 }
