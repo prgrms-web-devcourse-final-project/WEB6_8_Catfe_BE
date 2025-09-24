@@ -36,8 +36,8 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private UserStatus userStatus;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserProfile> userProfiles = new ArrayList<>();
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private UserProfile userProfile;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserToken> userTokens = new ArrayList<>();
@@ -81,21 +81,42 @@ public class User extends BaseEntity {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FileAttachment> fileAttachments = new ArrayList<>();
 
+    // -------------------- 생성자 --------------------
+    public User(String username, String email, String password, Role role, UserStatus userStatus) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+        this.role = role;
+        this.userStatus = userStatus;
+    }
+
+    // -------------------- 정적 팩토리 메서드 --------------------
+    // 일반 사용자 생성
+    public static User createUser(String username, String email, String password) {
+        return new User(username, email, password, Role.USER, UserStatus.PENDING);
+    }
+
+    // 관리자 사용자 생성
+    public static User createAdmin(String username, String email, String password) {
+        return new User(username, email, password, Role.ADMIN, UserStatus.ACTIVE);
+    }
+
+    // -------------------- 연관관계 메서드 --------------------
+    public void setUserProfile(UserProfile profile) {
+        this.userProfile = profile;
+        profile.setUser(this);
+    }
+
     // -------------------- 헬퍼 메서드 --------------------
     // 현재 사용자의 닉네임 조회
     public String getNickname() {
-        return userProfiles.stream()
-                .findFirst()
-                .map(UserProfile::getNickname)
-                .filter(nickname -> nickname != null && !nickname.trim().isEmpty())
-                .orElse(this.username);
+        return userProfile != null && userProfile.getNickname() != null && !userProfile.getNickname().trim().isEmpty()
+                ? userProfile.getNickname()
+                : this.username;
     }
 
     // 현재 사용자의 프로필 이미지 URL 조회
     public String getProfileImageUrl() {
-        return userProfiles.stream()
-                .findFirst()
-                .map(UserProfile::getProfileImageUrl)
-                .orElse(null);
+        return userProfile != null ? userProfile.getProfileImageUrl() : null;
     }
 }
