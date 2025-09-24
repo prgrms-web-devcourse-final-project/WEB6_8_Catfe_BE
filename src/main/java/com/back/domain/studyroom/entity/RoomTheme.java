@@ -14,9 +14,7 @@ import java.util.List;
 public class RoomTheme extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private RoomType type;
-
     private String name;
-
     private String imageUrl;
 
     @OneToMany(mappedBy = "theme", cascade = CascadeType.ALL, orphanRemoval = true)
