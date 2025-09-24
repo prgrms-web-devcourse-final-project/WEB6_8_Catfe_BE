@@ -4,7 +4,6 @@ import com.back.domain.study.plan.dto.StudyPlanCreateRequest;
 import com.back.domain.study.plan.dto.StudyPlanResponse;
 import com.back.domain.study.plan.entity.RepeatRule;
 import com.back.domain.study.plan.entity.StudyPlan;
-import com.back.domain.study.plan.entity.StudyStatus;
 import com.back.domain.study.plan.repository.StudyPlanRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,7 +23,6 @@ public class StudyPlanService{
         StudyPlan studyPlan = new StudyPlan();
         //studyPlan.setUser(user);
         studyPlan.setSubject(request.getSubject());
-        studyPlan.setStatus(StudyStatus.TODO);
         studyPlan.setStartDate(request.getStartDate());
         studyPlan.setEndDate(request.getEndDate());
         studyPlan.setColor(request.getColor());
@@ -56,8 +54,8 @@ public class StudyPlanService{
             studyPlan.setRepeatRule(repeatRule);
         }
 
-        StudyPlan savedStudyPlan = studyPlanRepository.save(studyPlan);
-        return convertToResponse(savedStudyPlan);
+        StudyPlanResponse rs =new StudyPlanResponse(studyPlanRepository.save(studyPlan));
+        return rs;
     }
 
 
