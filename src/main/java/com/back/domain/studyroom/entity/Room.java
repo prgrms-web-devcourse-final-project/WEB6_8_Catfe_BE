@@ -4,15 +4,19 @@ import com.back.domain.study.record.entity.StudyRecord;
 import com.back.domain.user.entity.User;
 import com.back.global.entity.BaseEntity;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@NoArgsConstructor
 @Getter
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Room extends BaseEntity {
     private String title;
 

@@ -1,6 +1,7 @@
 package com.back.global.security;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -13,6 +14,7 @@ import java.util.List;
  * - JWT에서 파싱한 사용자 정보를 담고 있음
  */
 @Getter
+@Builder
 @AllArgsConstructor
 public class CustomUserDetails implements UserDetails {
     private Long userId;

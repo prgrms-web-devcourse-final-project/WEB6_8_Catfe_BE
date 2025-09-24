@@ -12,7 +12,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -26,14 +25,9 @@ public class ChatApiController {
     public ResponseEntity<RsData<ChatPageResponse>> getRoomChatMessages(
             @PathVariable Long roomId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime before,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-
-        // size 최대값 제한 (임시: max 100)
-        if (size > 100) {
-            size = 100;
-        }
 
         ChatPageResponse chatHistory = chatService.getRoomChatHistory(roomId, page, size, before);
 

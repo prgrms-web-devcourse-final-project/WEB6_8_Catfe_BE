@@ -10,6 +10,7 @@ import com.back.domain.chat.dto.ChatMessageDto;
 import com.back.domain.chat.dto.ChatPageResponse;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import com.back.global.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,6 +28,11 @@ public class ChatService {
     private final RoomChatMessageRepository roomChatMessageRepository;
     private final RoomRepository roomRepository;
     private final UserRepository userRepository;
+    private final CurrentUser currentUser;
+
+    // 페이징 설정 상수
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
 
     // 방 채팅 메시지 저장
     @Transactional
@@ -54,7 +60,10 @@ public class ChatService {
         roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        Pageable pageable = PageRequest.of(page, size);
+        // size 값 검증 및 제한
+        int validatedSize = validateAndLimitPageSize(size);
+
+        Pageable pageable = PageRequest.of(page, validatedSize);
 
         // before 파라미터가 있으면 해당 시점 이전 메시지만 조회
         Page<RoomChatMessage> messagesPage;
@@ -67,6 +76,14 @@ public class ChatService {
         Page<ChatMessageDto> dtoPage = messagesPage.map(this::convertToDto);
 
         return ChatPageResponse.from(dtoPage);
+    }
+
+    // size 값 검증 및 최대값 제한
+    private int validateAndLimitPageSize(int size) {
+        if (size <= 0) {
+            return DEFAULT_PAGE_SIZE; // 0 이하면 기본값 사용
+        }
+        return Math.min(size, MAX_PAGE_SIZE); // 최대값 제한
     }
 
     // 메시지 엔티티를 DTO로 변환
