@@ -8,6 +8,7 @@ import redis.embedded.RedisServer;
 import redis.embedded.RedisServerBuilder;
 
 import java.io.IOException;
+import java.net.ServerSocket;
 
 /**
  * Embedded Redis 설정 클래스
@@ -20,23 +21,35 @@ import java.io.IOException;
 public class EmbeddedRedisConfig {
 
     private RedisServer redisServer;
-
-    public EmbeddedRedisConfig() throws IOException {
-        this.redisServer = new RedisServerBuilder()
-                .port(6379)
-                .setting("maxheap 256M")
-                .build();
-    }
+    private int port;
 
     @PostConstruct
-    public void startRedis() {
+    public void startRedis() throws IOException {
+        port = findAvailablePort();
+        redisServer = new RedisServerBuilder()
+                .port(port)
+                .setting("maxheap 256M")
+                .build();
         redisServer.start();
+
+        // 동적으로 찾은 포트를 Spring 환경 변수에 반영
+        System.setProperty("spring.data.redis.port", String.valueOf(port));
     }
 
     @PreDestroy
     public void stopRedis() {
         if (redisServer != null) {
             redisServer.stop();
+        }
+    }
+
+    // 사용 가능한 포트를 찾는 유틸리티 메서드
+    private int findAvailablePort() {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            socket.setReuseAddress(true);
+            return socket.getLocalPort();
+        } catch (IOException e) {
+            throw new IllegalStateException("No available port found", e);
         }
     }
 }
