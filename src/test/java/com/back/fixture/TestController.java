@@ -1,4 +1,4 @@
-package com.back.api;
+package com.back.fixture;
 
 import com.back.global.security.CustomUserDetails;
 import org.springframework.security.access.prepost.PreAuthorize;
