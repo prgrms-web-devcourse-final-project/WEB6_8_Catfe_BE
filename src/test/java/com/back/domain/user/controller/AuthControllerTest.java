@@ -35,7 +35,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("정상 회원가입 → 201 Created")
     void register_success() throws Exception {
-        // given
+        // given: 정상적인 회원가입 요청 JSON
         String body = """
             {
               "username": "testuser",
@@ -45,14 +45,14 @@ class AuthControllerTest {
             }
             """;
 
-        // when
+        // when: 회원가입 API 호출
         ResultActions resultActions = mvc.perform(
                 post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body)
         ).andDo(print());
 
-        // then
+        // then: 응답 값과 DB 저장값 검증
         resultActions
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
@@ -60,6 +60,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.email").value("test@example.com"))
                 .andExpect(jsonPath("$.data.nickname").value("홍길동"));
 
+        // DB에서 저장된 User 상태 검증
         User saved = userRepository.findByUsername("testuser").orElseThrow();
         assertThat(saved.getUserStatus()).isEqualTo(UserStatus.PENDING);
     }
@@ -67,10 +68,12 @@ class AuthControllerTest {
     @Test
     @DisplayName("중복 username → 409 Conflict")
     void register_duplicateUsername() throws Exception {
+        // given: 이미 존재하는 username을 가진 User 저장
         User existing = User.createUser("dupuser", "dup@example.com", "password123!");
         existing.setUserProfile(new UserProfile(existing, "dupnick", null, null, null, 0));
         userRepository.save(existing);
 
+        // 동일 username으로 회원가입 요청
         String body = """
             {
               "username": "dupuser",
@@ -80,6 +83,7 @@ class AuthControllerTest {
             }
             """;
 
+        // when & then: 409 Conflict 응답 및 에러 코드 확인
         mvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -91,10 +95,12 @@ class AuthControllerTest {
     @Test
     @DisplayName("중복 email → 409 Conflict")
     void register_duplicateEmail() throws Exception {
+        // given: 이미 존재하는 email을 가진 User 저장
         User existing = User.createUser("user1", "dup@example.com", "password123!");
         existing.setUserProfile(new UserProfile(existing, "nick1", null, null, null, 0));
         userRepository.save(existing);
 
+        // 동일 email로 회원가입 요청
         String body = """
             {
               "username": "otheruser",
@@ -104,6 +110,7 @@ class AuthControllerTest {
             }
             """;
 
+        // when & then: 409 Conflict 응답 및 에러 코드 확인
         mvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -115,10 +122,12 @@ class AuthControllerTest {
     @Test
     @DisplayName("중복 nickname → 409 Conflict")
     void register_duplicateNickname() throws Exception {
+        // given: 이미 존재하는 nickname을 가진 User 저장
         User existing = User.createUser("user2", "user2@example.com", "password123!");
         existing.setUserProfile(new UserProfile(existing, "dupnick", null, null, null, 0));
         userRepository.save(existing);
 
+        // 동일 nickname으로 회원가입 요청
         String body = """
             {
               "username": "newuser",
@@ -128,6 +137,7 @@ class AuthControllerTest {
             }
             """;
 
+        // when & then: 409 Conflict 응답 및 에러 코드 확인
         mvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -139,6 +149,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("비밀번호 정책 위반 → 400 Bad Request")
     void register_invalidPassword() throws Exception {
+        // given: 숫자/특수문자 포함 안 된 약한 비밀번호
         String body = """
             {
               "username": "weakpw",
@@ -148,6 +159,7 @@ class AuthControllerTest {
             }
             """;
 
+        // when & then: 400 Bad Request 응답 및 에러 코드 확인
         mvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -159,6 +171,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("잘못된 요청값 (필수 필드 누락) → 400 Bad Request")
     void register_invalidRequest_missingField() throws Exception {
+        // given: 필수 값 누락 (username, password, nickname 비어있음 / email 형식 잘못됨)
         String body = """
             {
               "username": "",
@@ -168,6 +181,7 @@ class AuthControllerTest {
             }
             """;
 
+        // when & then: 400 Bad Request 응답 및 공통 에러 코드 확인
         mvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
