@@ -21,6 +21,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -97,6 +98,36 @@ public class StudyPlanService{
         }
 
         return result;
+    }
+
+    // 기간별 계획 조회
+    public List<StudyPlanResponse> getStudyPlansForPeriod(Long userId, LocalDate startDate, LocalDate endDate) {
+        List<StudyPlan> userPlans = studyPlanRepository.findByUserId(userId);
+        List<StudyPlanResponse> result = new ArrayList<>();
+
+        LocalDate currentDate = startDate;
+        // 날짜 범위 내에서 반복
+        while (!currentDate.isAfter(endDate)) {
+            for (StudyPlan plan : userPlans) {
+                if (plan.getRepeatRule() == null) {
+                    // 단발성 계획은 그대로 추가
+                    if (plan.getStartDate().toLocalDate().isEqual(currentDate)) {
+                        result.add(new StudyPlanResponse(plan));
+                    }
+                } else {
+                    // 반복성 계획은 가상 계획화 후 추가
+                    StudyPlanResponse virtualPlan = createVirtualPlanForDate(plan, currentDate);
+                    if (virtualPlan != null) {
+                        result.add(virtualPlan);
+                    }
+                }
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return result.stream()
+                .sorted(Comparator.comparing(StudyPlanResponse::getStartDate))
+                .collect(Collectors.toList());
     }
 
     // 반복 계획을 위한 가상 계획 생성

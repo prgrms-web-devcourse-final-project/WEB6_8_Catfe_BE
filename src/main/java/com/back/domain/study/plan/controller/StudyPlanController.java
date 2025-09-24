@@ -13,13 +13,15 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/plans")
 public class StudyPlanController {
     private final StudyPlanService studyPlanService;
-
+    // ==================== 생성 ===================
     @PostMapping
     public ResponseEntity<RsData<StudyPlanResponse>> createStudyPlan(
             // 로그인 유저 정보 받기 @AuthenticationPrincipal CustomUserDetails user,
@@ -30,6 +32,7 @@ public class StudyPlanController {
         return ResponseEntity.ok(RsData.success("학습 계획이 성공적으로 생성되었습니다.", response));
     }
 
+    // ==================== 조회 ===================
     // 특정 날짜의 계획들 조회. date 형식: YYYY-MM-DD
     @GetMapping("/date/{date}")
     public ResponseEntity<RsData<StudyPlanListResponse>> getStudyPlansForDate(
@@ -45,12 +48,32 @@ public class StudyPlanController {
         return ResponseEntity.ok(RsData.success("해당 날짜의 계획을 조회했습니다.", response));
     }
 
+    // 기간별 계획 조회
+    @GetMapping
+    public ResponseEntity<RsData<List<StudyPlanResponse>>> getStudyPlansForPeriod(
+            // @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        // Long userId = user.getId();
+        Long userId = 1L; // 임시
+
+        List<StudyPlanResponse> plans = studyPlanService.getStudyPlansForPeriod(userId, startDate, endDate);
+
+        return ResponseEntity.ok(RsData.success("기간별 계획을 조회했습니다.", plans));
+    }
+
+
+
+    // ==================== 수정 ===================
+
+
+
+    // ==================== 삭제 ===================
     @DeleteMapping("/{planId}")
     public ResponseEntity<RsData<Void>> deleteStudyPlan(@PathVariable Long planId) {
         //studyPlanService.deleteStudyPlan(planId);
         return ResponseEntity.ok(RsData.success("학습 계획이 성공적으로 삭제되었습니다.", null));
     }
-
 
 
 
