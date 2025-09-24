@@ -3,18 +3,20 @@ package com.back.domain.chat.controller;
 import com.back.domain.chat.dto.ChatPageResponse;
 import com.back.domain.chat.service.ChatService;
 import com.back.global.common.dto.RsData;
+import com.back.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
 @RequiredArgsConstructor
+@RequestMapping("/api")
 public class ChatApiController {
 
     private final ChatService chatService;
@@ -26,14 +28,12 @@ public class ChatApiController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime before,
-            @RequestHeader("Authorization") String authorization) {
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         // size 최대값 제한 (임시: max 100)
         if (size > 100) {
             size = 100;
         }
-
-        // TODO: JWT 토큰에서 사용자 정보 추출 및 권한 확인
 
         ChatPageResponse chatHistory = chatService.getRoomChatHistory(roomId, page, size, before);
 

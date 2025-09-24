@@ -2,6 +2,7 @@ package com.back.domain.chat.controller;
 
 import com.back.domain.studyroom.entity.RoomChatMessage;
 import com.back.domain.chat.dto.ChatMessageDto;
+import com.back.global.security.CustomUserDetails;
 import com.back.global.websocket.dto.WebSocketErrorResponse;
 import com.back.domain.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +10,10 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
+
+import java.security.Principal;
 
 @Controller
 @RequiredArgsConstructor
@@ -25,18 +29,24 @@ public class ChatWebSocketController {
      * @param roomId 스터디룸 ID
      * @param chatMessage 채팅 메시지 (content, messageType, attachmentId)
      * @param headerAccessor WebSocket 헤더 정보
+     * @param principal 인증된 사용자 정보
      */
     @MessageMapping("/chat/room/{roomId}")
     public void handleRoomChat(@DestinationVariable Long roomId,
                                ChatMessageDto chatMessage,
-                               SimpMessageHeaderAccessor headerAccessor) {
+                               SimpMessageHeaderAccessor headerAccessor,
+                               Principal principal) {
 
         try {
-            // TODO: WebSocket 세션에서 사용자 정보 추출
+            // WebSocket에서 인증된 사용자 정보 추출
+            CustomUserDetails userDetails = extractUserDetails(principal);
+            if (userDetails == null) {
+                sendErrorToUser(headerAccessor.getSessionId(), "WS_UNAUTHORIZED", "인증이 필요합니다");
+                return;
+            }
 
-            // 임시 하드코딩 (나중에 JWT 인증으로 교체)
-            Long currentUserId = 1L;
-            String currentUserNickname = "테스트사용자";
+            Long currentUserId = userDetails.getUserId();
+            String currentUserNickname = userDetails.getUsername();
 
             // 메시지 정보 보완
             chatMessage.setRoomId(roomId);
@@ -73,6 +83,23 @@ public class ChatWebSocketController {
             String sessionId = headerAccessor.getSessionId();
             messagingTemplate.convertAndSendToUser(sessionId, "/queue/errors", errorResponse);
         }
+    }
+
+    // WebSocket Principal에서 CustomUserDetails 추출
+    private CustomUserDetails extractUserDetails(Principal principal) {
+        if (principal instanceof Authentication auth) {
+            Object principalObj = auth.getPrincipal();
+            if (principalObj instanceof CustomUserDetails userDetails) {
+                return userDetails;
+            }
+        }
+        return null;
+    }
+
+    // 특정 사용자에게 에러 메시지 전송
+    private void sendErrorToUser(String sessionId, String errorCode, String errorMessage) {
+        WebSocketErrorResponse errorResponse = WebSocketErrorResponse.create(errorCode, errorMessage);
+        messagingTemplate.convertAndSendToUser(sessionId, "/queue/errors", errorResponse);
     }
 
 }
