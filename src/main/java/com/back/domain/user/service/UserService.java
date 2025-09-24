@@ -4,6 +4,7 @@ import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
+import com.back.domain.user.repository.UserProfileRepository;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class UserService {
     private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
 
     /**
@@ -72,7 +74,7 @@ public class UserService {
         if (userRepository.existsByEmail(request.email())) {
             throw new CustomException(ErrorCode.EMAIL_DUPLICATED);
         }
-        if (userRepository.existsByNickname(request.nickname())) {
+        if (userProfileRepository.existsByNickname(request.nickname())) {
             throw new CustomException(ErrorCode.NICKNAME_DUPLICATED);
         }
     }
