@@ -69,7 +69,7 @@ class ChatServiceTest {
                 .build();
 
         // 리플렉션으로 userProfiles 필드 설정
-        setUserProfiles(testUser, Arrays.asList(testUserProfile));
+        setUserProfile(testUser, testUserProfile);
 
         testRoom = Room.builder()
                 .id(1L)
@@ -99,10 +99,10 @@ class ChatServiceTest {
     }
 
     // User의 userProfiles 필드 설정
-    private void setUserProfiles(User user, List<UserProfile> profiles) throws Exception {
-        Field userProfilesField = User.class.getDeclaredField("userProfiles");
+    private void setUserProfile(User user, UserProfile profile) throws Exception {
+        Field userProfilesField = User.class.getDeclaredField("userProfile");
         userProfilesField.setAccessible(true);
-        userProfilesField.set(user, profiles);
+        userProfilesField.set(user, profile);
     }
 
     // 리플렉션으로 필드 값 설정하는 헬퍼 메소드
