@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface StudyPlanExceptionRepository extends JpaRepository<StudyPlanException, Long> {
@@ -20,11 +21,16 @@ public interface StudyPlanExceptionRepository extends JpaRepository<StudyPlanExc
             @Param("planId") Long planId,
             @Param("applyScope") StudyPlanException.ApplyScope applyScope,
             @Param("targetDate") LocalDateTime targetDate);
-    //특정 계획의 특정 기간 예외 조회
+// 특정 계획의 특정 기간 동안(start~end)의 예외를 조회
     @Query("SELECT spe FROM StudyPlanException spe WHERE spe.studyPlan.id = :planId " +
             "AND spe.exceptionDate BETWEEN :startDate AND :endDate " +
             "ORDER BY spe.exceptionDate")
     List<StudyPlanException> findByStudyPlanIdAndExceptionDateBetween(@Param("planId") Long planId,
                                                                       @Param("startDate") LocalDateTime startDate,
                                                                       @Param("endDate") LocalDateTime endDate);
+    // 특정 계획의 특정 날짜 예외 조회
+    @Query("SELECT spe FROM StudyPlanException spe WHERE spe.studyPlan.id = :planId " +
+            "AND DATE(spe.exceptionDate) = DATE(:targetDate)")
+    Optional<StudyPlanException> findByPlanIdAndDate(@Param("planId") Long planId,
+                                                     @Param("targetDate") LocalDateTime targetDate);
 }

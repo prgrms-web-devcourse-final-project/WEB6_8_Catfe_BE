@@ -31,9 +31,6 @@ public class StudyPlanResponse {
 
     private Color color;
 
-    private Long parentPlanId;
-    private List<StudyPlanResponse> childPlans;
-
     // RepeatRule 정보
     private RepeatRuleResponse repeatRule;
 
