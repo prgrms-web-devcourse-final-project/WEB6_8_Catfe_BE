@@ -2,8 +2,8 @@ package com.back.domain.user.entity;
 
 import com.back.domain.board.entity.*;
 import com.back.domain.file.entity.FileAttachment;
-import com.back.domain.study.entity.StudyPlan;
-import com.back.domain.study.entity.Todo;
+import com.back.domain.study.plan.entity.StudyPlan;
+import com.back.domain.study.todo.entity.Todo;
 import com.back.domain.studyroom.entity.RoomChatMessage;
 import com.back.domain.studyroom.entity.RoomMember;
 import com.back.domain.studyroom.entity.RoomParticipantHistory;
