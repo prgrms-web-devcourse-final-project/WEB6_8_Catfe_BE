@@ -10,10 +10,10 @@ public enum ErrorCode {
 
     // ======================== 사용자 관련 ========================
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "존재하지 않는 사용자입니다."),
-    USERNAME_DUPLICATED(HttpStatus.CONFLICT, "USER_409", "이미 사용 중인 아이디입니다."),
-    EMAIL_DUPLICATED(HttpStatus.CONFLICT, "USER_409", "이미 사용 중인 이메일입니다."),
-    NICKNAME_DUPLICATED(HttpStatus.CONFLICT, "USER_409", "이미 사용 중인 닉네임입니다."),
-    INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "USER_400", "비밀번호는 최소 8자 이상, 숫자/특수문자를 포함해야 합니다."),
+    USERNAME_DUPLICATED(HttpStatus.CONFLICT, "USER_002", "이미 사용 중인 아이디입니다."),
+    EMAIL_DUPLICATED(HttpStatus.CONFLICT, "USER_003", "이미 사용 중인 이메일입니다."),
+    NICKNAME_DUPLICATED(HttpStatus.CONFLICT, "USER_004", "이미 사용 중인 닉네임입니다."),
+    INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "USER_005", "비밀번호는 최소 8자 이상, 숫자/특수문자를 포함해야 합니다."),
 
     // ======================== 스터디룸 관련 ========================
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_001", "존재하지 않는 방입니다."),

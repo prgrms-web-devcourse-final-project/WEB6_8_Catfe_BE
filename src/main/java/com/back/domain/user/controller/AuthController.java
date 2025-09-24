@@ -7,6 +7,7 @@ import com.back.global.common.dto.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,7 +34,7 @@ public class AuthController {
             @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     public ResponseEntity<RsData<UserResponse>> register(
-            @RequestBody UserRegisterRequest request
+            @Valid @RequestBody UserRegisterRequest request
     ) {
         UserResponse response = userService.register(request);
         return ResponseEntity
