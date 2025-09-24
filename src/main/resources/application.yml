@@ -3,10 +3,9 @@ spring:
     name: catfe-backend
 
   # 개발환경
-#  profiles:
-#    active: dev
+  profiles:
+    active: dev
 
 # 운영환경
-  profiles:
-    active: prod
-
+#  profiles:
+#    active: prod
