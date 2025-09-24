@@ -5,6 +5,7 @@ import com.back.domain.chat.dto.ChatMessageDto;
 import com.back.global.security.CustomUserDetails;
 import com.back.global.websocket.dto.WebSocketErrorResponse;
 import com.back.domain.chat.service.ChatService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -17,6 +18,7 @@ import java.security.Principal;
 
 @Controller
 @RequiredArgsConstructor
+@Tag(name = "Chat WebSocket", description = "STOMP를 이용한 실시간 채팅 WebSocket 컨트롤러 (Swagger에서 직접 테스트 불가)")
 public class ChatWebSocketController {
 
     private final ChatService chatService;
