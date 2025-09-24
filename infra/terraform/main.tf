@@ -105,7 +105,6 @@ resource "aws_route_table_association" "association_3" {
 
 resource "aws_security_group" "sg_1" {
   name        = "team5-sg-1"
-  description = "Allow SSH and HTTP"
   vpc_id      = aws_vpc.vpc_1.id
 
   ingress {
