@@ -14,6 +14,15 @@ public enum ErrorCode {
     // ======================== 스터디룸 관련 ========================
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_001", "존재하지 않는 방입니다."),
     ROOM_FORBIDDEN(HttpStatus.FORBIDDEN, "ROOM_002", "방에 대한 접근 권한이 없습니다."),
+    ROOM_FULL(HttpStatus.BAD_REQUEST, "ROOM_003", "방이 가득 찼습니다."),
+    ROOM_PASSWORD_INCORRECT(HttpStatus.BAD_REQUEST, "ROOM_004", "방 비밀번호가 틀렸습니다."),
+    ROOM_INACTIVE(HttpStatus.BAD_REQUEST, "ROOM_005", "비활성화된 방입니다."),
+    ROOM_TERMINATED(HttpStatus.BAD_REQUEST, "ROOM_006", "종료된 방입니다."),
+    ALREADY_JOINED_ROOM(HttpStatus.BAD_REQUEST, "ROOM_007", "이미 참여 중인 방입니다."),
+    NOT_ROOM_MEMBER(HttpStatus.FORBIDDEN, "ROOM_008", "방 멤버가 아닙니다."),
+    NOT_ROOM_MANAGER(HttpStatus.FORBIDDEN, "ROOM_009", "방 관리자 권한이 필요합니다."),
+    CANNOT_KICK_HOST(HttpStatus.BAD_REQUEST, "ROOM_010", "방장은 추방할 수 없습니다."),
+    CANNOT_CHANGE_HOST_ROLE(HttpStatus.BAD_REQUEST, "ROOM_011", "방장의 권한은 변경할 수 없습니다."),
 
     // ======================== 메시지 관련 ========================
     MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MESSAGE_001", "존재하지 않는 메시지입니다."),
