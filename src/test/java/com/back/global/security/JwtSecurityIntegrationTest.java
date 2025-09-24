@@ -1,6 +1,5 @@
-package com.back;
+package com.back.global.security;
 
-import com.back.global.security.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

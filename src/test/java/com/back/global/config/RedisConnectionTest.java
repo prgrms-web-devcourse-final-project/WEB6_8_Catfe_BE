@@ -1,4 +1,4 @@
-package com.back;
+package com.back.global.config;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
