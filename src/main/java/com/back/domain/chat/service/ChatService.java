@@ -59,10 +59,9 @@ public class ChatService {
         // before 파라미터가 있으면 해당 시점 이전 메시지만 조회
         Page<RoomChatMessage> messagesPage;
         if (before != null) {
-            // TODO: before 조건 추가한 Repository 메서드 필요
-            messagesPage = roomChatMessageRepository.findByRoomIdOrderByCreatedAtDesc(roomId, pageable);
+            messagesPage = roomChatMessageRepository.findMessagesByRoomIdBefore(roomId, before, pageable);
         } else {
-            messagesPage = roomChatMessageRepository.findByRoomIdOrderByCreatedAtDesc(roomId, pageable);
+            messagesPage = roomChatMessageRepository.findMessagesByRoomId(roomId, pageable);
         }
 
         Page<ChatMessageDto> dtoPage = messagesPage.map(this::convertToDto);
