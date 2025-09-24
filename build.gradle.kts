@@ -66,10 +66,7 @@ dependencies {
 
     // Redis
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    implementation("it.ozimov:embedded-redis:0.7.3") {
-        exclude(group = "org.slf4j", module = "slf4j-simple")
-    }
-
+    implementation("com.github.codemonstur:embedded-redis:1.4.3")
 }
 
 tasks.withType<Test> {

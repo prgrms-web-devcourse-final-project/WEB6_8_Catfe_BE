@@ -5,7 +5,6 @@ import jakarta.annotation.PreDestroy;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import redis.embedded.RedisServer;
-import redis.embedded.RedisServerBuilder;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -24,26 +23,28 @@ public class EmbeddedRedisConfig {
     private int port;
 
     @PostConstruct
-    public void startRedis() throws IOException {
-        port = findAvailablePort();
-        redisServer = new RedisServerBuilder()
-                .port(port)
-                .setting("maxheap 256M")
-                .build();
-        redisServer.start();
-
-        // 동적으로 찾은 포트를 Spring 환경 변수에 반영
-        System.setProperty("spring.data.redis.port", String.valueOf(port));
+    public void startRedis() {
+        try {
+            this.port = findAvailablePort();
+            this.redisServer = new RedisServer(port);
+            this.redisServer.start();
+            System.setProperty("spring.data.redis.port", String.valueOf(port));
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to start embedded Redis", e);
+        }
     }
 
     @PreDestroy
     public void stopRedis() {
-        if (redisServer != null) {
-            redisServer.stop();
+        try {
+            if (redisServer != null && redisServer.isActive()) {
+                redisServer.stop();
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to stop embedded Redis", e);
         }
     }
 
-    // 사용 가능한 포트를 찾는 유틸리티 메서드
     private int findAvailablePort() {
         try (ServerSocket socket = new ServerSocket(0)) {
             socket.setReuseAddress(true);
