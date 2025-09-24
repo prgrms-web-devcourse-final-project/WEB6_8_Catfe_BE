@@ -48,7 +48,7 @@ public class StudyPlanController {
         return ResponseEntity.ok(RsData.success("해당 날짜의 계획을 조회했습니다.", response));
     }
 
-    // 기간별 계획 조회
+    // 기간별 계획 조회. start, end 형식: YYYY-MM-DD
     @GetMapping
     public ResponseEntity<RsData<List<StudyPlanResponse>>> getStudyPlansForPeriod(
             // @AuthenticationPrincipal CustomUserDetails user,
