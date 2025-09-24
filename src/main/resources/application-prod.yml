@@ -15,3 +15,8 @@ spring:
 
 springdoc:
   default-produces-media-type: application/json;charset=UTF-8
+
+jwt:
+  secret: ${JWT_SECRET:test-jwt-secret-key-12345678901234567890} # 운영 시에는 반드시 환경 변수로 설정할 것
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:1800}  # 30분 (초 단위)
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800}  # 7일 (초 단위)

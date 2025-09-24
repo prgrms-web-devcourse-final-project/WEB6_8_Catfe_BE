@@ -179,7 +179,7 @@ END_OF_FILE
 # EC2 인스턴스 생성
 resource "aws_instance" "ec2_1" {
   ami           = "ami-077ad873396d76f6a"
-  instance_type = "t2.micro"
+  instance_type = "t3.micro"
 
   subnet_id              = aws_subnet.subnet_1.id
   vpc_security_group_ids = [aws_security_group.sg_1.id]
@@ -208,14 +208,14 @@ EOF
 # RDS용 Security Group
 resource "aws_security_group" "rds_sg_1" {
   name        = "team5-rds-sg-1"
-  description = "Allow MySQL from EC2"
+  description = "Allow All"
   vpc_id      = aws_vpc.vpc_1.id
 
   ingress {
     from_port       = 3306
     to_port         = 3306
     protocol        = "tcp"
-    security_groups = [aws_security_group.sg_1.id]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
