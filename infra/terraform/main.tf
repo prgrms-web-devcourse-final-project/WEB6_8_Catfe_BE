@@ -2,7 +2,7 @@ terraform {
   // aws 라이브러리 불러옴
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
+      source = "hashicorp/aws"
     }
   }
 }
@@ -14,8 +14,8 @@ provider "aws" {
 
 # VPC_1
 resource "aws_vpc" "vpc_1" {
-  cidr_block = "10.0.0.0/16"
-  enable_dns_support = true
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
   enable_dns_hostnames = true
 
   tags = {
@@ -25,9 +25,9 @@ resource "aws_vpc" "vpc_1" {
 
 # 퍼블릭 서브넷 (Subnet_1)
 resource "aws_subnet" "subnet_1" {
-  vpc_id = aws_vpc.vpc_1.id
-  cidr_block = "10.0.1.0/24"
-  availability_zone = "ap-northeast-2a"
+  vpc_id                  = aws_vpc.vpc_1.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "ap-northeast-2a"
   map_public_ip_on_launch = true # 퍼블릭 IP 자동 할당
 
   tags = {
@@ -37,12 +37,23 @@ resource "aws_subnet" "subnet_1" {
 
 # 프라이빗 서브넷 (Subnet_2)
 resource "aws_subnet" "subnet_2" {
-  vpc_id = aws_vpc.vpc_1.id
-  cidr_block = "10.0.2.0/24"
-  availability_zone = "ap-northeast-2b"
+  vpc_id            = aws_vpc.vpc_1.id
+  cidr_block        = "10.0.2.0/24"
+  availability_zone = "ap-northeast-2a"
 
   tags = {
     Name = "team5-subnet-2-private"
+  }
+}
+
+# 프라이빗 서브넷 (Subnet_3)
+resource "aws_subnet" "subnet_3" {
+  vpc_id            = aws_vpc.vpc_1.id
+  cidr_block        = "10.0.3.0/24"
+  availability_zone = "ap-northeast-2b"
+
+  tags = {
+    Name = "team5-subnet-3-private"
   }
 }
 
@@ -86,17 +97,22 @@ resource "aws_route_table_association" "association_2" {
   route_table_id = aws_route_table.rt_1.id
 }
 
-resource "aws_security_group" "sg_1" {
-  name = "team5-sg-1"
-  description = "Allow SSH and HTTP"
-  vpc_id = aws_vpc.vpc_1.id
+resource "aws_route_table_association" "association_3" {
+  subnet_id = aws_subnet.subnet_3.id
 
- ingress {
-   from_port = 0
-   to_port = 0
-   protocol = "all" # 모든 프로토콜
-   cidr_blocks = ["0.0.0.0/0"] # 모든 IP 허용
- }
+  route_table_id = aws_route_table.rt_1.id
+}
+
+resource "aws_security_group" "sg_1" {
+  name        = "team5-sg-1"
+  vpc_id      = aws_vpc.vpc_1.id
+
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "all" # 모든 프로토콜
+    cidr_blocks = ["0.0.0.0/0"] # 모든 IP 허용
+  }
 
   egress {
     from_port   = 0
@@ -106,16 +122,148 @@ resource "aws_security_group" "sg_1" {
   }
 }
 
+# EC2 역할 생성
+resource "aws_iam_role" "ec2_role_1" {
+  name = "team5-ec2-role-1"
+
+  # 이 역할에 대한 신뢰 정책 설정. EC2 서비스가 이 역할을 가정할 수 있도록 설정
+  assume_role_policy = <<EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "",
+        "Action": "sts:AssumeRole",
+        "Principal": {
+            "Service": "ec2.amazonaws.com"
+        },
+        "Effect": "Allow"
+      }
+    ]
+  }
+  EOF
+}
+
+# EC2 역할에 AmazonEC2RoleforSSM 정책을 부착
+resource "aws_iam_role_policy_attachment" "ec2_ssm" {
+  role       = aws_iam_role.ec2_role_1.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+}
+
+# IAM 인스턴스 프로파일 생성
+resource "aws_iam_instance_profile" "instance_profile_1" {
+  name = "team5-instance-profile-1"
+  role = aws_iam_role.ec2_role_1.name
+}
+
+# EC2 실행마다 적용할 작업
+locals {
+  ec2_user_data_base = <<-END_OF_FILE
+#!/bin/bash
+yum install docker -y
+systemctl enable docker
+systemctl start docker
+
+yum install git -y
+
+sudo dd if=/dev/zero of=/swapfile bs=128M count=32
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+sudo sh -c 'echo "/swapfile swap swap defaults 0 0" >> /etc/fstab'
+
+END_OF_FILE
+}
+
+# EC2 인스턴스 생성
 resource "aws_instance" "ec2_1" {
   ami           = "ami-077ad873396d76f6a"
-  instance_type = "t2.micro"
+  instance_type = "t3.micro"
 
-  subnet_id = aws_subnet.subnet_1.id
+  subnet_id              = aws_subnet.subnet_1.id
   vpc_security_group_ids = [aws_security_group.sg_1.id]
 
   associate_public_ip_address = true
 
+  # 인스턴스에 IAM 역할 설정
+  iam_instance_profile = aws_iam_instance_profile.instance_profile_1.name
+
   tags = {
     Name = "team5-ec2-1"
+  }
+
+  # 루트 불륨 설정
+  root_block_device {
+    volume_type = "gp3"
+    volume_size = 12
+  }
+
+  # EC2 실행 시, 작업진행
+  user_data = <<-EOF
+${local.ec2_user_data_base}
+EOF
+}
+
+# RDS용 Security Group
+resource "aws_security_group" "rds_sg_1" {
+  name        = "team5-rds-sg-1"
+  description = "Allow All"
+  vpc_id      = aws_vpc.vpc_1.id
+
+  ingress {
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "all"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "team5-rds-sg-1"
+  }
+}
+
+# RDS Subnet Group
+resource "aws_db_subnet_group" "db_subnet_group" {
+  name       = "team5-db-subnet-group"
+  subnet_ids = [aws_subnet.subnet_2.id, aws_subnet.subnet_3.id]
+
+  tags = {
+    Name = "team5-db-subnet-group"
+  }
+}
+
+resource "aws_db_instance" "mysql" {
+  identifier        = "team5-mysql"
+  engine            = "mysql"
+  engine_version    = "8.0"
+  instance_class    = "db.t3.micro"
+  allocated_storage = 20
+  storage_type      = "gp2"
+
+  db_name  = "catfe"
+  username = "catfe_user"
+  password = "catfe_pass"
+
+  db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name
+  vpc_security_group_ids = [aws_security_group.rds_sg_1.id]
+
+
+  multi_az = false
+
+  # 자동 백업 보관 기간
+  backup_retention_period = 1
+
+  # 삭제 시 최종 스냅샷 생성 여부 (개발용은 true, 운영은 false 권장)
+  skip_final_snapshot = true
+
+  tags = {
+    Name = "team5-rds-mysql"
   }
 }

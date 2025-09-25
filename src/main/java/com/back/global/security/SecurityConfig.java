@@ -30,7 +30,7 @@ public class SecurityConfig {
                         auth -> auth
                                 .requestMatchers("/api/auth/**").permitAll()
                                 .requestMatchers("/api/rooms/**").permitAll() // 테스트용 임시 허용
-                                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger 허용
+                                .requestMatchers("/","/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger 허용
                                 .requestMatchers("/h2-console/**").permitAll() // H2 Console 허용
                                 .anyRequest().authenticated()
                 )
