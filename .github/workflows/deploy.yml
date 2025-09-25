@@ -60,7 +60,7 @@ jobs:
 
       - name: set lower case owner name
         run: |
-          echo "OWNER_LC=${{ toLower(env.OWNER) }}" >> ${GITHUB_ENV}
+          echo "OWNER_LC=${OWNER,,}" >> ${GITHUB_ENV}
           
 
       - name: 빌드 앤 푸시
