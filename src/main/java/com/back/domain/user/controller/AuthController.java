@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -62,5 +64,18 @@ public class AuthController implements AuthControllerDocs {
                         "로그아웃 되었습니다.",
                         null
                 ));
+    }
+
+    // 토큰 재발급
+    @PostMapping("/refresh")
+    public ResponseEntity<RsData<Map<String, String>>> refreshToken(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        String newAccessToken = userService.refreshToken(request, response);
+        return ResponseEntity.ok(RsData.success(
+                "토큰이 재발급되었습니다.",
+                Map.of("accessToken", newAccessToken)
+        ));
     }
 }

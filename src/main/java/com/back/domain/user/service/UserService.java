@@ -12,7 +12,6 @@ import com.back.domain.user.repository.UserRepository;
 import com.back.domain.user.repository.UserTokenRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
-import com.back.global.security.CurrentUser;
 import com.back.global.security.JwtTokenProvider;
 import com.back.global.util.CookieUtil;
 import jakarta.servlet.http.Cookie;
@@ -162,12 +161,14 @@ public class UserService {
     }
 
     /**
-     * 로그아웃 서비스
-     * 1. Refresh Token 검증 및 DB 삭제
-     * 2. 쿠키 삭제
+     * 토큰 재발급 서비스
+     * 1. 쿠키에서 Refresh Token 추출
+     * 2. Refresh Token 검증 (만료/위조 확인)
+     * 3. DB에 저장된 Refresh Token 여부 확인
+     * 4. 새 Access Token 발급
      */
-    public void logout(HttpServletRequest request, HttpServletResponse response) {
-        // 쿠키에서 Refresh Token 추출
+    public String refreshToken(HttpServletRequest request, HttpServletResponse response) {
+        // Refresh Token 검증
         String refreshToken = resolveRefreshToken(request);
 
         // Refresh Token 존재 여부 확인
@@ -180,11 +181,24 @@ public class UserService {
             throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
 
-        // DB에서 Refresh Token 삭제
-        userTokenRepository.deleteByRefreshToken(refreshToken);
+        // DB에서 Refresh Token 조회
+        UserToken userToken = userTokenRepository.findByRefreshToken(refreshToken)
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_TOKEN));
 
-        // 쿠키 삭제
-        CookieUtil.clearCookie(response, "refreshToken", "/api/auth");
+        // 사용자 정보 조회
+        User user = userToken.getUser();
+
+        // 새로운 Access Token 발급
+        String newAccessToken = jwtTokenProvider.createAccessToken(
+                user.getId(),
+                user.getUsername(),
+                user.getRole().name()
+        );
+
+        // 새로운 Access Token을 응답 헤더에 설정
+        response.setHeader("Authorization", "Bearer " + newAccessToken);
+
+        return newAccessToken;
     }
 
     /**
