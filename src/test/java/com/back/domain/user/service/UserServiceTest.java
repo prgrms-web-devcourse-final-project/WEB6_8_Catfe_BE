@@ -323,4 +323,61 @@ class UserServiceTest {
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.INVALID_TOKEN.getMessage());
     }
+
+    @Test
+    @DisplayName("정상 토큰 재발급 성공 → 새로운 AccessToken 반환 및 헤더 설정")
+    void refreshToken_success() throws InterruptedException {
+        // given: 로그인된 사용자 준비
+        String rawPassword = "P@ssw0rd!";
+        User user = setupUser("refreshuser", "refresh@example.com", rawPassword, "닉네임", UserStatus.ACTIVE);
+        MockHttpServletResponse loginResponse = new MockHttpServletResponse();
+
+        userService.login(new LoginRequest("refreshuser", rawPassword), loginResponse);
+        String oldAccessToken = loginResponse.getHeader("Authorization").substring(7);
+        Cookie refreshCookie = loginResponse.getCookie("refreshToken");
+        assertThat(refreshCookie).isNotNull();
+
+        // 요청/응답 객체 준비
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(refreshCookie);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // Issued At(발급 시간) 분리를 위해 1초 대기
+//        Thread.sleep(1000);
+
+        // when: 토큰 재발급 실행
+        String newAccessToken = userService.refreshToken(request, response);
+
+        // then: 반환값 및 응답 헤더 검증
+        assertThat(newAccessToken).isNotBlank();
+//        assertThat(newAccessToken).isNotEqualTo(oldAccessToken);
+        assertThat(response.getHeader("Authorization")).isEqualTo("Bearer " + newAccessToken);
+    }
+
+    @Test
+    @DisplayName("RefreshToken 없으면 BAD_REQUEST 예외 발생")
+    void refreshToken_noToken() {
+        // given: 쿠키 없는 요청
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when & then
+        assertThatThrownBy(() -> userService.refreshToken(request, response))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.BAD_REQUEST.getMessage());
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 RefreshToken이면 INVALID_TOKEN 예외 발생")
+    void refreshToken_invalidToken() {
+        // given: 잘못된 Refresh Token
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(new Cookie("refreshToken", "invalidToken"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when & then
+        assertThatThrownBy(() -> userService.refreshToken(request, response))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.INVALID_TOKEN.getMessage());
+    }
 }

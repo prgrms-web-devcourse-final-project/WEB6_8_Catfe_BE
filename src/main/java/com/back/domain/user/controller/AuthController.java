@@ -5,9 +5,6 @@ import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
 import com.back.domain.user.service.UserService;
 import com.back.global.common.dto.RsData;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -18,6 +15,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -65,5 +64,18 @@ public class AuthController implements AuthControllerDocs {
                         "로그아웃 되었습니다.",
                         null
                 ));
+    }
+
+    // 토큰 재발급
+    @PostMapping("/refresh")
+    public ResponseEntity<RsData<Map<String, String>>> refreshToken(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        String newAccessToken = userService.refreshToken(request, response);
+        return ResponseEntity.ok(RsData.success(
+                "토큰이 재발급되었습니다.",
+                Map.of("accessToken", newAccessToken)
+        ));
     }
 }
