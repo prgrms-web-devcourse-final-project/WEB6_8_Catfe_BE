@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/ws")
+@RequestMapping("api/ws")
 @RequiredArgsConstructor
 @Tag(name = "WebSocket REST API", description = "WebSocket 서버 상태 확인 및 실시간 연결 정보 제공 API")
 public class WebSocketApiController {
