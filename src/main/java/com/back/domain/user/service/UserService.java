@@ -147,14 +147,8 @@ public class UserService {
         // DB에서 Refresh Token 삭제
         userTokenRepository.deleteByRefreshToken(refreshToken);
 
-        // TODO: 중복 코드 -> 리팩토링 필요
         // 쿠키 삭제
-        Cookie cookie = new Cookie("refreshToken", null);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true);
-        cookie.setPath("/api/auth/refresh");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        CookieUtil.clearCookie(response, "refreshToken", "/api/auth");
     }
 
     /**
