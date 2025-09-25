@@ -135,6 +135,28 @@ public class UserService {
         return UserResponse.from(user, user.getUserProfile());
     }
 
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        // 쿠키에서 Refresh Token 추출
+        String refreshToken = resolveRefreshToken(request);
+
+        // 토큰 검증
+        if (refreshToken == null || !jwtTokenProvider.validateToken(refreshToken)) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+
+        // DB에서 Refresh Token 삭제
+        userTokenRepository.deleteByRefreshToken(refreshToken);
+
+        // TODO: 중복 코드 -> 리팩토링 필요
+        // 쿠키 삭제
+        Cookie cookie = new Cookie("refreshToken", null);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/api/auth/refresh");
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
+    }
+
     /**
      * 회원가입 시 중복 검증
      * - username, email, nickname
@@ -161,5 +183,19 @@ public class UserService {
         if (!password.matches(regex)) {
             throw new CustomException(ErrorCode.INVALID_PASSWORD);
         }
+    }
+
+    /**
+     * 쿠키에서 Refresh Token 추출
+     */
+    private String resolveRefreshToken(HttpServletRequest request) {
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("refreshToken".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
     }
 }

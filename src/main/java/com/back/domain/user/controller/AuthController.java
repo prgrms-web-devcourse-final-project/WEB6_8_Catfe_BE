@@ -8,6 +8,7 @@ import com.back.global.common.dto.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -64,6 +65,26 @@ public class AuthController {
                 .ok(RsData.success(
                         "로그인에 성공했습니다.",
                         loginResponse
+                ));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "로그아웃", description = "Refresh Token을 무효화합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "로그아웃 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "401", description = "이미 만료되었거나 유효하지 않은 토큰"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<RsData<Void>> logout(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        userService.logout(request, response);
+        return ResponseEntity
+                .ok(RsData.success(
+                        "로그아웃 되었습니다.",
+                        null
                 ));
     }
 }
