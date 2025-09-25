@@ -282,7 +282,7 @@ public class StudyPlanService{
     @Transactional
     public StudyPlanResponse updateStudyPlan(Long userId, Long planId, StudyPlanRequest request, StudyPlanException.ApplyScope applyScope) {
         StudyPlan originalPlan = studyPlanRepository.findById(planId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorCode.PLAN_NOT_FOUND));
 
         validateUserAccess(originalPlan, userId);
 
@@ -319,7 +319,7 @@ public class StudyPlanService{
             return UpdateType.ORIGINAL_PLAN_UPDATE;
         }
 
-        // 1-2. 반복 계획에서 다른 날짜인 경우 -> 기존 예외 확인
+        // 1-2. 반복 계획에서 다른 날짜인 경우 -> 기존 예외 존재 유무 확인
         Optional<StudyPlanException> existingException = studyPlanExceptionRepository
                 .findByPlanIdAndDate(originalPlan.getId(), requestDate);
 
@@ -353,7 +353,7 @@ public class StudyPlanService{
 
         // 해당 날짜에 실제로 반복 계획이 있는지 확인
         if (!shouldRepeatOnDate(originalPlan, exceptionDate)) {
-            throw new CustomException(ErrorCode.BAD_REQUEST);
+            throw new CustomException(ErrorCode.PLAN_ORIGINAL_REPEAT_NOT_FOUND);
         }
 
         StudyPlanException exception = new StudyPlanException();
@@ -380,7 +380,7 @@ public class StudyPlanService{
                     LocalDate untilDate = LocalDate.parse(request.getRepeatRule().getUntilDate());
                     embeddable.setUntilDate(untilDate);
                 } catch (Exception e) {
-                    throw new CustomException(ErrorCode.BAD_REQUEST);
+                    throw new CustomException(ErrorCode.PLAN_INVALID_DATE_FORMAT);
                 }
             }
 
@@ -398,7 +398,7 @@ public class StudyPlanService{
 
         StudyPlanException existingException = studyPlanExceptionRepository
                 .findByPlanIdAndDate(originalPlan.getId(), exceptionDate)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElse(null);
 
         // 기존 예외 정보 업데이트
         if (request.getSubject() != null) existingException.setModifiedSubject(request.getSubject());
@@ -421,7 +421,7 @@ public class StudyPlanService{
                     LocalDate untilDate = LocalDate.parse(request.getRepeatRule().getUntilDate());
                     embeddable.setUntilDate(untilDate);
                 } catch (Exception e) {
-                    throw new CustomException(ErrorCode.BAD_REQUEST);
+                    throw new CustomException(ErrorCode.PLAN_INVALID_DATE_FORMAT);
                 }
             }
 
@@ -444,7 +444,7 @@ public class StudyPlanService{
                 LocalDate untilDate = LocalDate.parse(request.getUntilDate());
                 repeatRule.setUntilDate(untilDate);
             } catch (Exception e) {
-                throw new CustomException(ErrorCode.BAD_REQUEST);
+                throw new CustomException(ErrorCode.PLAN_INVALID_DATE_FORMAT);
             }
         }
     }
@@ -453,7 +453,7 @@ public class StudyPlanService{
     @Transactional
     public void deleteStudyPlan(Long userId, Long planId, LocalDate selectedDate, StudyPlanDeleteRequest request) {
         StudyPlan studyPlan = studyPlanRepository.findById(planId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorCode.PLAN_NOT_FOUND));
 
         validateUserAccess(studyPlan, userId);
 
@@ -501,8 +501,6 @@ public class StudyPlanService{
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
     }
-
-
 
 
 }
