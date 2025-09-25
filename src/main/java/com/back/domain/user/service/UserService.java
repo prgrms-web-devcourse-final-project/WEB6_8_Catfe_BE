@@ -5,6 +5,7 @@ import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
+import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserProfileRepository;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
@@ -62,8 +63,13 @@ public class UserService {
         // 연관관계 설정
         user.setUserProfile(profile);
 
+        // TODO: 임시 로직 - 이메일 인증 기능 개발 전까지는 바로 ACTIVE 처리
+        user.setUserStatus(UserStatus.ACTIVE);
+
         // 저장 (cascade로 Profile도 함께 저장됨)
         User saved = userRepository.save(user);
+
+        // TODO: 이메일 인증 로직 추가 예정
 
         // UserResponse 변환 및 반환
         return UserResponse.from(saved, profile);
