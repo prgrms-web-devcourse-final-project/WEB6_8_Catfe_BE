@@ -1,6 +1,8 @@
 package com.back.global.websocket.controller;
 
 import com.back.global.common.dto.RsData;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,10 +17,12 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/websocket")
+@Tag(name = "WebSocket Test API", description = "WebSocket 서버 상태 확인 및 연결 정보 제공 API")
 public class WebSocketTestController { // WebSocket 기능 테스트용 REST 컨트롤러
 
     // WebSocket 서버 상태 확인
     @GetMapping("/health")
+    @Operation(summary = "WebSocket 서버 헬스체크", description = "WebSocket 서비스의 현재 상태를 확인합니다.")
     public ResponseEntity<RsData<Map<String, Object>>> healthCheck() {
         log.info("WebSocket 헬스체크 요청");
 
@@ -40,6 +44,7 @@ public class WebSocketTestController { // WebSocket 기능 테스트용 REST 컨
 
     // WebSocket 연결 정보 제공
     @GetMapping("/info")
+    @Operation(summary = "WebSocket 연결 정보 조회", description = "클라이언트가 WebSocket에 연결하기 위해 필요한 정보를 제공합니다.")
     public ResponseEntity<RsData<Map<String, Object>>> getConnectionInfo() {
         log.info("WebSocket 연결 정보 요청");
 

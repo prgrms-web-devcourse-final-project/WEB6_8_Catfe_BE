@@ -15,6 +15,7 @@ public class ChatPageResponse {
 
     private List<ChatMessageDto> content;
     private PageableDto pageable;
+    private long totalElements;
 
     // 페이징 정보 DTO
     @Data
@@ -36,6 +37,7 @@ public class ChatPageResponse {
                         .size(page.getSize())
                         .hasNext(page.hasNext())
                         .build())
+                .totalElements(page.getTotalElements())
                 .build();
     }
 }

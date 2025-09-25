@@ -4,15 +4,20 @@ import com.back.domain.study.record.entity.StudyRecord;
 import com.back.domain.user.entity.User;
 import com.back.global.entity.BaseEntity;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@NoArgsConstructor
 @Getter
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Room extends BaseEntity {
     private String title;
     private String description;
@@ -25,31 +30,43 @@ public class Room extends BaseEntity {
     private boolean allowScreenShare;
 
     // 방 상태
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RoomStatus status = RoomStatus.WAITING;
+
     // 현재 참여자
+    @Builder.Default
     @Column(nullable = false)
     private int currentParticipants = 0;
+
     // 방장
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
+
     // 테마
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "theme_id")
     private RoomTheme theme;
 
     // 연관관계 설정
+    @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RoomMember> roomMembers = new ArrayList<>();
+
     // 채팅 메시지
+    @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RoomChatMessage> roomChatMessages = new ArrayList<>();
+
     // 참가자 기록
+    @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RoomParticipantHistory> roomParticipantHistories = new ArrayList<>();
+
     // 스터디 기록
+    @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     public List<StudyRecord> studyRecords = new ArrayList<>();
 
