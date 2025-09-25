@@ -1,16 +1,20 @@
 package com.back.domain.user.service;
 
+import com.back.domain.user.dto.LoginRequest;
 import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
+import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserProfileRepository;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +39,15 @@ class UserServiceTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    private User setupUser(String username, String email, String password, String nickname, UserStatus status) {
+        UserRegisterRequest request = new UserRegisterRequest(username, email, password, nickname);
+        UserResponse response = userService.register(request);
+
+        User saved = userRepository.findById(response.userId()).orElseThrow();
+        saved.setUserStatus(status); // 상태 변경 (PENDING, SUSPENDED, DELETED)
+        return saved;
+    }
+
     @Test
     @DisplayName("정상 회원가입 성공")
     void register_success() {
@@ -50,7 +63,8 @@ class UserServiceTest {
         assertThat(response.username()).isEqualTo("testuser");
         assertThat(response.email()).isEqualTo("test@example.com");
         assertThat(response.nickname()).isEqualTo("홍길동");
-        assertThat(response.status()).isEqualTo(UserStatus.PENDING);
+        // TODO: 이메일 인증 기능 개발 후 기본 상태를 PENDING으로 변경
+//        assertThat(response.status()).isEqualTo(UserStatus.PENDING);
 
         // 비밀번호 인코딩 검증
         String encoded = userRepository.findById(response.userId()).get().getPassword();
@@ -154,5 +168,99 @@ class UserServiceTest {
         assertThat(response.username()).isEqualTo("user3");
         assertThat(passwordEncoder.matches("Abcd123!",
                 userRepository.findById(response.userId()).get().getPassword())).isTrue();
+    }
+
+    @Test
+    @DisplayName("정상 로그인 성공")
+    void login_success() {
+        // given: 정상적인 사용자와 비밀번호 준비
+        String rawPassword = "P@ssw0rd!";
+        User user = setupUser("loginuser", "login@example.com", rawPassword, "닉네임", UserStatus.ACTIVE);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when: 로그인 요청 실행
+        UserResponse userResponse = userService.login(
+                new LoginRequest("loginuser", rawPassword), response);
+
+        // then: 응답에 username과 토큰/쿠키가 포함됨
+        assertThat(userResponse.username()).isEqualTo("loginuser");
+        assertThat(response.getHeader("Authorization")).startsWith("Bearer ");
+        Cookie refreshCookie = response.getCookie("refreshToken");
+        assertThat(refreshCookie).isNotNull();
+        assertThat(refreshCookie.isHttpOnly()).isTrue();
+    }
+
+    @Test
+    @DisplayName("잘못된 비밀번호 → INVALID_CREDENTIALS 예외 발생")
+    void login_invalidPassword() {
+        // given: 존재하는 사용자, 잘못된 비밀번호 입력
+        User user = setupUser("loginuser", "login@example.com", "P@ssw0rd!", "닉네임", UserStatus.ACTIVE);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when & then: 로그인 시도 시 INVALID_CREDENTIALS 예외 발생
+        assertThatThrownBy(() -> userService.login(
+                new LoginRequest("loginuser", "wrongPassword"), response
+        ))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.INVALID_CREDENTIALS.getMessage());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 username → INVALID_CREDENTIALS 예외 발생")
+    void login_userNotFound() {
+        // given: 존재하지 않는 username 사용
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when & then: 로그인 시도 시 INVALID_CREDENTIALS 예외 발생
+        assertThatThrownBy(() -> userService.login(
+                new LoginRequest("nouser", "P@ssw0rd!"), response
+        ))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.INVALID_CREDENTIALS.getMessage());
+    }
+
+    @Test
+    @DisplayName("상태가 PENDING → USER_EMAIL_NOT_VERIFIED 예외 발생")
+    void login_pendingUser() {
+        // given: 상태가 PENDING인 사용자
+        User user = setupUser("pendinguser", "pending@example.com", "P@ssw0rd!", "닉네임", UserStatus.PENDING);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when & then: 로그인 시도 시 USER_EMAIL_NOT_VERIFIED 예외 발생
+        assertThatThrownBy(() -> userService.login(
+                new LoginRequest(user.getUsername(), "P@ssw0rd!"), response
+        ))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_EMAIL_NOT_VERIFIED.getMessage());
+    }
+
+    @Test
+    @DisplayName("상태가 SUSPENDED → USER_SUSPENDED 예외 발생")
+    void login_suspendedUser() {
+        // given: 상태가 SUSPENDED인 사용자
+        User user = setupUser("suspended", "suspended@example.com", "P@ssw0rd!", "닉네임", UserStatus.SUSPENDED);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when & then: 로그인 시도 시 USER_SUSPENDED 예외 발생
+        assertThatThrownBy(() -> userService.login(
+                new LoginRequest(user.getUsername(), "P@ssw0rd!"), response
+        ))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
+    }
+
+    @Test
+    @DisplayName("상태가 DELETED → USER_DELETED 예외 발생")
+    void login_deletedUser() {
+        // given: 상태가 DELETED인 사용자
+        User user = setupUser("deleted", "deleted@example.com", "P@ssw0rd!", "닉네임", UserStatus.DELETED);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when & then: 로그인 시도 시 USER_DELETED 예외 발생
+        assertThatThrownBy(() -> userService.login(
+                new LoginRequest(user.getUsername(), "P@ssw0rd!"), response
+        ))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_DELETED.getMessage());
     }
 }

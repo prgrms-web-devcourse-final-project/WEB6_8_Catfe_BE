@@ -14,6 +14,10 @@ public enum ErrorCode {
     EMAIL_DUPLICATED(HttpStatus.CONFLICT, "USER_003", "이미 사용 중인 이메일입니다."),
     NICKNAME_DUPLICATED(HttpStatus.CONFLICT, "USER_004", "이미 사용 중인 닉네임입니다."),
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "USER_005", "비밀번호는 최소 8자 이상, 숫자/특수문자를 포함해야 합니다."),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "USER_006", "아이디 또는 비밀번호가 올바르지 않습니다."),
+    USER_EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "USER_007", "이메일 인증 후 로그인할 수 있습니다."),
+    USER_SUSPENDED(HttpStatus.FORBIDDEN, "USER_008", "정지된 계정입니다. 관리자에게 문의하세요."),
+    USER_DELETED(HttpStatus.GONE, "USER_009", "탈퇴한 계정입니다."),
 
     // ======================== 스터디룸 관련 ========================
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_001", "존재하지 않는 방입니다."),

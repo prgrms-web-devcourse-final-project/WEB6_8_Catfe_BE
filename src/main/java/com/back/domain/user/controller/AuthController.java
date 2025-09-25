@@ -1,5 +1,6 @@
 package com.back.domain.user.controller;
 
+import com.back.domain.user.dto.LoginRequest;
 import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
 import com.back.domain.user.service.UserService;
@@ -7,6 +8,7 @@ import com.back.global.common.dto.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -42,6 +44,26 @@ public class AuthController {
                 .body(RsData.success(
                         "회원가입이 성공적으로 완료되었습니다. 이메일 인증을 완료해주세요.",
                         response
+                ));
+    }
+
+    @PostMapping("/login")
+    @Operation(summary = "로그인", description = "username + password로 로그인합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "로그인 성공"),
+            @ApiResponse(responseCode = "401", description = "잘못된 아이디/비밀번호"),
+            @ApiResponse(responseCode = "403", description = "이메일 미인증/정지 계정"),
+            @ApiResponse(responseCode = "410", description = "탈퇴한 계정")
+    })
+    public ResponseEntity<RsData<UserResponse>> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletResponse response
+    ) {
+        UserResponse loginResponse = userService.login(request, response);
+        return ResponseEntity
+                .ok(RsData.success(
+                        "로그인에 성공했습니다.",
+                        loginResponse
                 ));
     }
 }
