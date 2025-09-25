@@ -6,18 +6,23 @@ import com.back.domain.user.dto.UserResponse;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
+import com.back.domain.user.entity.UserToken;
 import com.back.domain.user.repository.UserProfileRepository;
 import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.repository.UserTokenRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.back.global.security.CurrentUser;
 import com.back.global.security.JwtTokenProvider;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final UserTokenRepository userTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -106,13 +112,20 @@ public class UserService {
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
-        // TODO: Refresh Token 저장소에 저장 로직 추가 예정 (현재는 stateless 방식)
+        // DB에 Refresh Token 저장
+        UserToken userToken = new UserToken(
+                user,
+                refreshToken,
+                LocalDateTime.now().plusSeconds(jwtTokenProvider.getRefreshTokenExpirationInSeconds())
+        );
+        userTokenRepository.save(userToken);
+
         // Refresh Token을 HttpOnly 쿠키로 설정
         Cookie cookie = new Cookie("refreshToken", refreshToken);
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
         cookie.setPath("/api/auth/refresh");
-        cookie.setMaxAge(7 * 24 * 60 * 60); // TODO: 하드 코딩된 만료 시간 상수로 분리
+        cookie.setMaxAge((int) jwtTokenProvider.getRefreshTokenExpirationInSeconds());
         response.addCookie(cookie);
 
         // Access Token을 응답 헤더에 설정
