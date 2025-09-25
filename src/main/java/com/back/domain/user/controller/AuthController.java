@@ -8,6 +8,7 @@ import com.back.global.common.dto.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,20 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-public class AuthController {
+public class AuthController implements AuthControllerDocs {
     private final UserService userService;
 
+    // 회원가입
     @PostMapping("/register")
-    @Operation(
-            summary = "회원가입",
-            description = "신규 사용자를 등록합니다."
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "회원가입 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 / 비밀번호 정책 위반"),
-            @ApiResponse(responseCode = "409", description = "중복된 아이디/이메일/닉네임"),
-            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
-    })
     public ResponseEntity<RsData<UserResponse>> register(
             @Valid @RequestBody UserRegisterRequest request
     ) {
@@ -47,14 +39,8 @@ public class AuthController {
                 ));
     }
 
+    // 로그인
     @PostMapping("/login")
-    @Operation(summary = "로그인", description = "username + password로 로그인합니다.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "로그인 성공"),
-            @ApiResponse(responseCode = "401", description = "잘못된 아이디/비밀번호"),
-            @ApiResponse(responseCode = "403", description = "이메일 미인증/정지 계정"),
-            @ApiResponse(responseCode = "410", description = "탈퇴한 계정")
-    })
     public ResponseEntity<RsData<UserResponse>> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response
@@ -64,6 +50,20 @@ public class AuthController {
                 .ok(RsData.success(
                         "로그인에 성공했습니다.",
                         loginResponse
+                ));
+    }
+
+    // 로그아웃
+    @PostMapping("/logout")
+    public ResponseEntity<RsData<Void>> logout(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        userService.logout(request, response);
+        return ResponseEntity
+                .ok(RsData.success(
+                        "로그아웃 되었습니다.",
+                        null
                 ));
     }
 }

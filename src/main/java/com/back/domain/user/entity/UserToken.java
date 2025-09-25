@@ -2,6 +2,7 @@ package com.back.domain.user.entity;
 
 import com.back.global.entity.BaseEntity;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @NoArgsConstructor
+@AllArgsConstructor
 @Getter
 public class UserToken extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)

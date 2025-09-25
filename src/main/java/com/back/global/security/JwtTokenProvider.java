@@ -8,6 +8,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -33,6 +34,7 @@ public class JwtTokenProvider {
     @Value("${jwt.access-token-expiration}")
     private long accessTokenExpirationInSeconds;
 
+    @Getter
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpirationInSeconds;
 

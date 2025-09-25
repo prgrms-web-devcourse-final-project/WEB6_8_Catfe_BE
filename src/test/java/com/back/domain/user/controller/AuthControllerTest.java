@@ -4,6 +4,7 @@ import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserRepository;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -366,5 +367,78 @@ class AuthControllerTest {
                 .andDo(print())
                 .andExpect(status().isGone())
                 .andExpect(jsonPath("$.code").value("USER_009"));
+    }
+
+    @Test
+    @DisplayName("정상 로그아웃 → 200 OK + RefreshToken 쿠키 만료")
+    void logout_success() throws Exception {
+        // given: 회원가입 + 로그인으로 refreshToken 쿠키 확보
+        String rawPassword = "P@ssw0rd!";
+        String registerBody = """
+            {
+              "username": "logoutuser",
+              "email": "logout@example.com",
+              "password": "%s",
+              "nickname": "홍길동"
+            }
+            """.formatted(rawPassword);
+
+        mvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody))
+                .andExpect(status().isCreated());
+
+        String loginBody = """
+            {
+              "username": "logoutuser",
+              "password": "%s"
+            }
+            """.formatted(rawPassword);
+
+        ResultActions loginResult = mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody))
+                .andExpect(status().isOk());
+
+        // 로그인 응답에서 refreshToken 쿠키 추출
+        String refreshCookie = loginResult.andReturn()
+                .getResponse()
+                .getCookie("refreshToken")
+                .getValue();
+
+        // when: 로그아웃 요청 (쿠키 포함)
+        ResultActions logoutResult = mvc.perform(post("/api/auth/logout")
+                        .cookie(new Cookie("refreshToken", refreshCookie)))
+                .andDo(print());
+
+        // then: 200 OK + 성공 메시지 + 쿠키 만료
+        logoutResult
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("로그아웃 되었습니다."))
+                .andExpect(cookie().maxAge("refreshToken", 0));
+    }
+
+    @Test
+    @DisplayName("RefreshToken 누락 → 400 Bad Request")
+    void logout_noToken() throws Exception {
+        // when & then
+        mvc.perform(post("/api/auth/logout"))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_400"));
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 RefreshToken → 401 Unauthorized")
+    void logout_invalidToken() throws Exception {
+        // given: 잘못된 refreshToken 쿠키
+        Cookie invalid = new Cookie("refreshToken", "fake-token");
+
+        // when & then
+        mvc.perform(post("/api/auth/logout").cookie(invalid))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_401"));
     }
 }
