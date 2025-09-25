@@ -25,6 +25,15 @@ public class EmbeddedRedisConfig {
     @PostConstruct
     public void startRedis() {
         try {
+            String osName = System.getProperty("os.name").toLowerCase();
+
+            // Mac 환경이면 embedded-redis 건너뛰고 docker-compose Redis 사용
+            if (osName.contains("mac")) {
+                System.out.println("Mac 환경 감지 → embedded-redis 비활성화, docker-compose Redis 사용");
+                System.setProperty("spring.data.redis.port", "6379"); // docker-compose 기본 포트
+                return;
+            }
+
             this.port = findAvailablePort();
             this.redisServer = new RedisServer(port);
             this.redisServer.start();
