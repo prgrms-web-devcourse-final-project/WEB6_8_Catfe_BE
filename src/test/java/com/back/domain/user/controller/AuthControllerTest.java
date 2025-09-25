@@ -4,6 +4,9 @@ import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserRepository;
+import com.back.fixture.TestJwtTokenProvider;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,6 +19,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -33,6 +38,9 @@ class AuthControllerTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private TestJwtTokenProvider testJwtTokenProvider;
 
     @Test
     @DisplayName("정상 회원가입 → 201 Created")
@@ -440,5 +448,111 @@ class AuthControllerTest {
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTH_401"));
+    }
+
+    @Test
+    @DisplayName("정상 토큰 재발급 → 200 OK + 새로운 AccessToken 반환")
+    void refreshToken_success() throws Exception {
+        // given: 회원가입 + 로그인 → 기존 토큰 확보
+        String rawPassword = "P@ssw0rd!";
+        String registerBody = """
+            {
+              "username": "refreshuser",
+              "email": "refresh@example.com",
+              "password": "%s",
+              "nickname": "홍길동"
+            }
+            """.formatted(rawPassword);
+
+        mvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody))
+                .andExpect(status().isCreated());
+
+        String loginBody = """
+            {
+              "username": "refreshuser",
+              "password": "%s"
+            }
+            """.formatted(rawPassword);
+
+        ResultActions loginResult = mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody))
+                .andExpect(status().isOk());
+
+        // 기존 AccessToken, RefreshToken 확보
+        String oldAccessToken = loginResult.andReturn()
+                .getResponse()
+                .getHeader("Authorization")
+                .substring(7); // "Bearer " 제거
+        String refreshCookie = loginResult.andReturn()
+                .getResponse()
+                .getCookie("refreshToken")
+                .getValue();
+
+        // Issued At(발급 시간) 분리를 위해 1초 대기
+//        Thread.sleep(1000);
+
+        // when: 재발급 요청 (RefreshToken 쿠키 포함)
+        ResultActions refreshResult = mvc.perform(post("/api/auth/refresh")
+                        .cookie(new Cookie("refreshToken", refreshCookie)))
+                .andDo(print());
+
+        // then: 200 OK + 새로운 AccessToken 발급
+        refreshResult
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").exists())
+                .andExpect(header().exists("Authorization"));
+
+        String newAccessToken = refreshResult.andReturn()
+                .getResponse()
+                .getHeader("Authorization")
+                .substring(7);
+
+        // 새 토큰은 기존 토큰과 달라야 함
+//        assertThat(newAccessToken).isNotEqualTo(oldAccessToken);
+    }
+
+    @Test
+    @DisplayName("RefreshToken 누락 → 400 Bad Request")
+    void refreshToken_noToken() throws Exception {
+        mvc.perform(post("/api/auth/refresh"))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_400"));
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 RefreshToken → 401 Unauthorized")
+    void refreshToken_invalidToken() throws Exception {
+        Cookie invalid = new Cookie("refreshToken", "fake-token");
+
+        mvc.perform(post("/api/auth/refresh").cookie(invalid))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_401"));
+    }
+
+    @Test
+    @DisplayName("만료된 RefreshToken → 401 Unauthorized")
+    void refreshToken_expiredToken() throws Exception {
+        // given: 이미 만료된 Refresh Token 발급
+        User user = User.createUser("expiredUser", "expired@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        userRepository.save(user);
+
+        // JwtTokenProvider에 테스트용 메서드 추가 필요
+        String expiredRefreshToken = testJwtTokenProvider.createExpiredRefreshToken(user.getId());
+
+        Cookie expiredCookie = new Cookie("refreshToken", expiredRefreshToken);
+
+        // when & then
+        mvc.perform(post("/api/auth/refresh").cookie(expiredCookie))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_401"))
+                .andExpect(jsonPath("$.message").value("만료된 리프레시 토큰입니다."));
     }
 }

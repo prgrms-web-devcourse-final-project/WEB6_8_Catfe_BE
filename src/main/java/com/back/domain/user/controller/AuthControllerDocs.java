@@ -245,13 +245,13 @@ public interface AuthControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                                {
-                                  "success": true,
-                                  "code": "SUCCESS_200",
-                                  "message": "로그아웃 되었습니다.",
-                                  "data": null
-                                }
-                                """)
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "로그아웃 되었습니다.",
+                                      "data": null
+                                    }
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -260,13 +260,13 @@ public interface AuthControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                                {
-                                  "success": false,
-                                  "code": "AUTH_401",
-                                  "message": "이미 만료되었거나 유효하지 않은 토큰입니다.",
-                                  "data": null
-                                }
-                                """)
+                                    {
+                                      "success": false,
+                                      "code": "AUTH_401",
+                                      "message": "이미 만료되었거나 유효하지 않은 토큰입니다.",
+                                      "data": null
+                                    }
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -275,13 +275,13 @@ public interface AuthControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                                {
-                                  "success": false,
-                                  "code": "COMMON_400",
-                                  "message": "잘못된 요청입니다.",
-                                  "data": null
-                                }
-                                """)
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_400",
+                                      "message": "잘못된 요청입니다.",
+                                      "data": null
+                                    }
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -290,13 +290,13 @@ public interface AuthControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                                {
-                                  "success": false,
-                                  "code": "COMMON_500",
-                                  "message": "서버 오류가 발생했습니다.",
-                                  "data": null
-                                }
-                                """)
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
                     )
             )
     })
@@ -307,7 +307,8 @@ public interface AuthControllerDocs {
 
     @Operation(
             summary = "토큰 재발급",
-            description = "Access Token이 만료되었을 때 Refresh Token을 이용해 새로운 Access Token을 발급받습니다."
+            description = "만료된 Access Token 대신 Refresh Token을 이용해 새로운 Access Token을 발급받습니다. " +
+                    "Refresh Token은 HttpOnly 쿠키에서 추출하며, 재발급 성공 시 응답 헤더와 본문에 새로운 Access Token을 담습니다."
     )
     @ApiResponses({
             @ApiResponse(
@@ -351,15 +352,15 @@ public interface AuthControllerDocs {
                                     @ExampleObject(name = "Refresh Token 만료", value = """
                                             {
                                               "success": false,
-                                              "code": "USER_401",
-                                              "message": "Refresh Token이 만료되었습니다. 다시 로그인해주세요.",
+                                              "code": "AUTH_401",
+                                              "message": "만료된 리프레시 토큰입니다.",
                                               "data": null
                                             }
                                             """),
                                     @ExampleObject(name = "Refresh Token 위조/무효", value = """
                                             {
                                               "success": false,
-                                              "code": "USER_401",
+                                              "code": "AUTH_401",
                                               "message": "유효하지 않은 Refresh Token입니다.",
                                               "data": null
                                             }
