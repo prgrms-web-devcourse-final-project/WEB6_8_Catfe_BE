@@ -6,18 +6,24 @@ import com.back.domain.user.dto.UserResponse;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
+import com.back.domain.user.entity.UserToken;
 import com.back.domain.user.repository.UserProfileRepository;
 import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.repository.UserTokenRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.back.global.security.CurrentUser;
 import com.back.global.security.JwtTokenProvider;
+import com.back.global.util.CookieUtil;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final UserTokenRepository userTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -77,13 +84,11 @@ public class UserService {
 
     /**
      * 로그인 서비스
-     * 1. 사용자 조회 (username)
-     * 2. 비밀번호 검증
-     * 3. 사용자 상태 체크 (PENDING, SUSPENDED, DELETED)
-     * 4. Access Token, Refresh Token 생성
-     * 5. Refresh Token을 HttpOnly 쿠키로 설정
-     * 6. Access Token을 응답 헤더에 설정
-     * 7. UserResponse 반환
+     * 1. 사용자 조회 및 비밀번호 검증
+     * 2. 사용자 상태 검증 (PENDING, SUSPENDED, DELETED)
+     * 3. Access/Refresh Token 발급
+     * 4. Refresh Token을 HttpOnly 쿠키로, Access Token은 헤더로 설정
+     * 5. UserResponse 반환
      */
     public UserResponse login(LoginRequest request, HttpServletResponse response) {
         // 사용자 조회
@@ -106,20 +111,54 @@ public class UserService {
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
-        // TODO: Refresh Token 저장소에 저장 로직 추가 예정 (현재는 stateless 방식)
+        // DB에 Refresh Token 저장
+        UserToken userToken = new UserToken(
+                user,
+                refreshToken,
+                LocalDateTime.now().plusSeconds(jwtTokenProvider.getRefreshTokenExpirationInSeconds())
+        );
+        userTokenRepository.save(userToken);
+
         // Refresh Token을 HttpOnly 쿠키로 설정
-        Cookie cookie = new Cookie("refreshToken", refreshToken);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true);
-        cookie.setPath("/api/auth/refresh");
-        cookie.setMaxAge(7 * 24 * 60 * 60); // TODO: 하드 코딩된 만료 시간 상수로 분리
-        response.addCookie(cookie);
+        CookieUtil.addCookie(
+                response,
+                "refreshToken",
+                refreshToken,
+                (int) jwtTokenProvider.getRefreshTokenExpirationInSeconds(),
+                "/api/auth"
+        );
 
         // Access Token을 응답 헤더에 설정
         response.setHeader("Authorization", "Bearer " + accessToken);
 
         // UserResponse 반환
         return UserResponse.from(user, user.getUserProfile());
+    }
+
+    /**
+     * 로그아웃 서비스
+     * 1. Refresh Token 검증 및 DB 삭제
+     * 2. 쿠키 삭제
+     */
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        // 쿠키에서 Refresh Token 추출
+        String refreshToken = resolveRefreshToken(request);
+
+        // Refresh Token 존재 여부 확인
+        if (refreshToken == null) {
+            throw new CustomException(ErrorCode.BAD_REQUEST);
+        }
+
+        // Refresh Token 검증
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+
+        // DB에서 Refresh Token 삭제
+        userTokenRepository.deleteByRefreshToken(refreshToken);
+
+        // 쿠키 삭제
+        CookieUtil.clearCookie(response, "refreshToken", "/api/auth");
     }
 
     /**
@@ -148,5 +187,19 @@ public class UserService {
         if (!password.matches(regex)) {
             throw new CustomException(ErrorCode.INVALID_PASSWORD);
         }
+    }
+
+    /**
+     * 쿠키에서 Refresh Token 추출
+     */
+    private String resolveRefreshToken(HttpServletRequest request) {
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("refreshToken".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
     }
 }
