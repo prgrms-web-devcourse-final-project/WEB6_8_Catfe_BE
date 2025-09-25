@@ -30,7 +30,7 @@ import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ChatWebSocketController 테스트")
-class ChatWebSocketControllerTest {
+class ChatWebSocketApiControllerTest {
 
     @Mock
     private ChatService chatService;
