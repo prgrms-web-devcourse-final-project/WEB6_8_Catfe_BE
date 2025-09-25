@@ -1,0 +1,252 @@
+package com.back.global.websocket.service;
+
+import com.back.global.exception.CustomException;
+import com.back.global.exception.ErrorCode;
+import com.back.global.websocket.dto.WebSocketSessionInfo;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class WebSocketSessionManager {
+
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    // Redis Key 패턴
+    private static final String USER_SESSION_KEY = "ws:user:{}";
+    private static final String SESSION_USER_KEY = "ws:session:{}";
+    private static final String ROOM_USERS_KEY = "ws:room:{}:users";
+
+    // TTL 설정 (10분) - Heartbeat와 함께 사용하여 정확한 상태 관리
+    private static final int SESSION_TTL_MINUTES = 10;
+
+    // 사용자 세션 추가 (연결 시 호출)
+    public void addSession(Long userId, String sessionId) {
+        try {
+            WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.builder()
+                    .userId(userId)
+                    .sessionId(sessionId)
+                    .connectedAt(LocalDateTime.now())
+                    .lastActiveAt(LocalDateTime.now())
+                    .build();
+
+            String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
+            String sessionKey = SESSION_USER_KEY.replace("{}", sessionId);
+
+            // 기존 세션이 있다면 제거 (중복 연결 방지)
+            WebSocketSessionInfo existingSession = getSessionInfo(userId);
+            if (existingSession != null) {
+                removeSessionInternal(existingSession.getSessionId());
+                log.info("기존 세션 제거 후 새 세션 등록 - 사용자: {}", userId);
+            }
+
+            // 새 세션 등록 (TTL 10분)
+            redisTemplate.opsForValue().set(userKey, sessionInfo, Duration.ofMinutes(SESSION_TTL_MINUTES));
+            redisTemplate.opsForValue().set(sessionKey, userId, Duration.ofMinutes(SESSION_TTL_MINUTES));
+
+            log.info("WebSocket 세션 등록 완료 - 사용자: {}, 세션: {}, TTL: {}분",
+                    userId, sessionId, SESSION_TTL_MINUTES);
+
+        } catch (Exception e) {
+            log.error("WebSocket 세션 등록 실패 - 사용자: {}", userId, e);
+            throw new CustomException(ErrorCode.WS_CONNECTION_FAILED);
+        }
+    }
+
+    // 사용자 연결 상태 확인
+    public boolean isUserConnected(Long userId) {
+        try {
+            String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
+            return Boolean.TRUE.equals(redisTemplate.hasKey(userKey));
+        } catch (Exception e) {
+            log.error("사용자 연결 상태 확인 실패 - 사용자: {}", userId, e);
+            throw new CustomException(ErrorCode.WS_REDIS_ERROR);
+        }
+    }
+
+   // 사용자 세션 정보 조회
+    public WebSocketSessionInfo getSessionInfo(Long userId) {
+        try {
+            String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
+            return (WebSocketSessionInfo) redisTemplate.opsForValue().get(userKey);
+        } catch (Exception e) {
+            log.error("세션 정보 조회 실패 - 사용자: {}", userId, e);
+            throw new CustomException(ErrorCode.WS_REDIS_ERROR);
+        }
+    }
+
+    // 세션 제거 (연결 종료 시 호출)
+    public void removeSession(String sessionId) {
+        try {
+            removeSessionInternal(sessionId);
+            log.info("WebSocket 세션 제거 완료 - 세션: {}", sessionId);
+        } catch (Exception e) {
+            log.error("WebSocket 세션 제거 실패 - 세션: {}", sessionId, e);
+            throw new CustomException(ErrorCode.WS_REDIS_ERROR);
+        }
+    }
+
+    // 사용자 활동 시간 업데이트 및 TTL 연장 (Heartbeat 시 호출)
+    public void updateLastActivity(Long userId) {
+        try {
+            WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
+            if (sessionInfo != null) {
+                // 마지막 활동 시간 업데이트
+                sessionInfo.setLastActiveAt(LocalDateTime.now());
+
+                String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
+                // TTL 10분으로 연장 (Heartbeat의 핵심!)
+                redisTemplate.opsForValue().set(userKey, sessionInfo, Duration.ofMinutes(SESSION_TTL_MINUTES));
+
+                log.debug("사용자 활동 시간 업데이트 완료 - 사용자: {}, TTL 연장", userId);
+            } else {
+                log.warn("세션 정보가 없어 활동 시간 업데이트 실패 - 사용자: {}", userId);
+            }
+        } catch (CustomException e) {
+            // 이미 처리된 CustomException은 다시 던짐
+            throw e;
+        } catch (Exception e) {
+            log.error("사용자 활동 시간 업데이트 실패 - 사용자: {}", userId, e);
+            throw new CustomException(ErrorCode.WS_ACTIVITY_UPDATE_FAILED);
+        }
+    }
+
+    // 사용자가 방에 입장 (WebSocket 전용)
+    public void joinRoom(Long userId, Long roomId) {
+        try {
+            WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
+            if (sessionInfo != null) {
+                // 기존 방에서 퇴장
+                if (sessionInfo.getCurrentRoomId() != null) {
+                    leaveRoom(userId, sessionInfo.getCurrentRoomId());
+                }
+
+                // 새 방 정보 업데이트
+                sessionInfo.setCurrentRoomId(roomId);
+                sessionInfo.setLastActiveAt(LocalDateTime.now());
+
+                String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
+                redisTemplate.opsForValue().set(userKey, sessionInfo, Duration.ofMinutes(SESSION_TTL_MINUTES));
+
+                // 방 참여자 목록에 추가
+                String roomUsersKey = ROOM_USERS_KEY.replace("{}", roomId.toString());
+                redisTemplate.opsForSet().add(roomUsersKey, userId);
+                redisTemplate.expire(roomUsersKey, Duration.ofMinutes(SESSION_TTL_MINUTES));
+
+                log.info("WebSocket 방 입장 완료 - 사용자: {}, 방: {}", userId, roomId);
+            } else {
+                log.warn("세션 정보가 없어 방 입장 처리 실패 - 사용자: {}, 방: {}", userId, roomId);
+            }
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("사용자 방 입장 실패 - 사용자: {}, 방: {}", userId, roomId, e);
+            throw new CustomException(ErrorCode.WS_ROOM_JOIN_FAILED);
+        }
+    }
+
+    // 사용자가 방에서 퇴장 (WebSocket 전용)
+    public void leaveRoom(Long userId, Long roomId) {
+        try {
+            WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
+            if (sessionInfo != null) {
+                sessionInfo.setCurrentRoomId(null);
+                sessionInfo.setLastActiveAt(LocalDateTime.now());
+
+                String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
+                redisTemplate.opsForValue().set(userKey, sessionInfo, Duration.ofMinutes(SESSION_TTL_MINUTES));
+
+                // 방 참여자 목록에서 제거
+                String roomUsersKey = ROOM_USERS_KEY.replace("{}", roomId.toString());
+                redisTemplate.opsForSet().remove(roomUsersKey, userId);
+
+                log.info("WebSocket 방 퇴장 완료 - 사용자: {}, 방: {}", userId, roomId);
+            }
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("사용자 방 퇴장 실패 - 사용자: {}, 방: {}", userId, roomId, e);
+            throw new CustomException(ErrorCode.WS_ROOM_LEAVE_FAILED);
+        }
+    }
+
+    // 방의 온라인 사용자 수 조회
+    public long getRoomOnlineUserCount(Long roomId) {
+        try {
+            String roomUsersKey = ROOM_USERS_KEY.replace("{}", roomId.toString());
+            Long count = redisTemplate.opsForSet().size(roomUsersKey);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            log.error("방 온라인 사용자 수 조회 실패 - 방: {}", roomId, e);
+            throw new CustomException(ErrorCode.WS_REDIS_ERROR);
+        }
+    }
+
+    // 방의 온라인 사용자 목록 조회
+    public Set<Long> getOnlineUsersInRoom(Long roomId) {
+        try {
+            String roomUsersKey = ROOM_USERS_KEY.replace("{}", roomId.toString());
+            Set<Object> userIds = redisTemplate.opsForSet().members(roomUsersKey);
+
+            if (userIds != null) {
+                return userIds.stream()
+                        .map(obj -> (Long) obj)
+                        .collect(Collectors.toSet());
+            }
+            return Set.of();
+        } catch (Exception e) {
+            log.error("방 온라인 사용자 목록 조회 실패 - 방: {}", roomId, e);
+            throw new CustomException(ErrorCode.WS_REDIS_ERROR);
+        }
+    }
+
+    // 전체 온라인 사용자 수 조회
+    public long getTotalOnlineUserCount() {
+        try {
+            Set<String> userKeys = redisTemplate.keys(USER_SESSION_KEY.replace("{}", "*"));
+            return userKeys != null ? userKeys.size() : 0;
+        } catch (Exception e) {
+            log.error("전체 온라인 사용자 수 조회 실패", e);
+            return 0;
+        }
+    }
+
+    // 특정 사용자의 현재 방 조회
+    public Long getUserCurrentRoomId(Long userId) {
+        try {
+            WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
+            return sessionInfo != null ? sessionInfo.getCurrentRoomId() : null;
+        } catch (CustomException e) {
+            log.error("사용자 현재 방 조회 실패 - 사용자: {}", userId, e);
+            return null; // 조회용이므로 예외 대신 null 반환
+        }
+    }
+
+   // 내부적으로 세션 제거 처리
+    private void removeSessionInternal(String sessionId) {
+        String sessionKey = SESSION_USER_KEY.replace("{}", sessionId);
+        Long userId = (Long) redisTemplate.opsForValue().get(sessionKey);
+
+        if (userId != null) {
+            WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
+
+            // 방에서 퇴장 처리
+            if (sessionInfo != null && sessionInfo.getCurrentRoomId() != null) {
+                leaveRoom(userId, sessionInfo.getCurrentRoomId());
+            }
+
+            // 세션 데이터 삭제
+            String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
+            redisTemplate.delete(userKey);
+            redisTemplate.delete(sessionKey);
+        }
+    }
+}

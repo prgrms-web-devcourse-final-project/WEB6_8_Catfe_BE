@@ -38,6 +38,13 @@ public enum ErrorCode {
 
     // ======================== WebSocket 관련 ========================
     WS_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "WS_001", "존재하지 않는 방입니다"),
+    WS_CONNECTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WS_002", "WebSocket 연결에 실패했습니다."),
+    WS_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "WS_003", "WebSocket 세션을 찾을 수 없습니다."),
+    WS_SESSION_EXPIRED(HttpStatus.GONE, "WS_004", "WebSocket 세션이 만료되었습니다."),
+    WS_REDIS_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "WS_005", "세션 저장소 오류가 발생했습니다."),
+    WS_ROOM_JOIN_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WS_006", "방 입장 처리 중 오류가 발생했습니다."),
+    WS_ROOM_LEAVE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WS_007", "방 퇴장 처리 중 오류가 발생했습니다."),
+    WS_ACTIVITY_UPDATE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WS_008", "활동 시간 업데이트 중 오류가 발생했습니다."),
 
     // ======================== 공통 에러 ========================
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON_400", "잘못된 요청입니다."),

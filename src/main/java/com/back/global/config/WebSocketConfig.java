@@ -2,6 +2,7 @@ package com.back.global.config;
 
 import com.back.global.security.CustomUserDetails;
 import com.back.global.security.JwtTokenProvider;
+import com.back.global.websocket.service.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +29,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final WebSocketSessionManager sessionManager;
 
     /**
      * 메시지 브로커 설정
@@ -74,10 +76,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         authenticateUser(accessor);
                     }
 
-                    // SEND 시점에서도 인증 확인 (추가 보안)
+                    // SEND 시점에서 인증 확인 및 활동 시간 업데이트
                     else if (StompCommand.SEND.equals(accessor.getCommand())) {
-                        validateAuthentication(accessor);
+                        validateAuthenticationAndUpdateActivity(accessor);
                     }
+
+                    // SUBSCRIBE/UNSUBSCRIBE는 단순히 채팅 구독일 뿐
+                    // 실제 방 입장/퇴장은 RoomController에서 비즈니스 로직으로 처리
                 }
 
                 return message;
@@ -111,24 +116,38 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             // 세션에 사용자 정보 저장
             accessor.setUser(authentication);
 
+            log.info("WebSocket 인증 성공 - 사용자: {} (ID: {}), 세션: {}",
+                    userDetails.getUsername(), userDetails.getUserId(), accessor.getSessionId());
+
         } catch (Exception e) {
+            log.error("WebSocket 인증 실패: {}", e.getMessage());
             throw new RuntimeException("WebSocket 인증에 실패했습니다: " + e.getMessage());
         }
     }
 
     /**
-     * 메시지 전송 시 인증 상태 확인
+     * 메시지 전송 시 인증 상태 확인 및 활동 시간 업데이트
      */
-    private void validateAuthentication(StompHeaderAccessor accessor) {
+    private void validateAuthenticationAndUpdateActivity(StompHeaderAccessor accessor) {
         if (accessor.getUser() == null) {
             throw new RuntimeException("인증이 필요합니다");
         }
 
-        // 인증된 사용자 정보 로깅
+        // 인증된 사용자 정보 추출 및 활동 시간 업데이트
         Authentication auth = (Authentication) accessor.getUser();
         if (auth.getPrincipal() instanceof CustomUserDetails userDetails) {
+            Long userId = userDetails.getUserId();
+
+            // 사용자 활동 시간 업데이트 (Heartbeat 효과)
+            try {
+                sessionManager.updateLastActivity(userId);
+            } catch (Exception e) {
+                log.warn("활동 시간 업데이트 실패 - 사용자: {}, 오류: {}", userId, e.getMessage());
+                // 활동 시간 업데이트 실패해도 메시지 전송은 계속 진행
+            }
+
             log.debug("인증된 사용자 메시지 전송 - 사용자: {} (ID: {}), 목적지: {}",
-                    userDetails.getUsername(), userDetails.getUserId(), accessor.getDestination());
+                    userDetails.getUsername(), userId, accessor.getDestination());
         }
     }
 }
