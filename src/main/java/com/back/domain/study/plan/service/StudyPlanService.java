@@ -308,31 +308,26 @@ public class StudyPlanService{
         }
     }
 
-    // 원본과 요청을 비교
+    // 원본과 요청(가상)을 비교
     private UpdateType determineUpdateType(StudyPlan originalPlan, StudyPlanRequest request) {
-        // 1. 반복 룰 없음 -> 단발성 이므로 원본 수정
-        if (originalPlan.getRepeatRule() == null) {
-            return UpdateType.ORIGINAL_PLAN_UPDATE;
-        }
-
-        // 2-1. 반복 계획에서 요청 날짜가 원본 날짜와 같음 -> 원본이므로 원본 수정
         LocalDate requestDate = request.getStartDate().toLocalDate();
         LocalDate originalDate = originalPlan.getStartDate().toLocalDate();
 
+        // 1-1. 반복 계획에서 요청 날짜가 원본 날짜와 같음 -> 원본이므로 원본 수정
         if (requestDate.equals(originalDate)) {
             return UpdateType.ORIGINAL_PLAN_UPDATE;
         }
 
-        // 2-2. 반복 계획에서 다른 날짜인 경우 -> 기존 예외 확인
+        // 1-2. 반복 계획에서 다른 날짜인 경우 -> 기존 예외 확인
         Optional<StudyPlanException> existingException = studyPlanExceptionRepository
                 .findByPlanIdAndDate(originalPlan.getId(), requestDate.atStartOfDay());
 
         if (existingException.isPresent()) {
-            return UpdateType.REPEAT_INSTANCE_UPDATE; // 기존 예외 수정
-        } else {
-            return UpdateType.REPEAT_INSTANCE_CREATE; // 새 예외 생성
-        }
+        return UpdateType.REPEAT_INSTANCE_UPDATE; // 기존 예외 수정
+    } else {
+        return UpdateType.REPEAT_INSTANCE_CREATE; // 새 예외 생성
     }
+}
 
     // 원본 계획 수정
     private StudyPlanResponse updateOriginalPlan(StudyPlan originalPlan, StudyPlanRequest request) {
@@ -372,9 +367,27 @@ public class StudyPlanService{
         if (request.getEndDate() != null) exception.setModifiedEndDate(request.getEndDate());
         if (request.getColor() != null) exception.setModifiedColor(request.getColor());
 
-        studyPlanExceptionRepository.save(exception);
+        // 반복 규칙 수정. 요청에 반복 규칙이 있으면 설정
+        if (request.getRepeatRule() != null) {
+            RepeatRuleEmbeddable embeddable = new RepeatRuleEmbeddable();
+            embeddable.setFrequency(request.getRepeatRule().getFrequency());
+            embeddable.setIntervalValue(request.getRepeatRule().getIntervalValue());
+            embeddable.setByDay(request.getRepeatRule().getByDay());
 
-        // 수정된 가상 계획 반환
+            if (request.getRepeatRule().getUntilDate() != null && !request.getRepeatRule().getUntilDate().isEmpty()) {
+                try {
+                    LocalDate untilDate = LocalDate.parse(request.getRepeatRule().getUntilDate());
+                    embeddable.setUntilDate(untilDate);
+                } catch (Exception e) {
+                    throw new CustomException(ErrorCode.BAD_REQUEST);
+                }
+            }
+
+            exception.setModifiedRepeatRule(embeddable);
+        }
+
+
+        studyPlanExceptionRepository.save(exception);
         return createVirtualPlanForDate(originalPlan, exceptionDate);
     }
 
@@ -395,14 +408,31 @@ public class StudyPlanService{
         // ApplyScope도 업데이트 (사용자가 범위를 변경할 수 있음)
         existingException.setApplyScope(applyScope);
 
-        studyPlanExceptionRepository.save(existingException);
+        // 반복 규칙 수정사항 있으면 예외 안에 추가 (embeddable)
+        if (request.getRepeatRule() != null) {
+            RepeatRuleEmbeddable embeddable = new RepeatRuleEmbeddable();
+            embeddable.setFrequency(request.getRepeatRule().getFrequency());
+            embeddable.setIntervalValue(request.getRepeatRule().getIntervalValue());
+            embeddable.setByDay(request.getRepeatRule().getByDay());
 
-        // 수정된 가상 계획 반환
+            if (request.getRepeatRule().getUntilDate() != null && !request.getRepeatRule().getUntilDate().isEmpty()) {
+                try {
+                    LocalDate untilDate = LocalDate.parse(request.getRepeatRule().getUntilDate());
+                    embeddable.setUntilDate(untilDate);
+                } catch (Exception e) {
+                    throw new CustomException(ErrorCode.BAD_REQUEST);
+                }
+            }
+
+            existingException.setModifiedRepeatRule(embeddable);
+        }
+
+        studyPlanExceptionRepository.save(existingException);
         return createVirtualPlanForDate(originalPlan, exceptionDate);
     }
 
 
-    // 반복 룰 수정
+    // 원본의 반복 룰 수정 (엔티티)
     private void updateRepeatRule(RepeatRule repeatRule, StudyPlanRequest.RepeatRuleRequest request) {
         if (request.getFrequency() != null) repeatRule.setFrequency(request.getFrequency());
         if (request.getIntervalValue() != null) repeatRule.setRepeatInterval(request.getIntervalValue());
@@ -410,8 +440,8 @@ public class StudyPlanService{
 
         if (request.getUntilDate() != null && !request.getUntilDate().isEmpty()) {
             try {
-                LocalDateTime untilDateTime = LocalDateTime.parse(request.getUntilDate() + "T23:59:59");
-                repeatRule.setUntilDate(untilDateTime);
+                LocalDate untilDate = LocalDate.parse(request.getUntilDate());
+                repeatRule.setUntilDate(untilDate);
             } catch (Exception e) {
                 throw new CustomException(ErrorCode.BAD_REQUEST);
             }
@@ -422,6 +452,7 @@ public class StudyPlanService{
 
 
     // ==================== 유틸 ===================
+    // 인가 (작성자 일치 확인)
     private void validateUserAccess(StudyPlan studyPlan, Long userId) {
         if (!studyPlan.getUser().getId().equals(userId)) {
             throw new CustomException(ErrorCode.FORBIDDEN);
