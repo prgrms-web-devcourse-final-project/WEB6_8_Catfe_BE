@@ -106,6 +106,7 @@ public class UserService {
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
+        // TODO: Refresh Token 저장소에 저장 로직 추가 예정 (현재는 stateless 방식)
         // Refresh Token을 HttpOnly 쿠키로 설정
         Cookie cookie = new Cookie("refreshToken", refreshToken);
         cookie.setHttpOnly(true);
