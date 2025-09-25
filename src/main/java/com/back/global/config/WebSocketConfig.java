@@ -57,11 +57,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     /**
      * WebSocket 메시지 채널 설정
-     * JWT 인증 인터셉터 및 세션 관리 로직 등록
+     * JWT 인증 인터셉터 등록
      */
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        // JWT 인증 + 세션 관리 인터셉터 등록
+        // JWT 인증 인터셉터 등록
         registration.interceptors(new ChannelInterceptor() {
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -81,15 +81,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         validateAuthenticationAndUpdateActivity(accessor);
                     }
 
-                    // SUBSCRIBE 시점에서 방 입장 처리
-                    else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-                        handleRoomSubscription(accessor);
-                    }
-
-                    // UNSUBSCRIBE 시점에서 방 퇴장 처리
-                    else if (StompCommand.UNSUBSCRIBE.equals(accessor.getCommand())) {
-                        handleRoomUnsubscription(accessor);
-                    }
+                    // SUBSCRIBE/UNSUBSCRIBE는 단순히 채팅 구독일 뿐
+                    // 실제 방 입장/퇴장은 RoomController에서 비즈니스 로직으로 처리
                 }
 
                 return message;
@@ -145,87 +138,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         if (auth.getPrincipal() instanceof CustomUserDetails userDetails) {
             Long userId = userDetails.getUserId();
 
-            // 사용자 활동 시간 업데이트
-            sessionManager.updateLastActivity(userId);
+            // 사용자 활동 시간 업데이트 (Heartbeat 효과)
+            try {
+                sessionManager.updateLastActivity(userId);
+            } catch (Exception e) {
+                log.warn("활동 시간 업데이트 실패 - 사용자: {}, 오류: {}", userId, e.getMessage());
+                // 활동 시간 업데이트 실패해도 메시지 전송은 계속 진행
+            }
 
             log.debug("인증된 사용자 메시지 전송 - 사용자: {} (ID: {}), 목적지: {}",
                     userDetails.getUsername(), userId, accessor.getDestination());
         }
-    }
-
-    /**
-     * 방 채팅 구독 시 방 입장 처리
-     */
-    private void handleRoomSubscription(StompHeaderAccessor accessor) {
-        try {
-            String destination = accessor.getDestination();
-
-            // 방 채팅 구독인지 확인: /topic/rooms/{roomId}/chat
-            if (destination != null && destination.matches("/topic/rooms/\\d+/chat")) {
-                Long roomId = extractRoomIdFromDestination(destination);
-
-                if (roomId != null && accessor.getUser() != null) {
-                    Authentication auth = (Authentication) accessor.getUser();
-                    if (auth.getPrincipal() instanceof CustomUserDetails userDetails) {
-                        Long userId = userDetails.getUserId();
-
-                        // 방 입장 처리
-                        sessionManager.joinRoom(userId, roomId);
-
-                        log.info("방 입장 처리 완료 - 사용자: {} (ID: {}), 방: {}",
-                                userDetails.getUsername(), userId, roomId);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("방 구독 처리 중 오류 발생: {}", e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 방 채팅 구독 해제 시 방 퇴장 처리
-     */
-    private void handleRoomUnsubscription(StompHeaderAccessor accessor) {
-        try {
-            String destination = accessor.getDestination();
-
-            // 방 채팅 구독 해제인지 확인: /topic/rooms/{roomId}/chat
-            if (destination != null && destination.matches("/topic/rooms/\\d+/chat")) {
-                Long roomId = extractRoomIdFromDestination(destination);
-
-                if (roomId != null && accessor.getUser() != null) {
-                    Authentication auth = (Authentication) accessor.getUser();
-                    if (auth.getPrincipal() instanceof CustomUserDetails userDetails) {
-                        Long userId = userDetails.getUserId();
-
-                        // 방 퇴장 처리
-                        sessionManager.leaveRoom(userId, roomId);
-
-                        log.info("방 퇴장 처리 완료 - 사용자: {} (ID: {}), 방: {}",
-                                userDetails.getUsername(), userId, roomId);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("방 구독 해제 처리 중 오류 발생: {}", e.getMessage(), e);
-        }
-    }
-
-    /**
-     * destination에서 방 ID 추출
-     * ex) "/topic/rooms/123/chat" -> 123
-     */
-    private Long extractRoomIdFromDestination(String destination) {
-        try {
-            if (destination == null) return null;
-
-            String[] parts = destination.split("/");
-            if (parts.length >= 4 && "rooms".equals(parts[2])) {
-                return Long.parseLong(parts[3]);
-            }
-        } catch (NumberFormatException e) {
-            log.warn("방 ID 추출 실패 - destination: {}, 에러: {}", destination, e.getMessage());
-        }
-        return null;
     }
 }
