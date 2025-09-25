@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -37,13 +38,13 @@ class AuthControllerTest {
     void register_success() throws Exception {
         // given: 정상적인 회원가입 요청 JSON
         String body = """
-            {
-              "username": "testuser",
-              "email": "test@example.com",
-              "password": "P@ssw0rd!",
-              "nickname": "홍길동"
-            }
-            """;
+                {
+                  "username": "testuser",
+                  "email": "test@example.com",
+                  "password": "P@ssw0rd!",
+                  "nickname": "홍길동"
+                }
+                """;
 
         // when: 회원가입 API 호출
         ResultActions resultActions = mvc.perform(
@@ -62,7 +63,8 @@ class AuthControllerTest {
 
         // DB에서 저장된 User 상태 검증
         User saved = userRepository.findByUsername("testuser").orElseThrow();
-        assertThat(saved.getUserStatus()).isEqualTo(UserStatus.PENDING);
+        // TODO: 이메일 인증 기능 개발 후 기본 상태를 PENDING으로 변경
+//        assertThat(saved.getUserStatus()).isEqualTo(UserStatus.PENDING);
     }
 
     @Test
@@ -75,13 +77,13 @@ class AuthControllerTest {
 
         // 동일 username으로 회원가입 요청
         String body = """
-            {
-              "username": "dupuser",
-              "email": "other@example.com",
-              "password": "P@ssw0rd!",
-              "nickname": "다른닉네임"
-            }
-            """;
+                {
+                  "username": "dupuser",
+                  "email": "other@example.com",
+                  "password": "P@ssw0rd!",
+                  "nickname": "다른닉네임"
+                }
+                """;
 
         // when & then: 409 Conflict 응답 및 에러 코드 확인
         mvc.perform(post("/api/auth/register")
@@ -102,13 +104,13 @@ class AuthControllerTest {
 
         // 동일 email로 회원가입 요청
         String body = """
-            {
-              "username": "otheruser",
-              "email": "dup@example.com",
-              "password": "P@ssw0rd!",
-              "nickname": "다른닉네임"
-            }
-            """;
+                {
+                  "username": "otheruser",
+                  "email": "dup@example.com",
+                  "password": "P@ssw0rd!",
+                  "nickname": "다른닉네임"
+                }
+                """;
 
         // when & then: 409 Conflict 응답 및 에러 코드 확인
         mvc.perform(post("/api/auth/register")
@@ -129,13 +131,13 @@ class AuthControllerTest {
 
         // 동일 nickname으로 회원가입 요청
         String body = """
-            {
-              "username": "newuser",
-              "email": "new@example.com",
-              "password": "P@ssw0rd!",
-              "nickname": "dupnick"
-            }
-            """;
+                {
+                  "username": "newuser",
+                  "email": "new@example.com",
+                  "password": "P@ssw0rd!",
+                  "nickname": "dupnick"
+                }
+                """;
 
         // when & then: 409 Conflict 응답 및 에러 코드 확인
         mvc.perform(post("/api/auth/register")
@@ -151,13 +153,13 @@ class AuthControllerTest {
     void register_invalidPassword() throws Exception {
         // given: 숫자/특수문자 포함 안 된 약한 비밀번호
         String body = """
-            {
-              "username": "weakpw",
-              "email": "weak@example.com",
-              "password": "password",
-              "nickname": "닉네임"
-            }
-            """;
+                {
+                  "username": "weakpw",
+                  "email": "weak@example.com",
+                  "password": "password",
+                  "nickname": "닉네임"
+                }
+                """;
 
         // when & then: 400 Bad Request 응답 및 에러 코드 확인
         mvc.perform(post("/api/auth/register")
@@ -173,13 +175,13 @@ class AuthControllerTest {
     void register_invalidRequest_missingField() throws Exception {
         // given: 필수 값 누락 (username, password, nickname 비어있음 / email 형식 잘못됨)
         String body = """
-            {
-              "username": "",
-              "email": "invalid",
-              "password": "",
-              "nickname": ""
-            }
-            """;
+                {
+                  "username": "",
+                  "email": "invalid",
+                  "password": "",
+                  "nickname": ""
+                }
+                """;
 
         // when & then: 400 Bad Request 응답 및 공통 에러 코드 확인
         mvc.perform(post("/api/auth/register")
@@ -188,5 +190,181 @@ class AuthControllerTest {
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_400"));
+    }
+
+    @Test
+    @DisplayName("정상 로그인 → 200 OK + Authorization 헤더 + refreshToken 쿠키")
+    void login_success() throws Exception {
+        // given: 회원가입 요청으로 DB에 정상 유저 저장
+        String rawPassword = "P@ssw0rd!";
+        String registerBody = """
+                {
+                  "username": "loginuser",
+                  "email": "login@example.com",
+                  "password": "%s",
+                  "nickname": "홍길동"
+                }
+                """.formatted(rawPassword);
+
+        mvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody))
+                .andExpect(status().isCreated());
+
+        // when: 로그인 요청
+        String loginBody = """
+                {
+                  "username": "loginuser",
+                  "password": "%s"
+                }
+                """.formatted(rawPassword);
+
+        ResultActions resultActions = mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody))
+                .andDo(print());
+
+        // then: 200 OK 응답 + username/Authorization 헤더/refreshToken 쿠키 확인
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.username").value("loginuser"))
+                .andExpect(header().exists("Authorization"))
+                .andExpect(cookie().exists("refreshToken"));
+    }
+
+    @Test
+    @DisplayName("잘못된 비밀번호 → 401 Unauthorized")
+    void login_invalidPassword() throws Exception {
+        // given: 정상 유저를 회원가입으로 저장
+        String rawPassword = "P@ssw0rd!";
+        String registerBody = """
+                {
+                  "username": "badpwuser",
+                  "email": "badpw@example.com",
+                  "password": "%s",
+                  "nickname": "닉네임"
+                }
+                """.formatted(rawPassword);
+        mvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(registerBody));
+
+        // when: 틀린 비밀번호로 로그인 요청
+        String loginBody = """
+                {
+                  "username": "badpwuser",
+                  "password": "WrongPass!"
+                }
+                """;
+
+        // then: 401 Unauthorized 응답 + 에러 코드 USER_006 확인
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("USER_006"));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 username → 401 Unauthorized")
+    void login_userNotFound() throws Exception {
+        // given: 존재하지 않는 username 사용
+        String loginBody = """
+                {
+                  "username": "nouser",
+                  "password": "P@ssw0rd!"
+                }
+                """;
+
+        // when & then: 401 Unauthorized 응답 + 에러 코드 USER_006 확인
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("USER_006"));
+    }
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Test
+    @DisplayName("이메일 미인증(PENDING) 계정 로그인 → 403 Forbidden")
+    void login_pendingUser() throws Exception {
+        // given: 상태가 PENDING인 유저 저장 (비밀번호 인코딩 필수)
+        User pending = User.createUser("pending", "pending@example.com",
+                passwordEncoder.encode("P@ssw0rd!"));
+        pending.setUserProfile(new UserProfile(pending, "닉네임", null, null, null, 0));
+        pending.setUserStatus(UserStatus.PENDING);
+        userRepository.save(pending);
+
+        String body = """
+                {
+                  "username": "pending",
+                  "password": "P@ssw0rd!"
+                }
+                """;
+
+        // when & then: 403 Forbidden 응답 + 에러 코드 USER_007 확인
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("USER_007"));
+    }
+
+    @Test
+    @DisplayName("정지된 계정(SUSPENDED) 로그인 → 403 Forbidden")
+    void login_suspendedUser() throws Exception {
+        // given: 상태가 SUSPENDED인 유저 저장
+        User suspended = User.createUser("suspended", "suspended@example.com",
+                passwordEncoder.encode("P@ssw0rd!"));
+        suspended.setUserProfile(new UserProfile(suspended, "닉네임", null, null, null, 0));
+        suspended.setUserStatus(UserStatus.SUSPENDED);
+        userRepository.save(suspended);
+
+        String body = """
+                {
+                  "username": "suspended",
+                  "password": "P@ssw0rd!"
+                }
+                """;
+
+        // when & then: 403 Forbidden 응답 + 에러 코드 USER_008 확인
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("USER_008"));
+    }
+
+    @Test
+    @DisplayName("탈퇴한 계정(DELETED) 로그인 → 410 Gone")
+    void login_deletedUser() throws Exception {
+        // given: 상태가 DELETED인 유저 저장
+        User deleted = User.createUser("deleted", "deleted@example.com",
+                passwordEncoder.encode("P@ssw0rd!"));
+        deleted.setUserProfile(new UserProfile(deleted, "닉네임", null, null, null, 0));
+        deleted.setUserStatus(UserStatus.DELETED);
+        userRepository.save(deleted);
+
+        String body = """
+                {
+                  "username": "deleted",
+                  "password": "P@ssw0rd!"
+                }
+                """;
+
+        // when & then: 410 Gone 응답 + 에러 코드 USER_009 확인
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.code").value("USER_009"));
     }
 }

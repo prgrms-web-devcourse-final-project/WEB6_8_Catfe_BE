@@ -13,6 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.util.ArrayList;
@@ -38,6 +39,8 @@ public class User extends BaseEntity {
 
     private String providerId;
 
+    // 사용자 상태 변경
+    @Setter
     @Enumerated(EnumType.STRING)
     private UserStatus userStatus;
 
