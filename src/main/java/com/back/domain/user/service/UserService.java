@@ -14,6 +14,7 @@ import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.back.global.security.CurrentUser;
 import com.back.global.security.JwtTokenProvider;
+import com.back.global.util.CookieUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -121,12 +122,13 @@ public class UserService {
         userTokenRepository.save(userToken);
 
         // Refresh Token을 HttpOnly 쿠키로 설정
-        Cookie cookie = new Cookie("refreshToken", refreshToken);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true);
-        cookie.setPath("/api/auth/refresh");
-        cookie.setMaxAge((int) jwtTokenProvider.getRefreshTokenExpirationInSeconds());
-        response.addCookie(cookie);
+        CookieUtil.addCookie(
+                response,
+                "refreshToken",
+                refreshToken,
+                (int) jwtTokenProvider.getRefreshTokenExpirationInSeconds(),
+                "/api/auth"
+        );
 
         // Access Token을 응답 헤더에 설정
         response.setHeader("Authorization", "Bearer " + accessToken);
@@ -147,14 +149,8 @@ public class UserService {
         // DB에서 Refresh Token 삭제
         userTokenRepository.deleteByRefreshToken(refreshToken);
 
-        // TODO: 중복 코드 -> 리팩토링 필요
         // 쿠키 삭제
-        Cookie cookie = new Cookie("refreshToken", null);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true);
-        cookie.setPath("/api/auth/refresh");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        CookieUtil.clearCookie(response, "refreshToken", "/api/auth");
     }
 
     /**
