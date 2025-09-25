@@ -84,13 +84,11 @@ public class UserService {
 
     /**
      * 로그인 서비스
-     * 1. 사용자 조회 (username)
-     * 2. 비밀번호 검증
-     * 3. 사용자 상태 체크 (PENDING, SUSPENDED, DELETED)
-     * 4. Access Token, Refresh Token 생성
-     * 5. Refresh Token을 HttpOnly 쿠키로 설정
-     * 6. Access Token을 응답 헤더에 설정
-     * 7. UserResponse 반환
+     * 1. 사용자 조회 및 비밀번호 검증
+     * 2. 사용자 상태 검증 (PENDING, SUSPENDED, DELETED)
+     * 3. Access/Refresh Token 발급
+     * 4. Refresh Token을 HttpOnly 쿠키로, Access Token은 헤더로 설정
+     * 5. UserResponse 반환
      */
     public UserResponse login(LoginRequest request, HttpServletResponse response) {
         // 사용자 조회
@@ -137,6 +135,11 @@ public class UserService {
         return UserResponse.from(user, user.getUserProfile());
     }
 
+    /**
+     * 로그아웃 서비스
+     * 1. Refresh Token 검증 및 DB 삭제
+     * 2. 쿠키 삭제
+     */
     public void logout(HttpServletRequest request, HttpServletResponse response) {
         // 쿠키에서 Refresh Token 추출
         String refreshToken = resolveRefreshToken(request);
