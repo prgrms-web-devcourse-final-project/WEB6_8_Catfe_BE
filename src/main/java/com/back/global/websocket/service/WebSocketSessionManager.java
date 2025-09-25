@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -117,7 +119,7 @@ public class WebSocketSessionManager {
         }
     }
 
-    // 방 입장
+    // 사용자가 방에 입장 (WebSocket 전용)
     public void joinRoom(Long userId, Long roomId) {
         try {
             WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
@@ -139,7 +141,7 @@ public class WebSocketSessionManager {
                 redisTemplate.opsForSet().add(roomUsersKey, userId);
                 redisTemplate.expire(roomUsersKey, Duration.ofMinutes(SESSION_TTL_MINUTES));
 
-                log.info("사용자 방 입장 완료 - 사용자: {}, 방: {}", userId, roomId);
+                log.info("WebSocket 방 입장 완료 - 사용자: {}, 방: {}", userId, roomId);
             } else {
                 log.warn("세션 정보가 없어 방 입장 처리 실패 - 사용자: {}, 방: {}", userId, roomId);
             }
@@ -151,7 +153,7 @@ public class WebSocketSessionManager {
         }
     }
 
-    // 방 퇴장
+    // 사용자가 방에서 퇴장 (WebSocket 전용)
     public void leaveRoom(Long userId, Long roomId) {
         try {
             WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
@@ -166,7 +168,7 @@ public class WebSocketSessionManager {
                 String roomUsersKey = ROOM_USERS_KEY.replace("{}", roomId.toString());
                 redisTemplate.opsForSet().remove(roomUsersKey, userId);
 
-                log.info("사용자 방 퇴장 완료 - 사용자: {}, 방: {}", userId, roomId);
+                log.info("WebSocket 방 퇴장 완료 - 사용자: {}, 방: {}", userId, roomId);
             }
         } catch (CustomException e) {
             throw e;
@@ -176,30 +178,59 @@ public class WebSocketSessionManager {
         }
     }
 
-    // 방의 참여자 수 조회
-    public long getRoomUserCount(Long roomId) {
+    // 방의 온라인 사용자 수 조회
+    public long getRoomOnlineUserCount(Long roomId) {
         try {
             String roomUsersKey = ROOM_USERS_KEY.replace("{}", roomId.toString());
             Long count = redisTemplate.opsForSet().size(roomUsersKey);
             return count != null ? count : 0;
         } catch (Exception e) {
-            log.error("방 참여자 수 조회 실패 - 방: {}", roomId, e);
+            log.error("방 온라인 사용자 수 조회 실패 - 방: {}", roomId, e);
             throw new CustomException(ErrorCode.WS_REDIS_ERROR);
         }
     }
 
-    // 방의 참여자 목록 조회
-    public java.util.Set<Object> getRoomUsers(Long roomId) {
+    // 방의 온라인 사용자 목록 조회
+    public Set<Long> getOnlineUsersInRoom(Long roomId) {
         try {
             String roomUsersKey = ROOM_USERS_KEY.replace("{}", roomId.toString());
-            return redisTemplate.opsForSet().members(roomUsersKey);
+            Set<Object> userIds = redisTemplate.opsForSet().members(roomUsersKey);
+
+            if (userIds != null) {
+                return userIds.stream()
+                        .map(obj -> (Long) obj)
+                        .collect(Collectors.toSet());
+            }
+            return Set.of();
         } catch (Exception e) {
-            log.error("방 참여자 목록 조회 실패 - 방: {}", roomId, e);
+            log.error("방 온라인 사용자 목록 조회 실패 - 방: {}", roomId, e);
             throw new CustomException(ErrorCode.WS_REDIS_ERROR);
         }
     }
 
-    // 내부적으로 세션 제거 처리
+    // 전체 온라인 사용자 수 조회
+    public long getTotalOnlineUserCount() {
+        try {
+            Set<String> userKeys = redisTemplate.keys(USER_SESSION_KEY.replace("{}", "*"));
+            return userKeys != null ? userKeys.size() : 0;
+        } catch (Exception e) {
+            log.error("전체 온라인 사용자 수 조회 실패", e);
+            return 0;
+        }
+    }
+
+    // 특정 사용자의 현재 방 조회
+    public Long getUserCurrentRoomId(Long userId) {
+        try {
+            WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
+            return sessionInfo != null ? sessionInfo.getCurrentRoomId() : null;
+        } catch (CustomException e) {
+            log.error("사용자 현재 방 조회 실패 - 사용자: {}", userId, e);
+            return null; // 조회용이므로 예외 대신 null 반환
+        }
+    }
+
+   // 내부적으로 세션 제거 처리
     private void removeSessionInternal(String sessionId) {
         String sessionKey = SESSION_USER_KEY.replace("{}", sessionId);
         Long userId = (Long) redisTemplate.opsForValue().get(sessionKey);
