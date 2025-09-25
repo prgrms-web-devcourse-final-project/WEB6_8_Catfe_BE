@@ -1,0 +1,305 @@
+package com.back.domain.user.controller;
+
+import com.back.domain.user.dto.LoginRequest;
+import com.back.domain.user.dto.UserRegisterRequest;
+import com.back.domain.user.dto.UserResponse;
+import com.back.global.common.dto.RsData;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestBody;
+
+@Tag(name = "Auth API", description = "인증/인가 관련 API")
+public interface AuthControllerDocs {
+
+    @Operation(
+            summary = "회원가입",
+            description = "신규 사용자를 등록합니다. " +
+                    "회원가입 시 기본 상태는 `PENDING`이며, 추후 이메일 인증 완료 시 `ACTIVE`로 변경됩니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "회원가입 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "회원가입이 성공적으로 완료되었습니다. 이메일 인증을 완료해주세요.",
+                                      "data": {
+                                        "userId": 1,
+                                        "username": "testuser",
+                                        "email": "test@example.com",
+                                        "nickname": "홍길동",
+                                        "role": "USER",
+                                        "status": "PENDING",
+                                        "createdAt": "2025-09-19T15:00:00"
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "중복된 아이디/이메일/닉네임",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "중복 아이디", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_002",
+                                              "message": "이미 사용 중인 아이디입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "중복 이메일", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_003",
+                                              "message": "이미 사용 중인 이메일입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "중복 닉네임", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_004",
+                                              "message": "이미 사용 중인 닉네임입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 / 비밀번호 정책 위반",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "비밀번호 정책 위반", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_005",
+                                              "message": "비밀번호는 최소 8자 이상, 숫자/특수문자를 포함해야 합니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "잘못된 요청", value = """
+                                            {
+                                              "success": false,
+                                              "code": "COMMON_400",
+                                              "message": "잘못된 요청입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ResponseEntity<RsData<UserResponse>> register(
+            @Valid @RequestBody UserRegisterRequest request
+    );
+
+    @Operation(
+            summary = "로그인",
+            description = "username + password로 로그인합니다. " +
+                    "로그인 성공 시 Access Token은 `Authorization` 헤더에, Refresh Token은 HttpOnly 쿠키로 발급됩니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "로그인 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "로그인에 성공했습니다.",
+                                      "data": {
+                                        "userId": 1,
+                                        "username": "testuser",
+                                        "email": "test@example.com",
+                                        "nickname": "홍길동",
+                                        "role": "USER",
+                                        "status": "ACTIVE",
+                                        "createdAt": "2025-09-19T15:00:00"
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "잘못된 아이디/비밀번호",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_006",
+                                      "message": "아이디 또는 비밀번호가 올바르지 않습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "이메일 미인증 / 정지 계정",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "이메일 미인증", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_007",
+                                              "message": "이메일 인증 후 로그인할 수 있습니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "정지 계정", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_008",
+                                              "message": "정지된 계정입니다. 관리자에게 문의하세요.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "410",
+                    description = "탈퇴한 계정",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_009",
+                                      "message": "탈퇴한 계정입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ResponseEntity<RsData<UserResponse>> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletResponse response
+    );
+
+    @Operation(
+            summary = "로그아웃",
+            description = "사용자의 Refresh Token을 무효화하여 더 이상 토큰 재발급이 불가능하게 합니다. " +
+                    "Access Token은 클라이언트(프론트엔드) 메모리에서 삭제해야 합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "로그아웃 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                {
+                                  "success": true,
+                                  "code": "SUCCESS_200",
+                                  "message": "로그아웃 되었습니다.",
+                                  "data": null
+                                }
+                                """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "이미 만료되었거나 유효하지 않은 Refresh Token",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                {
+                                  "success": false,
+                                  "code": "AUTH_401",
+                                  "message": "이미 만료되었거나 유효하지 않은 토큰입니다.",
+                                  "data": null
+                                }
+                                """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 (토큰 없음 / 형식 오류)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                {
+                                  "success": false,
+                                  "code": "COMMON_400",
+                                  "message": "잘못된 요청입니다.",
+                                  "data": null
+                                }
+                                """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                {
+                                  "success": false,
+                                  "code": "COMMON_500",
+                                  "message": "서버 오류가 발생했습니다.",
+                                  "data": null
+                                }
+                                """)
+                    )
+            )
+    })
+    ResponseEntity<RsData<Void>> logout(
+            HttpServletRequest request,
+            HttpServletResponse response
+    );
+}
