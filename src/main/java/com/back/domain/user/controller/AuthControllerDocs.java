@@ -16,6 +16,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import java.util.Map;
+
 @Tag(name = "Auth API", description = "인증/인가 관련 API")
 public interface AuthControllerDocs {
 
@@ -299,6 +301,89 @@ public interface AuthControllerDocs {
             )
     })
     ResponseEntity<RsData<Void>> logout(
+            HttpServletRequest request,
+            HttpServletResponse response
+    );
+
+    @Operation(
+            summary = "토큰 재발급",
+            description = "Access Token이 만료되었을 때 Refresh Token을 이용해 새로운 Access Token을 발급받습니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "토큰 재발급 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "토큰이 재발급되었습니다.",
+                                      "data": {
+                                        "accessToken": "{newAccessToken}"
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Refresh Token 없음 / 잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_400",
+                                      "message": "잘못된 요청입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Refresh Token 만료 또는 위조/무효",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "Refresh Token 만료", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_401",
+                                              "message": "Refresh Token이 만료되었습니다. 다시 로그인해주세요.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "Refresh Token 위조/무효", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_401",
+                                              "message": "유효하지 않은 Refresh Token입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ResponseEntity<RsData<Map<String, String>>> refreshToken(
             HttpServletRequest request,
             HttpServletResponse response
     );
