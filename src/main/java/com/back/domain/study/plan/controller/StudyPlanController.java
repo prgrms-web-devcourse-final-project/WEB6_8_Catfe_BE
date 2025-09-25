@@ -4,7 +4,7 @@ import com.back.domain.study.plan.dto.StudyPlanDeleteRequest;
 import com.back.domain.study.plan.dto.StudyPlanRequest;
 import com.back.domain.study.plan.dto.StudyPlanListResponse;
 import com.back.domain.study.plan.dto.StudyPlanResponse;
-import com.back.domain.study.plan.entity.StudyPlanException;
+import com.back.domain.study.plan.entity.ApplyScope;
 import com.back.domain.study.plan.service.StudyPlanService;
 import com.back.global.common.dto.RsData;
 import com.back.global.security.CustomUserDetails;
@@ -74,7 +74,7 @@ public class StudyPlanController {
             // @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long planId,
             @RequestBody StudyPlanRequest request,
-            @RequestParam(required = false, defaultValue = "THIS_ONLY") StudyPlanException.ApplyScope applyScope) {
+            @RequestParam(required = false, defaultValue = "THIS_ONLY") ApplyScope applyScope) {
         // Long userId = user.getId();
         Long userId = 1L; // 임시
 
@@ -85,18 +85,19 @@ public class StudyPlanController {
 
 
     // ==================== 삭제 ===================
+    // 플랜 아이디는 원본의 아이디를 받음
+    // 가상인지 원본인지는 서비스에서 원본과 날짜를 대조해 판단
+    // 삭제 적용 범위를 쿼리 파라미터로 받음 (THIS_ONLY, FROM_THIS_DATE)
     @DeleteMapping("/{planId}")
     public ResponseEntity<RsData<Void>> deleteStudyPlan(
             // @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long planId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate selectedDate,
-            @RequestBody(required = false) StudyPlanDeleteRequest request) {
+            @RequestParam(required = false) ApplyScope applyScope) {
         Long userId = 1L; // 임시
 
-        studyPlanService.deleteStudyPlan(userId, planId, selectedDate, request);
+        studyPlanService.deleteStudyPlan(userId, planId, selectedDate, applyScope);
         return ResponseEntity.ok(RsData.success("학습 계획이 성공적으로 삭제되었습니다."));
     }
-
-
 
 }

@@ -57,11 +57,6 @@ public class StudyPlanException extends BaseEntity {
         MODIFIED    // 해당 날짜 수정
     }
 
-    public enum ApplyScope {
-        THIS_ONLY,      // 이 날짜만
-        FROM_THIS_DATE  // 이 날짜부터 이후 모든 날짜
-    }
-
     @Embedded
     @AttributeOverrides({
             @AttributeOverride(name = "frequency", column = @Column(name = "modified_frequency")),

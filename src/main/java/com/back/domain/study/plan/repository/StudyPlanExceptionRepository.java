@@ -1,5 +1,6 @@
 package com.back.domain.study.plan.repository;
 
+import com.back.domain.study.plan.entity.ApplyScope;
 import com.back.domain.study.plan.entity.StudyPlanException;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,7 +21,7 @@ public interface StudyPlanExceptionRepository extends JpaRepository<StudyPlanExc
             "ORDER BY spe.exceptionDate DESC")
     List<StudyPlanException> findByStudyPlanIdAndApplyScopeAndExceptionDateBefore(
             @Param("planId") Long planId,
-            @Param("applyScope") StudyPlanException.ApplyScope applyScope,
+            @Param("applyScope") ApplyScope applyScope,
             @Param("targetDate") LocalDateTime targetDate);
 // 특정 계획의 특정 기간 동안(start~end)의 예외를 조회
     @Query("SELECT spe FROM StudyPlanException spe WHERE spe.studyPlan.id = :planId " +
