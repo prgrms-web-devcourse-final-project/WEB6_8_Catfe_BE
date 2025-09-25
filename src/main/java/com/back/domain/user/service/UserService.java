@@ -1,5 +1,6 @@
 package com.back.domain.user.service;
 
+import com.back.domain.user.dto.LoginRequest;
 import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
 import com.back.domain.user.entity.User;
@@ -8,6 +9,10 @@ import com.back.domain.user.repository.UserProfileRepository;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import com.back.global.security.CurrentUser;
+import com.back.global.security.JwtTokenProvider;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,6 +25,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
     /**
      * 회원가입 서비스
@@ -61,6 +67,52 @@ public class UserService {
 
         // UserResponse 변환 및 반환
         return UserResponse.from(saved, profile);
+    }
+
+    /**
+     * 로그인 서비스
+     * 1. 사용자 조회 (username)
+     * 2. 비밀번호 검증
+     * 3. 사용자 상태 체크 (PENDING, SUSPENDED, DELETED)
+     * 4. Access Token, Refresh Token 생성
+     * 5. Refresh Token을 HttpOnly 쿠키로 설정
+     * 6. Access Token을 응답 헤더에 설정
+     * 7. UserResponse 반환
+     */
+    public UserResponse login(LoginRequest request, HttpServletResponse response) {
+        // 사용자 조회
+        User user = userRepository.findByUsername(request.username())
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
+
+        // 비밀번호 검증
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        // 사용자 상태 검증
+        switch (user.getUserStatus()) {
+            case PENDING -> throw new CustomException(ErrorCode.USER_EMAIL_NOT_VERIFIED);
+            case SUSPENDED -> throw new CustomException(ErrorCode.USER_SUSPENDED);
+            case DELETED -> throw new CustomException(ErrorCode.USER_DELETED);
+        }
+
+        // 토큰 생성
+        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
+
+        // Refresh Token을 HttpOnly 쿠키로 설정
+        Cookie cookie = new Cookie("refreshToken", refreshToken);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/api/auth/refresh");
+        cookie.setMaxAge(7 * 24 * 60 * 60); // TODO: 하드 코딩된 만료 시간 상수로 분리
+        response.addCookie(cookie);
+
+        // Access Token을 응답 헤더에 설정
+        response.setHeader("Authorization", "Bearer " + accessToken);
+
+        // UserResponse 반환
+        return UserResponse.from(user, user.getUserProfile());
     }
 
     /**
