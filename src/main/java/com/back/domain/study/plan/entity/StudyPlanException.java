@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -60,4 +61,13 @@ public class StudyPlanException extends BaseEntity {
         THIS_ONLY,      // 이 날짜만
         FROM_THIS_DATE  // 이 날짜부터 이후 모든 날짜
     }
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "frequency", column = @Column(name = "modified_frequency")),
+            @AttributeOverride(name = "intervalValue", column = @Column(name = "modified_repeat_interval")),
+            @AttributeOverride(name = "byDay", column = @Column(name = "modified_by_day")),
+            @AttributeOverride(name = "untilDate", column = @Column(name = "modified_until_date"))
+    })
+    private RepeatRuleEmbeddable modifiedRepeatRule;
 }

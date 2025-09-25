@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Getter
@@ -25,10 +25,9 @@ public class RepeatRule extends BaseEntity {
     @Column(name = "interval_value", nullable = false)
     private int RepeatInterval;
 
-    //필요 시 요일 지정. 여러 요일 지정 시 ,로 구분
-    //현재는 요일 하나만 지정하는 형태로 구현
+    //요일은 계획 날짜에 따라 자동 설정
     @Column(name = "by_day")
     private String byDay;
 
-    private LocalDateTime untilDate;
+    private LocalDate untilDate;
 }

@@ -10,6 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -44,14 +45,14 @@ public class StudyPlanResponse {
         private String byDay; // "MON" 형태의 문자열
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
-        private LocalDateTime until;
+        private LocalDate untilDate;
 
         public RepeatRuleResponse(com.back.domain.study.plan.entity.RepeatRule repeatRule) {
             if (repeatRule != null) {
                 this.frequency = repeatRule.getFrequency();
                 this.repeatInterval = repeatRule.getRepeatInterval();
                 this.byDay = repeatRule.getByDay();
-                this.until = repeatRule.getUntilDate();
+                this.untilDate = repeatRule.getUntilDate();
             }
         }
 
