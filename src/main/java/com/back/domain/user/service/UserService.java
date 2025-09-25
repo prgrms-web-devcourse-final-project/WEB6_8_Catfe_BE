@@ -135,6 +135,11 @@ public class UserService {
         return UserResponse.from(user, user.getUserProfile());
     }
 
+    /**
+     * 로그아웃 서비스
+     * 1. Refresh Token 검증 및 DB 삭제
+     * 2. 쿠키 삭제
+     */
     public void logout(HttpServletRequest request, HttpServletResponse response) {
         // 쿠키에서 Refresh Token 추출
         String refreshToken = resolveRefreshToken(request);
