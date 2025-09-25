@@ -6,12 +6,17 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Entity
 @Getter
+@SuperBuilder
 @NoArgsConstructor
+@AllArgsConstructor
 public class RoomChatMessage extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id")
@@ -23,10 +28,4 @@ public class RoomChatMessage extends BaseEntity {
 
     private String content;
 
-    // 채팅 메세지 생성자
-    public RoomChatMessage(Room room, User user, String content) {
-        this.room = room;
-        this.user = user;
-        this.content = content;
-    }
 }

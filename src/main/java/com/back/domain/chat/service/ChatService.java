@@ -10,6 +10,7 @@ import com.back.domain.chat.dto.ChatMessageDto;
 import com.back.domain.chat.dto.ChatPageResponse;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import com.back.global.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,6 +28,11 @@ public class ChatService {
     private final RoomChatMessageRepository roomChatMessageRepository;
     private final RoomRepository roomRepository;
     private final UserRepository userRepository;
+    private final CurrentUser currentUser;
+
+    // 페이징 설정 상수
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
 
     // 방 채팅 메시지 저장
     @Transactional
@@ -54,20 +60,30 @@ public class ChatService {
         roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        Pageable pageable = PageRequest.of(page, size);
+        // size 값 검증 및 제한
+        int validatedSize = validateAndLimitPageSize(size);
+
+        Pageable pageable = PageRequest.of(page, validatedSize);
 
         // before 파라미터가 있으면 해당 시점 이전 메시지만 조회
         Page<RoomChatMessage> messagesPage;
         if (before != null) {
-            // TODO: before 조건 추가한 Repository 메서드 필요
-            messagesPage = roomChatMessageRepository.findByRoomIdOrderByCreatedAtDesc(roomId, pageable);
+            messagesPage = roomChatMessageRepository.findMessagesByRoomIdBefore(roomId, before, pageable);
         } else {
-            messagesPage = roomChatMessageRepository.findByRoomIdOrderByCreatedAtDesc(roomId, pageable);
+            messagesPage = roomChatMessageRepository.findMessagesByRoomId(roomId, pageable);
         }
 
         Page<ChatMessageDto> dtoPage = messagesPage.map(this::convertToDto);
 
         return ChatPageResponse.from(dtoPage);
+    }
+
+    // size 값 검증 및 최대값 제한
+    private int validateAndLimitPageSize(int size) {
+        if (size <= 0) {
+            return DEFAULT_PAGE_SIZE; // 0 이하면 기본값 사용
+        }
+        return Math.min(size, MAX_PAGE_SIZE); // 최대값 제한
     }
 
     // 메시지 엔티티를 DTO로 변환
@@ -85,24 +101,4 @@ public class ChatService {
                 .build();
     }
 
-    // 방 채팅 메시지 삭제
-    @Transactional
-    public void deleteRoomMessage(Long roomId, Long messageId, Long currentUserId) {
-        // 메시지 존재 여부 확인
-        RoomChatMessage message = roomChatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new CustomException(ErrorCode.MESSAGE_NOT_FOUND));
-
-        // 방 ID 검증
-        if (!message.getRoom().getId().equals(roomId)) {
-            throw new CustomException(ErrorCode.BAD_REQUEST);
-        }
-
-        // 작성자 권한 확인
-        if (!message.getUser().getId().equals(currentUserId)) {
-            throw new CustomException(ErrorCode.MESSAGE_FORBIDDEN);
-        }
-
-        // 메시지 삭제
-        roomChatMessageRepository.delete(message);
-    }
 }
