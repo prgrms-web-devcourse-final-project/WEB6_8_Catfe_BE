@@ -1,5 +1,6 @@
 package com.back.domain.study.plan.controller;
 
+import com.back.domain.study.plan.dto.StudyPlanDeleteRequest;
 import com.back.domain.study.plan.dto.StudyPlanRequest;
 import com.back.domain.study.plan.dto.StudyPlanListResponse;
 import com.back.domain.study.plan.dto.StudyPlanResponse;
@@ -85,9 +86,15 @@ public class StudyPlanController {
 
     // ==================== 삭제 ===================
     @DeleteMapping("/{planId}")
-    public ResponseEntity<RsData<Void>> deleteStudyPlan(@PathVariable Long planId) {
-        //studyPlanService.deleteStudyPlan(planId);
-        return ResponseEntity.ok(RsData.success("학습 계획이 성공적으로 삭제되었습니다.", null));
+    public ResponseEntity<RsData<Void>> deleteStudyPlan(
+            // @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long planId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate selectedDate,
+            @RequestBody(required = false) StudyPlanDeleteRequest request) {
+        Long userId = 1L; // 임시
+
+        studyPlanService.deleteStudyPlan(userId, planId, selectedDate, request);
+        return ResponseEntity.ok(RsData.success("학습 계획이 성공적으로 삭제되었습니다."));
     }
 
 

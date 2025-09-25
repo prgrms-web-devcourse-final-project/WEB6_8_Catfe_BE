@@ -23,7 +23,7 @@ public class RepeatRule extends BaseEntity {
     private Frequency frequency;
 
     @Column(name = "interval_value", nullable = false)
-    private int RepeatInterval;
+    private int repeatInterval;
 
     //요일은 계획 날짜에 따라 자동 설정
     @Column(name = "by_day")

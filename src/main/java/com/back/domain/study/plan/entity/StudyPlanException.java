@@ -26,7 +26,7 @@ public class StudyPlanException extends BaseEntity {
 
     // 예외가 발생한 날짜
     @Column(name = "exception_date", nullable = false)
-    private LocalDateTime exceptionDate;
+    private LocalDate exceptionDate;
 
     //예외 유형 (수정 / 삭제)
     @Enumerated(EnumType.STRING)

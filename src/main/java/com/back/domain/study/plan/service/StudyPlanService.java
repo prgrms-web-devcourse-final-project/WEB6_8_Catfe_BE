@@ -1,5 +1,6 @@
 package com.back.domain.study.plan.service;
 
+import com.back.domain.study.plan.dto.StudyPlanDeleteRequest;
 import com.back.domain.study.plan.dto.StudyPlanRequest;
 import com.back.domain.study.plan.dto.StudyPlanResponse;
 import com.back.domain.study.plan.entity.RepeatRule;
@@ -201,7 +202,7 @@ public class StudyPlanService{
     private StudyPlanException getEffectiveException(Long planId, LocalDate targetDate) {
         // 해당 날짜에 직접적인 예외가 있는지 확인
         Optional<StudyPlanException> directException = studyPlanExceptionRepository
-                .findByPlanIdAndDate(planId, targetDate.atStartOfDay());
+                .findByPlanIdAndDate(planId, targetDate);
         if (directException.isPresent()) {
             return directException.get();
         }
@@ -320,7 +321,7 @@ public class StudyPlanService{
 
         // 1-2. 반복 계획에서 다른 날짜인 경우 -> 기존 예외 확인
         Optional<StudyPlanException> existingException = studyPlanExceptionRepository
-                .findByPlanIdAndDate(originalPlan.getId(), requestDate.atStartOfDay());
+                .findByPlanIdAndDate(originalPlan.getId(), requestDate);
 
         if (existingException.isPresent()) {
         return UpdateType.REPEAT_INSTANCE_UPDATE; // 기존 예외 수정
@@ -357,7 +358,7 @@ public class StudyPlanService{
 
         StudyPlanException exception = new StudyPlanException();
         exception.setStudyPlan(originalPlan);
-        exception.setExceptionDate(exceptionDate.atStartOfDay());
+        exception.setExceptionDate(exceptionDate);
         exception.setExceptionType(StudyPlanException.ExceptionType.MODIFIED);
         exception.setApplyScope(applyScope); // 파라미터로 받은 applyScope
 
@@ -396,7 +397,7 @@ public class StudyPlanService{
         LocalDate exceptionDate = request.getStartDate().toLocalDate();
 
         StudyPlanException existingException = studyPlanExceptionRepository
-                .findByPlanIdAndDate(originalPlan.getId(), exceptionDate.atStartOfDay())
+                .findByPlanIdAndDate(originalPlan.getId(), exceptionDate)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 
         // 기존 예외 정보 업데이트
@@ -449,7 +450,49 @@ public class StudyPlanService{
     }
 
     // ==================== 삭제 ===================
+    @Transactional
+    public void deleteStudyPlan(Long userId, Long planId, LocalDate selectedDate, StudyPlanDeleteRequest request) {
+        StudyPlan studyPlan = studyPlanRepository.findById(planId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 
+        validateUserAccess(studyPlan, userId);
+
+        // 단발성 계획 삭제 (request가 null이거나 deleteScope가 없는 경우)
+        if (studyPlan.getRepeatRule() == null || request == null || request.getDeleteScope() == null) {
+            studyPlanRepository.delete(studyPlan);
+            return;
+        }
+
+        // 반복성 계획 삭제 - deleteScope에 따른 처리
+        deleteRepeatPlan(studyPlan, selectedDate, request.getDeleteScope());
+    }
+
+    private void deleteRepeatPlan(StudyPlan studyPlan, LocalDate selectedDate, StudyPlanDeleteRequest.DeleteScope deleteScope) {
+        switch (deleteScope) {
+            case FROM_THIS_DATE:
+                // 원본 날짜부터 삭제하는 경우 = 전체 계획 삭제
+                if (selectedDate.equals(studyPlan.getStartDate().toLocalDate())) {
+                    studyPlanRepository.delete(studyPlan); // CASCADE로 RepeatRule, Exception 모두 삭제
+                } else {
+                    // 중간 날짜부터 삭제하는 경우 = untilDate 수정
+                    RepeatRule repeatRule = studyPlan.getRepeatRule();
+                    LocalDate newUntilDate = selectedDate.minusDays(1);
+                    repeatRule.setUntilDate(newUntilDate);
+                    studyPlanRepository.save(studyPlan);
+                }
+                break;
+
+            case THIS_ONLY:
+                // 선택한 날짜만 삭제 - 예외 생성
+                StudyPlanException exception = new StudyPlanException();
+                exception.setStudyPlan(studyPlan);
+                exception.setExceptionDate(selectedDate);
+                exception.setExceptionType(StudyPlanException.ExceptionType.DELETED);
+                exception.setApplyScope(StudyPlanException.ApplyScope.THIS_ONLY);
+                studyPlanExceptionRepository.save(exception);
+                break;
+        }
+    }
 
     // ==================== 유틸 ===================
     // 인가 (작성자 일치 확인)
