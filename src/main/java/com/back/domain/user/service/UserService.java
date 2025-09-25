@@ -144,8 +144,13 @@ public class UserService {
         // 쿠키에서 Refresh Token 추출
         String refreshToken = resolveRefreshToken(request);
 
-        // 토큰 검증
-        if (refreshToken == null || !jwtTokenProvider.validateToken(refreshToken)) {
+        // Refresh Token 존재 여부 확인
+        if (refreshToken == null) {
+            throw new CustomException(ErrorCode.BAD_REQUEST);
+        }
+
+        // Refresh Token 검증
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
             throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
 

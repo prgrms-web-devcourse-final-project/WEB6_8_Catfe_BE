@@ -7,6 +7,7 @@ import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserProfileRepository;
 import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.repository.UserTokenRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import jakarta.servlet.http.Cookie;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -35,6 +37,9 @@ class UserServiceTest {
 
     @Autowired
     private UserProfileRepository userProfileRepository;
+
+    @Autowired
+    private UserTokenRepository userTokenRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -262,5 +267,60 @@ class UserServiceTest {
         ))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.USER_DELETED.getMessage());
+    }
+    @Test
+    @DisplayName("정상 로그아웃 성공 → RefreshToken DB 삭제 + 쿠키 만료")
+    void logout_success() {
+        // given: 정상 로그인된 사용자
+        String rawPassword = "P@ssw0rd!";
+        User user = setupUser("logoutuser", "logout@example.com", rawPassword, "닉네임", UserStatus.ACTIVE);
+        MockHttpServletResponse loginResponse = new MockHttpServletResponse();
+
+        userService.login(new LoginRequest("logoutuser", rawPassword), loginResponse);
+        Cookie refreshCookie = loginResponse.getCookie("refreshToken");
+        assertThat(refreshCookie).isNotNull();
+
+        MockHttpServletResponse logoutResponse = new MockHttpServletResponse();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(refreshCookie); // 쿠키를 요청에 실어줌
+
+        // when: 로그아웃 실행
+        userService.logout(request, logoutResponse);
+
+        // then: DB에서 refreshToken 삭제됨
+        assertThat(userTokenRepository.findByRefreshToken(refreshCookie.getValue())).isEmpty();
+
+        // 응답 쿠키는 만료 처리됨
+        Cookie cleared = logoutResponse.getCookie("refreshToken");
+        assertThat(cleared).isNotNull();
+        assertThat(cleared.getMaxAge()).isZero();
+        assertThat(cleared.getValue()).isNull();
+    }
+
+    @Test
+    @DisplayName("RefreshToken 없으면 INVALID_TOKEN 예외 발생")
+    void logout_noToken() {
+        // given: 쿠키 없이 로그아웃 요청
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when & then
+        assertThatThrownBy(() -> userService.logout(request, response))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.BAD_REQUEST.getMessage());
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 RefreshToken이면 INVALID_TOKEN 예외 발생")
+    void logout_invalidToken() {
+        // given: 잘못된 토큰 쿠키 세팅
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(new Cookie("refreshToken", "invalidToken"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when & then
+        assertThatThrownBy(() -> userService.logout(request, response))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.INVALID_TOKEN.getMessage());
     }
 }
