@@ -51,25 +51,26 @@ public class ChatWebSocketController {
             String currentUserNickname = userDetails.getUsername();
 
             // 메시지 정보 보완
-            chatMessage.setRoomId(roomId);
-            chatMessage.setUserId(currentUserId);
-            chatMessage.setNickname(currentUserNickname);
+            ChatMessageDto enrichedMessage = chatMessage
+                    .withRoomId(roomId)
+                    .withUserId(currentUserId)
+                    .withNickname(currentUserNickname);
 
             // DB에 메시지 저장
-            RoomChatMessage savedMessage = chatService.saveRoomChatMessage(chatMessage);
+            RoomChatMessage savedMessage = chatService.saveRoomChatMessage(enrichedMessage);
 
             // 저장된 메시지 정보로 응답 DTO 생성
-            ChatMessageDto responseMessage = ChatMessageDto.builder()
-                    .messageId(savedMessage.getId())
-                    .roomId(roomId)
-                    .userId(savedMessage.getUser().getId())
-                    .nickname(savedMessage.getUser().getNickname())
-                    .profileImageUrl(savedMessage.getUser().getProfileImageUrl())
-                    .content(savedMessage.getContent())
-                    .messageType(chatMessage.getMessageType())
-                    .attachment(null) // 텍스트 채팅에서는 null
-                    .createdAt(savedMessage.getCreatedAt())
-                    .build();
+            ChatMessageDto responseMessage = ChatMessageDto.createResponse(
+                    savedMessage.getId(),
+                    roomId,
+                    savedMessage.getUser().getId(),
+                    savedMessage.getUser().getNickname(),
+                    savedMessage.getUser().getProfileImageUrl(),
+                    savedMessage.getContent(),
+                    chatMessage.messageType(),
+                    null, // 텍스트 채팅에서는 null
+                    savedMessage.getCreatedAt()
+            );
 
             // 해당 방의 모든 구독자에게 브로드캐스트
             messagingTemplate.convertAndSend("/topic/room/" + roomId, responseMessage);

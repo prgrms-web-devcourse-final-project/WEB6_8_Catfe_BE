@@ -39,15 +39,15 @@ public class ChatService {
     public RoomChatMessage saveRoomChatMessage(ChatMessageDto chatMessageDto) {
 
         // 방 존재 여부 확인
-        Room room = roomRepository.findById(chatMessageDto.getRoomId())
+        Room room = roomRepository.findById(chatMessageDto.roomId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
         // 사용자 존재 여부 확인
-        User user = userRepository.findById(chatMessageDto.getUserId())
+        User user = userRepository.findById(chatMessageDto.userId())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // RoomChatMessage 엔티티 생성 및 저장
-        RoomChatMessage message = new RoomChatMessage(room, user, chatMessageDto.getContent());
+        RoomChatMessage message = new RoomChatMessage(room, user, chatMessageDto.content());
         RoomChatMessage savedMessage = roomChatMessageRepository.save(message);
 
         return savedMessage;
@@ -88,17 +88,17 @@ public class ChatService {
 
     // 메시지 엔티티를 DTO로 변환
     private ChatMessageDto convertToDto(RoomChatMessage message) {
-        return ChatMessageDto.builder()
-                .messageId(message.getId())
-                .roomId(message.getRoom().getId())
-                .userId(message.getUser().getId())
-                .nickname(message.getUser().getNickname())
-                .profileImageUrl(message.getUser().getProfileImageUrl())
-                .content(message.getContent())
-                .messageType("TEXT") // 현재는 텍스트만 지원
-                .attachment(null)    // 텍스트 채팅에서는 null
-                .createdAt(message.getCreatedAt())
-                .build();
+        return ChatMessageDto.createResponse(
+                message.getId(),
+                message.getRoom().getId(),
+                message.getUser().getId(),
+                message.getUser().getNickname(),
+                message.getUser().getProfileImageUrl(),
+                message.getContent(),
+                "TEXT", // 현재는 텍스트만 지원
+                null,   // 텍스트 채팅에서는 null
+                message.getCreatedAt()
+        );
     }
 
 }
