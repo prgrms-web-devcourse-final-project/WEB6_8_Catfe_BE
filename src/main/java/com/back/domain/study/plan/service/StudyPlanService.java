@@ -6,6 +6,8 @@ import com.back.domain.study.plan.dto.StudyPlanResponse;
 import com.back.domain.study.plan.entity.*;
 import com.back.domain.study.plan.repository.StudyPlanExceptionRepository;
 import com.back.domain.study.plan.repository.StudyPlanRepository;
+import com.back.domain.user.entity.User;
+import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -27,16 +29,17 @@ import java.util.stream.Collectors;
 public class StudyPlanService{
     private final StudyPlanRepository studyPlanRepository;
     private final StudyPlanExceptionRepository studyPlanExceptionRepository;
+    private final UserRepository userRepository;
 
     // ==================== 생성 ===================
     @Transactional
     public StudyPlanResponse createStudyPlan(Long userId, StudyPlanRequest request) {
-        /*User user = UserRepository.findById(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        */
+
         StudyPlan studyPlan = new StudyPlan();
 
-        //studyPlan.setUser(user);
+        studyPlan.setUser(user);
         studyPlan.setSubject(request.getSubject());
         studyPlan.setStartDate(request.getStartDate());
         studyPlan.setEndDate(request.getEndDate());

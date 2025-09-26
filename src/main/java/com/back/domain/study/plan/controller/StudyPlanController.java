@@ -31,10 +31,11 @@ public class StudyPlanController {
                     " 이후 반복되는 계획들은 가상 계획으로서 db에는 없지만 조회 시 가상으로 생성됩니다")
 
     public ResponseEntity<RsData<StudyPlanResponse>> createStudyPlan(
-            // 로그인 유저 정보 받기 @AuthenticationPrincipal CustomUserDetails user,
+            // 로그인 유저 정보 받기
+            @AuthenticationPrincipal CustomUserDetails user,
             @RequestBody StudyPlanRequest request) {
-        //커스텀 디테일 구현 시 사용 int userId = user.getId();
-        Long userId = 1L; // 임시로 userId를 1로 설정
+        //커스텀 디테일 구현 시 사용
+        Long userId = user.getUserId();
         StudyPlanResponse response = studyPlanService.createStudyPlan(userId, request);
         return ResponseEntity.ok(RsData.success("학습 계획이 성공적으로 생성되었습니다.", response));
     }
