@@ -1,4 +1,4 @@
-name: deploy
+name: backend-cd
 on:
   push:
     paths:
@@ -61,7 +61,7 @@ jobs:
       - name: set lower case owner name
         run: |
           echo "OWNER_LC=${OWNER,,}" >> ${GITHUB_ENV}
-          
+
 
       - name: 빌드 앤 푸시
         uses: docker/build-push-action@v3
@@ -71,12 +71,18 @@ jobs:
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/${{ env.DOCKER_IMAGE_NAME }}:${{ needs.makeTagAndRelease.outputs.tag_name }},
             ghcr.io/${{ env.OWNER_LC }}/${{ env.DOCKER_IMAGE_NAME }}:latest
-            
-            
+  
+
   deploy:
     runs-on: ubuntu-latest
     needs: [ buildImageAndPush ]
+    env:
+      OWNER: ${{ github.repository_owner }}
     steps:
+      - name: set lower case owner name
+        run: |
+          echo "OWNER_LC=${OWNER,,}" >> ${GITHUB_ENV}
+
       - name: AWS SSM Send-Command
         uses: peterkimzz/aws-ssm-send-command@master
         id: ssm
@@ -88,7 +94,18 @@ jobs:
           working-directory: /
           comment: Deploy
           command: |
+            # 0. env 변수 확인
+            echo "OWNER_LC = ${{ env.OWNER_LC }}"
+            
+            # 1. 최신 이미지 pull
             docker pull ghcr.io/${{ env.OWNER_LC }}/catfe-backend:latest
+            
+            # 2. 기존 컨테이너 종료 및 제거
             docker stop catfe-backend 2>/dev/null
             docker rm catfe-backend 2>/dev/null
+            
+            # 3. 새로운 컨테이너 실행
             docker run -d --name catfe-backend -p 8080:8080 ghcr.io/${{ env.OWNER_LC }}/catfe-backend:latest
+            
+            # 4. dangling 이미지 삭제
+            docker rmi $(docker images -f "dangling=true" -q)
