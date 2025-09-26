@@ -125,8 +125,10 @@ public class AuthService {
                 "refreshToken",
                 refreshToken,
                 (int) jwtTokenProvider.getRefreshTokenExpirationInSeconds(),
-                "/api/auth"
+                "/",
+                true
         );
+
 
         // LoginResponse 반환
         return new LoginResponse(
@@ -156,7 +158,12 @@ public class AuthService {
         userTokenRepository.deleteByRefreshToken(refreshToken);
 
         // 쿠키 삭제
-        CookieUtil.clearCookie(response, "refreshToken", "/api/auth");
+        CookieUtil.clearCookie(
+                response,
+                "refreshToken",
+                "/",
+                true
+        );
     }
 
     /**
