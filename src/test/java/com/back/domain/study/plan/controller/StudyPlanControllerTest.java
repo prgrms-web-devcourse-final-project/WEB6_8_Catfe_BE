@@ -79,8 +79,8 @@ class StudyPlanControllerTest {
         savedStudyPlan = new StudyPlan();
         savedStudyPlan.setUser(testUser);
         savedStudyPlan.setSubject("Java 공부");
-        savedStudyPlan.setStartDate(LocalDateTime.of(2025, 1, 15, 9, 0));
-        savedStudyPlan.setEndDate(LocalDateTime.of(2025, 1, 15, 11, 0));
+        savedStudyPlan.setStartDate(LocalDateTime.of(2025, 1, 15, 9, 0, 0));
+        savedStudyPlan.setEndDate(LocalDateTime.of(2025, 1, 15, 11, 0, 0));
         savedStudyPlan.setColor(Color.BLUE);
     }
 
@@ -110,8 +110,8 @@ class StudyPlanControllerTest {
                         .content("""
                     {
                         "subject": "단발성 계획",
-                        "startDate": "2025-09-26T10:46",
-                        "endDate": "2025-09-26T11:46",
+                        "startDate": "2025-09-26T10:46:00",
+                        "endDate": "2025-09-26T11:46:00",
                         "color": "RED"
                     }
                     """))
@@ -144,8 +144,8 @@ class StudyPlanControllerTest {
                         .content("""
                     {
                         "subject": "반복 계획",
-                        "startDate": "2025-09-26T10:46",
-                        "endDate": "2025-09-26T11:46",
+                        "startDate": "2025-09-26T10:46:00",
+                        "endDate": "2025-09-26T11:46:00",
                         "color": "BLUE",
                         "repeatRule": {
                             "frequency": "WEEKLY",
@@ -184,8 +184,8 @@ class StudyPlanControllerTest {
                         .content("""
                     {
                         "subject": "반복 계획",
-                        "startDate": "2025-09-26T11:46",
-                        "endDate": "2025-09-26T10:46",
+                        "startDate": "2025-09-26T11:46:00",
+                        "endDate": "2025-09-26T10:46:00",
                         "color": "BLUE",
                         "repeatRule": {
                             "frequency": "WEEKLY",
@@ -202,6 +202,7 @@ class StudyPlanControllerTest {
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(handler().methodName("createStudyPlan"))
                 .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("PLAN_006"))
                 .andExpect(jsonPath("$.message").value("시작 시간은 종료 시간보다 빨라야 합니다."));
     }
 
@@ -213,10 +214,11 @@ class StudyPlanControllerTest {
                         .header("Authorization", "Bearer faketoken")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                    {
+
+                                {
                         "subject": "반복 계획",
-                        "startDate": "2025-09-26T11:46",
-                        "endDate": "2025-09-26T10:46",
+                        "startDate": "2025-09-26T10:46:00",
+                        "endDate": "2025-09-26T11:46:00",
                         "color": "BLUE",
                         "repeatRule": {
                             "frequency": "WEEKLY",
@@ -232,5 +234,6 @@ class StudyPlanControllerTest {
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(handler().methodName("createStudyPlan"))
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value("반복 규칙의 종료 날짜는 계획의 종료 날짜보다 늦어야 합니다."));
+                .andExpect(jsonPath("$.code").value("REPEAT_001"));
+        }
 }

@@ -42,6 +42,8 @@ public enum ErrorCode {
     PLAN_EXCEPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "PLAN_003", "학습 계획의 예외가 존재하지 않습니다."),
     PLAN_ORIGINAL_REPEAT_NOT_FOUND(HttpStatus.BAD_REQUEST, "PLAN_004", "해당 날짜에 원본 반복 계획을 찾을 수 없습니다."),
     PLAN_INVALID_DATE_FORMAT(HttpStatus.BAD_REQUEST, "PLAN_005", "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD 형식을 사용해주세요)"),
+    PLAN_INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "PLAN_006", "시작 시간은 종료 시간보다 빨라야 합니다."),
+    REPEAT_INVALID_UNTIL_DATE(HttpStatus.BAD_REQUEST, "REPEAT_001", "반복 계획의 종료 날짜는 시작 날짜 이전일 수 없습니다."),
 
     // ======================== 메시지 관련 ========================
     MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MESSAGE_001", "존재하지 않는 메시지입니다."),
