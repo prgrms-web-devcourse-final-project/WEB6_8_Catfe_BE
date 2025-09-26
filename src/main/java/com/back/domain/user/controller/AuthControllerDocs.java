@@ -1,6 +1,7 @@
 package com.back.domain.user.controller;
 
 import com.back.domain.user.dto.LoginRequest;
+import com.back.domain.user.dto.LoginResponse;
 import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
 import com.back.global.common.dto.RsData;
@@ -228,7 +229,7 @@ public interface AuthControllerDocs {
                     )
             )
     })
-    ResponseEntity<RsData<UserResponse>> login(
+    ResponseEntity<RsData<LoginResponse>> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response
     );
