@@ -1,8 +1,12 @@
 package com.back.domain.chat.room.service;
 
+import com.back.domain.chat.room.dto.ChatClearedNotification;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomChatMessage;
+import com.back.domain.studyroom.entity.RoomMember;
+import com.back.domain.studyroom.entity.RoomRole;
 import com.back.domain.studyroom.repository.RoomChatMessageRepository;
+import com.back.domain.studyroom.repository.RoomMemberRepository;
 import com.back.domain.studyroom.repository.RoomRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -27,6 +31,7 @@ import java.util.List;
 public class RoomChatService {
 
     private final RoomChatMessageRepository roomChatMessageRepository;
+    private final RoomMemberRepository roomMemberRepository;
     private final RoomRepository roomRepository;
     private final UserRepository userRepository;
     private final CurrentUser currentUser;
@@ -80,6 +85,52 @@ public class RoomChatService {
                 .toList();
 
         return RoomChatPageResponse.from(messagesPage, convertedContent);
+    }
+
+    // 방 채팅 메시지 전체 삭제
+    @Transactional
+    public ChatClearedNotification.ClearedByDto clearRoomChat(Long roomId, Long userId) {
+
+        // 방 존재 여부 확인
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다"));
+
+        // 사용자 존재 여부 확인
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 사용자가 해당 방의 멤버인지 확인
+        RoomMember roomMember = roomMemberRepository.findByRoomAndUser(room, user)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
+
+        // 권한 확인 - 방장(HOST) 또는 부방장(SUB_HOST)만 가능
+        if (!canManageChat(roomMember.getRole())) {
+            throw new SecurityException("채팅 삭제 권한이 없습니다");
+        }
+
+        // 삭제 전 메시지 수 조회 (로깅용)
+        int messageCountBefore = roomChatMessageRepository.countByRoomId(roomId);
+
+        try {
+            // 해당 방의 모든 채팅 메시지 삭제
+            int deletedCount = roomChatMessageRepository.deleteAllByRoomId(roomId);
+
+            // 삭제를 실행한 사용자 정보 반환
+            return new ChatClearedNotification.ClearedByDto(
+                    user.getId(),
+                    user.getNickname(),
+                    user.getProfileImageUrl(),
+                    roomMember.getRole().name()
+            );
+
+        } catch (Exception e) {
+            throw new CustomException(ErrorCode.CHAT_DELETE_FAILED);
+        }
+    }
+
+    // 채팅 관리 권한 확인 (방장 또는 부방장)
+    private boolean canManageChat(RoomRole role) {
+        return role == RoomRole.HOST || role == RoomRole.SUB_HOST;
     }
 
     // size 값 검증 및 최대값 제한

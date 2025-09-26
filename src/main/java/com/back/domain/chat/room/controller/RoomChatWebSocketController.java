@@ -1,5 +1,7 @@
 package com.back.domain.chat.room.controller;
 
+import com.back.domain.chat.room.dto.ChatClearRequest;
+import com.back.domain.chat.room.dto.ChatClearedNotification;
 import com.back.domain.studyroom.entity.RoomChatMessage;
 import com.back.domain.chat.room.dto.RoomChatMessageDto;
 import com.back.global.security.CustomUserDetails;
@@ -9,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
@@ -85,6 +88,71 @@ public class RoomChatWebSocketController {
             // 에러를 발생시킨 사용자에게만 전송
             String sessionId = headerAccessor.getSessionId();
             messagingTemplate.convertAndSendToUser(sessionId, "/queue/errors", errorResponse);
+        }
+    }
+
+    /**
+     * 스터디룸 채팅 일괄 삭제 처리
+     * 클라이언트가 /app/chat/room/{roomId}/clear로 삭제 요청 시 호출
+     *
+     * @param roomId 스터디룸 ID
+     * @param request 삭제 요청 (확인 메시지 포함)
+     * @param headerAccessor WebSocket 헤더 정보
+     * @param principal 인증된 사용자 정보
+     */
+    @MessageMapping("/chat/room/{roomId}/clear")
+    public void clearRoomChat(@DestinationVariable Long roomId,
+                              @Payload ChatClearRequest request,
+                              SimpMessageHeaderAccessor headerAccessor,
+                              Principal principal) {
+
+        try {
+            // 사용자 인증 확인
+            CustomUserDetails userDetails = extractUserDetails(principal);
+            if (userDetails == null) {
+                sendErrorToUser(headerAccessor.getSessionId(), "WS_UNAUTHORIZED", "인증이 필요합니다");
+                return;
+            }
+
+            // 삭제 확인 메시지 검증
+            if (!request.isValidConfirmMessage()) {
+                sendErrorToUser(headerAccessor.getSessionId(), "INVALID_DELETE_CONFIRMATION",
+                        "삭제 확인 메시지가 일치하지 않습니다");
+                return;
+            }
+
+            Long currentUserId = userDetails.getUserId();
+
+            // 채팅 일괄 삭제 실행
+            ChatClearedNotification.ClearedByDto clearedByInfo = roomChatService.clearRoomChat(roomId, currentUserId);
+
+            // 삭제된 메시지 수 조회 (삭제 전에 미리 조회)
+            int deletedCount = roomChatService.getRoomChatCount(roomId);
+
+            // 알림 생성
+            ChatClearedNotification notification = ChatClearedNotification.create(
+                    roomId,
+                    deletedCount,
+                    clearedByInfo.userId(),
+                    clearedByInfo.nickname(),
+                    clearedByInfo.profileImageUrl(),
+                    clearedByInfo.role()
+            );
+
+            // 해당 방의 모든 구독자에게 브로드캐스트
+            messagingTemplate.convertAndSend("/topic/room/" + roomId + "/chat-cleared", notification);
+
+        } catch (SecurityException e) {
+            sendErrorToUser(headerAccessor.getSessionId(), "CHAT_DELETE_FORBIDDEN",
+                    "채팅 삭제 권한이 없습니다. 방장 또는 부방장만 가능합니다");
+
+        } catch (IllegalArgumentException e) {
+            sendErrorToUser(headerAccessor.getSessionId(), "WS_ROOM_NOT_FOUND",
+                    "존재하지 않는 방입니다");
+
+        } catch (Exception e) {
+            sendErrorToUser(headerAccessor.getSessionId(), "CHAT_DELETE_FAILED",
+                    "채팅 삭제 중 오류가 발생했습니다");
         }
     }
 
