@@ -30,7 +30,8 @@ public class SecurityConfig {
                         auth -> auth
                                 .requestMatchers("/api/auth/**").permitAll()
                                 .requestMatchers("/api/ws/**").permitAll()
-                                .requestMatchers("/api/rooms/**").permitAll() // 테스트용 임시 허용
+                                .requestMatchers("/api/rooms/*/messages/**").permitAll()  //스터디 룸 내에 잡혀있어 있는 채팅 관련 전체 허용
+                                //.requestMatchers("/api/rooms/RoomChatApiControllerTest").permitAll() // 테스트용 임시 허용
                                 .requestMatchers("/","/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger 허용
                                 .requestMatchers("/h2-console/**").permitAll() // H2 Console 허용
                                 .anyRequest().authenticated()
