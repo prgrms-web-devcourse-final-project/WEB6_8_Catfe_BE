@@ -5,6 +5,7 @@ import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -61,7 +62,7 @@ public record UserDetailResponse(
             String nickname,
             String profileImageUrl,
             String bio,
-            LocalDateTime birthDate,
+            LocalDate birthDate,
             int point
     ) {
         public static ProfileResponse from(UserProfile profile) {
