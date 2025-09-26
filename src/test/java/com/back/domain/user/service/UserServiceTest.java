@@ -1,6 +1,7 @@
 package com.back.domain.user.service;
 
 import com.back.domain.user.dto.LoginRequest;
+import com.back.domain.user.dto.LoginResponse;
 import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
 import com.back.domain.user.entity.User;
@@ -184,16 +185,18 @@ class UserServiceTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when: 로그인 요청 실행
-        UserResponse userResponse = userService.login(
+        LoginResponse loginResponse = userService.login(
                 new LoginRequest("loginuser", rawPassword), response);
 
         // then: 응답에 username과 토큰/쿠키가 포함됨
-        assertThat(userResponse.username()).isEqualTo("loginuser");
-        assertThat(response.getHeader("Authorization")).startsWith("Bearer ");
+        assertThat(loginResponse.user().username()).isEqualTo("loginuser");
+        assertThat(loginResponse.accessToken()).isNotBlank();
+
         Cookie refreshCookie = response.getCookie("refreshToken");
         assertThat(refreshCookie).isNotNull();
         assertThat(refreshCookie.isHttpOnly()).isTrue();
     }
+
 
     @Test
     @DisplayName("잘못된 비밀번호 → INVALID_CREDENTIALS 예외 발생")
@@ -332,8 +335,8 @@ class UserServiceTest {
         User user = setupUser("refreshuser", "refresh@example.com", rawPassword, "닉네임", UserStatus.ACTIVE);
         MockHttpServletResponse loginResponse = new MockHttpServletResponse();
 
-        userService.login(new LoginRequest("refreshuser", rawPassword), loginResponse);
-        String oldAccessToken = loginResponse.getHeader("Authorization").substring(7);
+        LoginResponse loginRes = userService.login(new LoginRequest("refreshuser", rawPassword), loginResponse);
+        String oldAccessToken = loginRes.accessToken();
         Cookie refreshCookie = loginResponse.getCookie("refreshToken");
         assertThat(refreshCookie).isNotNull();
 
