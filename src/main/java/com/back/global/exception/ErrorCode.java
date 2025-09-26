@@ -64,6 +64,7 @@ public enum ErrorCode {
     WS_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "WS_013", "WebSocket 사용자를 찾을 수 없습니다."),
     WS_INVALID_REQUEST(HttpStatus.BAD_REQUEST, "WS_014", "잘못된 WebSocket 요청입니다."),
     WS_INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "WS_015", "WebSocket 내부 오류가 발생했습니다."),
+    WS_CHAT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "WS_016", "채팅 삭제 권한이 없습니다. 방장 또는 부방장만 가능합니다."),
 
     // ======================== 공통 에러 ========================
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON_400", "잘못된 요청입니다."),

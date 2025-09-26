@@ -24,7 +24,12 @@ public class WebSocketErrorHelper {
 
     // CustomException을 WebSocket 에러로 전송
     public void sendCustomExceptionToUser(String sessionId, CustomException exception) {
-        sendErrorToUser(sessionId, exception.getErrorCode().getCode(), exception.getMessage());
+        String errorCode = switch (exception.getErrorCode()) {
+            case CHAT_DELETE_FORBIDDEN -> "WS_016";
+            default -> exception.getErrorCode().getCode();
+        };
+
+        sendErrorToUser(sessionId, errorCode, exception.getMessage());
     }
 
     // 일반 Exception을 기본 WebSocket 에러로 전송
