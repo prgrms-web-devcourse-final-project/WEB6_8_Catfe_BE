@@ -59,6 +59,7 @@ class StudyPlanControllerTest {
 
     @Autowired
     private UserRepository userRepository;
+    private StudyPlan savedStudyPlan;
 
     private User testUser;
 
@@ -73,6 +74,14 @@ class StudyPlanControllerTest {
 
         // JWT Mock을 setUp에서 한 번만 설정
         setupJwtMock(testUser);
+
+        // 저장된 StudyPlan 설정
+        savedStudyPlan = new StudyPlan();
+        savedStudyPlan.setUser(testUser);
+        savedStudyPlan.setSubject("Java 공부");
+        savedStudyPlan.setStartDate(LocalDateTime.of(2025, 1, 15, 9, 0));
+        savedStudyPlan.setEndDate(LocalDateTime.of(2025, 1, 15, 11, 0));
+        savedStudyPlan.setColor(Color.BLUE);
     }
 
     // JWT Mock 설정을 위한 헬퍼 메소드
@@ -101,8 +110,8 @@ class StudyPlanControllerTest {
                         .content("""
                     {
                         "subject": "단발성 계획",
-                        "startDate": "2025-09-26T10:46:12",
-                        "endDate": "2025-09-26T11:46:12",
+                        "startDate": "2025-09-26T10:46",
+                        "endDate": "2025-09-26T11:46",
                         "color": "RED"
                     }
                     """))
@@ -119,8 +128,8 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 생성되었습니다."))
                 .andExpect(jsonPath("$.data.subject").value("단발성 계획"))
                 .andExpect(jsonPath("$.data.color").value("RED"))
-                .andExpect(jsonPath("$.data.startDate").value("2025-09-26T10:46:12"))
-                .andExpect(jsonPath("$.data.endDate").value("2025-09-26T11:46:12"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-09-26T10:46:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-09-26T11:46:00"))
                 .andExpect(jsonPath("$.data.repeatRule").doesNotExist());
 
     }
@@ -132,11 +141,11 @@ class StudyPlanControllerTest {
         ResultActions resultActions = mvc.perform(post("/api/plans")
                         .header("Authorization", "Bearer faketoken")
                         .contentType(MediaType.APPLICATION_JSON)
-                    .content("""
+                        .content("""
                     {
                         "subject": "반복 계획",
-                        "startDate": "2025-09-26T10:46:12",
-                        "endDate": "2025-09-26T11:46:12",
+                        "startDate": "2025-09-26T10:46",
+                        "endDate": "2025-09-26T11:46",
                         "color": "BLUE",
                         "repeatRule": {
                             "frequency": "WEEKLY",
@@ -156,12 +165,72 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 생성되었습니다."))
                 .andExpect(jsonPath("$.data.subject").value("반복 계획"))
                 .andExpect(jsonPath("$.data.color").value("BLUE"))
-                .andExpect(jsonPath("$.data.startDate").value("2025-09-26T10:46:12"))
-                .andExpect(jsonPath("$.data.endDate").value("2025-09-26T11:46:12"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-09-26T10:46:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-09-26T11:46:00"))
                 .andExpect(jsonPath("$.data.repeatRule.frequency").value("WEEKLY"))
                 .andExpect(jsonPath("$.data.repeatRule.repeatInterval").value(1))
                 .andExpect(jsonPath("$.data.repeatRule.byDay").value("FRI"))
                 .andExpect(jsonPath("$.data.repeatRule.untilDate").value("2025-12-31"));
 
     }
+
+    @Test
+    @DisplayName("계획 생성 - 잘못된 요청 (종료 시간이 시작 시간보다 빠름)")
+    void t3() throws Exception {
+
+        ResultActions resultActions = mvc.perform(post("/api/plans")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                        "subject": "반복 계획",
+                        "startDate": "2025-09-26T11:46",
+                        "endDate": "2025-09-26T10:46",
+                        "color": "BLUE",
+                        "repeatRule": {
+                            "frequency": "WEEKLY",
+                            "repeatInterval": 1,
+                            "byDay": "FRI",
+                            "untilDate": "2025-12-31"
+                        }
+                    }
+                    """))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isBadRequest())
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(handler().methodName("createStudyPlan"))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("시작 시간은 종료 시간보다 빨라야 합니다."));
+    }
+
+    @Test
+    @DisplayName("계획 생성 - 잘못된 요청 (반복 규칙의 종료 날짜가 계획의 종료 날짜보다 빠름)")
+    void t4() throws Exception {
+
+        ResultActions resultActions = mvc.perform(post("/api/plans")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                        "subject": "반복 계획",
+                        "startDate": "2025-09-26T11:46",
+                        "endDate": "2025-09-26T10:46",
+                        "color": "BLUE",
+                        "repeatRule": {
+                            "frequency": "WEEKLY",
+                            "repeatInterval": 1,
+                            "byDay": "FRI",
+                            "untilDate": "2025-09-25"
+                        }
+                    }
+                    """))
+                .andDo(print());
+        resultActions
+                .andExpect(status().isBadRequest())
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(handler().methodName("createStudyPlan"))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("반복 규칙의 종료 날짜는 계획의 종료 날짜보다 늦어야 합니다."));
 }
