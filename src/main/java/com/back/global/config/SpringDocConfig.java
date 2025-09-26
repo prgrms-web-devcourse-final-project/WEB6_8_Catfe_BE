@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@OpenAPIDefinition(info = @Info(title = "Catfe API 서버", version = "beta", description = "Catfe API 문서입니다."))
+@OpenAPIDefinition(info = @Info(title = "Catfe API Server", version = "beta", description = "Catfe API 문서입니다."))
 public class SpringDocConfig {
 
     // API 버전별 그룹화

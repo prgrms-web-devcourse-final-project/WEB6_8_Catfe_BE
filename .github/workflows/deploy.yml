@@ -88,7 +88,15 @@ jobs:
           working-directory: /
           comment: Deploy
           command: |
+            # 1. 최신 이미지 pull
             docker pull ghcr.io/${{ env.OWNER_LC }}/catfe-backend:latest
+            
+            # 2. 기존 컨테이너 종료 및 제거
             docker stop catfe-backend 2>/dev/null
             docker rm catfe-backend 2>/dev/null
+            
+            # 3. 새로운 컨테이너 실행
             docker run -d --name catfe-backend -p 8080:8080 ghcr.io/${{ env.OWNER_LC }}/catfe-backend:latest
+            
+            # 4. dangling 이미지 삭제
+            docker rmi $(docker images -f "dangling=true" -q)
