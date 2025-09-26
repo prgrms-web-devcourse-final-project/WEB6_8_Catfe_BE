@@ -1,6 +1,7 @@
 package com.back.domain.user.controller;
 
 import com.back.domain.user.dto.LoginRequest;
+import com.back.domain.user.dto.LoginResponse;
 import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
 import com.back.domain.user.service.UserService;
@@ -40,11 +41,11 @@ public class AuthController implements AuthControllerDocs {
 
     // 로그인
     @PostMapping("/login")
-    public ResponseEntity<RsData<UserResponse>> login(
+    public ResponseEntity<RsData<LoginResponse>> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response
     ) {
-        UserResponse loginResponse = userService.login(request, response);
+        LoginResponse loginResponse = userService.login(request, response);
         return ResponseEntity
                 .ok(RsData.success(
                         "로그인에 성공했습니다.",

@@ -5,8 +5,6 @@ import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserRepository;
 import com.back.fixture.TestJwtTokenProvider;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,9 +18,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
-
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -202,7 +197,7 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("정상 로그인 → 200 OK + Authorization 헤더 + refreshToken 쿠키")
+    @DisplayName("정상 로그인 → 200 OK + accessToken + refreshToken 쿠키")
     void login_success() throws Exception {
         // given: 회원가입 요청으로 DB에 정상 유저 저장
         String rawPassword = "P@ssw0rd!";
@@ -233,12 +228,12 @@ class AuthControllerTest {
                         .content(loginBody))
                 .andDo(print());
 
-        // then: 200 OK 응답 + username/Authorization 헤더/refreshToken 쿠키 확인
+        // then: 200 OK 응답 + username/accessToken/refreshToken 쿠키 확인
         resultActions
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.username").value("loginuser"))
-                .andExpect(header().exists("Authorization"))
+                .andExpect(jsonPath("$.data.user.username").value("loginuser"))
+                .andExpect(jsonPath("$.data.accessToken").exists())
                 .andExpect(cookie().exists("refreshToken"));
     }
 
@@ -484,15 +479,12 @@ class AuthControllerTest {
         // 기존 AccessToken, RefreshToken 확보
         String oldAccessToken = loginResult.andReturn()
                 .getResponse()
-                .getHeader("Authorization")
-                .substring(7); // "Bearer " 제거
+                .getContentAsString(); // body에서 accessToken 꺼낼 수 있도록 JSON 파싱 필요
+
         String refreshCookie = loginResult.andReturn()
                 .getResponse()
                 .getCookie("refreshToken")
                 .getValue();
-
-        // Issued At(발급 시간) 분리를 위해 1초 대기
-//        Thread.sleep(1000);
 
         // when: 재발급 요청 (RefreshToken 쿠키 포함)
         ResultActions refreshResult = mvc.perform(post("/api/auth/refresh")
@@ -503,15 +495,11 @@ class AuthControllerTest {
         refreshResult
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.accessToken").exists())
-                .andExpect(header().exists("Authorization"));
+                .andExpect(jsonPath("$.data.accessToken").exists());
 
-        String newAccessToken = refreshResult.andReturn()
-                .getResponse()
-                .getHeader("Authorization")
-                .substring(7);
-
-        // 새 토큰은 기존 토큰과 달라야 함
+        // 새 토큰은 기존 토큰과 달라야 함 (파싱 후 비교)
+//        String newAccessToken = JsonPath.read(refreshResult.andReturn()
+//                .getResponse().getContentAsString(), "$.data.accessToken");
 //        assertThat(newAccessToken).isNotEqualTo(oldAccessToken);
     }
 
