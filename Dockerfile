@@ -25,5 +25,8 @@ WORKDIR /app
 # 첫 번째 스테이지에서 빌드된 JAR 파일 복사
 COPY --from=builder /app/build/libs/*.jar app.jar
 
+# 여기서 빌드 컨텍스트의 .env를 컨테이너 안으로 복사
+COPY .env .env
+
 # 실행할 JAR 파일 지정
 ENTRYPOINT ["java", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
