@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -36,6 +37,11 @@ class AuthControllerTest {
 
     @Autowired
     private TestJwtTokenProvider testJwtTokenProvider;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    // ======================== 회원가입 테스트 ========================
 
     @Test
     @DisplayName("정상 회원가입 → 201 Created")
@@ -61,6 +67,7 @@ class AuthControllerTest {
         resultActions
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("회원가입이 성공적으로 완료되었습니다. 이메일 인증을 완료해주세요."))
                 .andExpect(jsonPath("$.data.username").value("testuser"))
                 .andExpect(jsonPath("$.data.email").value("test@example.com"))
                 .andExpect(jsonPath("$.data.nickname").value("홍길동"));
@@ -95,7 +102,8 @@ class AuthControllerTest {
                         .content(body))
                 .andDo(print())
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("USER_002"));
+                .andExpect(jsonPath("$.code").value("USER_002"))
+                .andExpect(jsonPath("$.message").value("이미 사용 중인 아이디입니다."));
     }
 
     @Test
@@ -122,7 +130,8 @@ class AuthControllerTest {
                         .content(body))
                 .andDo(print())
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("USER_003"));
+                .andExpect(jsonPath("$.code").value("USER_003"))
+                .andExpect(jsonPath("$.message").value("이미 사용 중인 이메일입니다."));
     }
 
     @Test
@@ -149,7 +158,8 @@ class AuthControllerTest {
                         .content(body))
                 .andDo(print())
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("USER_004"));
+                .andExpect(jsonPath("$.code").value("USER_004"))
+                .andExpect(jsonPath("$.message").value("이미 사용 중인 닉네임입니다."));
     }
 
     @Test
@@ -171,7 +181,8 @@ class AuthControllerTest {
                         .content(body))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("USER_005"));
+                .andExpect(jsonPath("$.code").value("USER_005"))
+                .andExpect(jsonPath("$.message").value("비밀번호는 최소 8자 이상, 숫자/특수문자를 포함해야 합니다."));
     }
 
     @Test
@@ -193,8 +204,11 @@ class AuthControllerTest {
                         .content(body))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("COMMON_400"));
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
     }
+
+    // ======================== 로그인 테스트 ========================
 
     @Test
     @DisplayName("정상 로그인 → 200 OK + accessToken + refreshToken 쿠키")
@@ -232,6 +246,7 @@ class AuthControllerTest {
         resultActions
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("로그인에 성공했습니다."))
                 .andExpect(jsonPath("$.data.user.username").value("loginuser"))
                 .andExpect(jsonPath("$.data.accessToken").exists())
                 .andExpect(cookie().exists("refreshToken"));
@@ -268,7 +283,8 @@ class AuthControllerTest {
                         .content(loginBody))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("USER_006"));
+                .andExpect(jsonPath("$.code").value("USER_006"))
+                .andExpect(jsonPath("$.message").value("아이디 또는 비밀번호가 올바르지 않습니다."));
     }
 
     @Test
@@ -288,11 +304,9 @@ class AuthControllerTest {
                         .content(loginBody))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("USER_006"));
+                .andExpect(jsonPath("$.code").value("USER_006"))
+                .andExpect(jsonPath("$.message").value("아이디 또는 비밀번호가 올바르지 않습니다."));
     }
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
 
     @Test
     @DisplayName("이메일 미인증(PENDING) 계정 로그인 → 403 Forbidden")
@@ -317,7 +331,8 @@ class AuthControllerTest {
                         .content(body))
                 .andDo(print())
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("USER_007"));
+                .andExpect(jsonPath("$.code").value("USER_007"))
+                .andExpect(jsonPath("$.message").value("이메일 인증 후 로그인할 수 있습니다."));
     }
 
     @Test
@@ -343,7 +358,8 @@ class AuthControllerTest {
                         .content(body))
                 .andDo(print())
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("USER_008"));
+                .andExpect(jsonPath("$.code").value("USER_008"))
+                .andExpect(jsonPath("$.message").value("정지된 계정입니다. 관리자에게 문의하세요."));
     }
 
     @Test
@@ -369,22 +385,25 @@ class AuthControllerTest {
                         .content(body))
                 .andDo(print())
                 .andExpect(status().isGone())
-                .andExpect(jsonPath("$.code").value("USER_009"));
+                .andExpect(jsonPath("$.code").value("USER_009"))
+                .andExpect(jsonPath("$.message").value("탈퇴한 계정입니다."));
     }
+
+    // ======================== 로그아웃 테스트 ========================
 
     @Test
     @DisplayName("정상 로그아웃 → 200 OK + RefreshToken 쿠키 만료")
     void logout_success() throws Exception {
-        // given: 회원가입 + 로그인으로 refreshToken 쿠키 확보
+        // given: 회원가입 + 로그인
         String rawPassword = "P@ssw0rd!";
         String registerBody = """
-            {
-              "username": "logoutuser",
-              "email": "logout@example.com",
-              "password": "%s",
-              "nickname": "홍길동"
-            }
-            """.formatted(rawPassword);
+                {
+                  "username": "logoutuser",
+                  "email": "logout@example.com",
+                  "password": "%s",
+                  "nickname": "홍길동"
+                }
+                """.formatted(rawPassword);
 
         mvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -392,11 +411,11 @@ class AuthControllerTest {
                 .andExpect(status().isCreated());
 
         String loginBody = """
-            {
-              "username": "logoutuser",
-              "password": "%s"
-            }
-            """.formatted(rawPassword);
+                {
+                  "username": "logoutuser",
+                  "password": "%s"
+                }
+                """.formatted(rawPassword);
 
         ResultActions loginResult = mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -409,15 +428,16 @@ class AuthControllerTest {
                 .getCookie("refreshToken")
                 .getValue();
 
-        // when: 로그아웃 요청 (쿠키 포함)
+        // when: 로그아웃 요청
         ResultActions logoutResult = mvc.perform(post("/api/auth/logout")
                         .cookie(new Cookie("refreshToken", refreshCookie)))
                 .andDo(print());
 
-        // then: 200 OK + 성공 메시지 + 쿠키 만료
+        // then
         logoutResult
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
                 .andExpect(jsonPath("$.message").value("로그아웃 되었습니다."))
                 .andExpect(cookie().maxAge("refreshToken", 0));
     }
@@ -425,25 +445,46 @@ class AuthControllerTest {
     @Test
     @DisplayName("RefreshToken 누락 → 400 Bad Request")
     void logout_noToken() throws Exception {
-        // when & then
         mvc.perform(post("/api/auth/logout"))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("COMMON_400"));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
+    }
+
+    @Test
+    @DisplayName("만료된 RefreshToken → 401 Unauthorized")
+    void logout_expiredToken() throws Exception {
+        // given: 만료된 refreshToken
+        String expired = testJwtTokenProvider.createExpiredRefreshToken(1L);
+        Cookie expiredCookie = new Cookie("refreshToken", expired);
+
+        // when & then
+        mvc.perform(post("/api/auth/logout").cookie(expiredCookie))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("AUTH_005"))
+                .andExpect(jsonPath("$.message").value("만료된 리프레시 토큰입니다."));
     }
 
     @Test
     @DisplayName("유효하지 않은 RefreshToken → 401 Unauthorized")
     void logout_invalidToken() throws Exception {
-        // given: 잘못된 refreshToken 쿠키
+        // given: 위조된 refreshToken
         Cookie invalid = new Cookie("refreshToken", "fake-token");
 
         // when & then
         mvc.perform(post("/api/auth/logout").cookie(invalid))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTH_401"));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("AUTH_003"))
+                .andExpect(jsonPath("$.message").value("유효하지 않은 리프레시 토큰입니다."));
     }
+
+    // ======================== 토큰 재발급 테스트 ========================
 
     @Test
     @DisplayName("정상 토큰 재발급 → 200 OK + 새로운 AccessToken 반환")
@@ -451,13 +492,13 @@ class AuthControllerTest {
         // given: 회원가입 + 로그인 → 기존 토큰 확보
         String rawPassword = "P@ssw0rd!";
         String registerBody = """
-            {
-              "username": "refreshuser",
-              "email": "refresh@example.com",
-              "password": "%s",
-              "nickname": "홍길동"
-            }
-            """.formatted(rawPassword);
+                {
+                  "username": "refreshuser",
+                  "email": "refresh@example.com",
+                  "password": "%s",
+                  "nickname": "홍길동"
+                }
+                """.formatted(rawPassword);
 
         mvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -465,41 +506,48 @@ class AuthControllerTest {
                 .andExpect(status().isCreated());
 
         String loginBody = """
-            {
-              "username": "refreshuser",
-              "password": "%s"
-            }
-            """.formatted(rawPassword);
+                {
+                  "username": "refreshuser",
+                  "password": "%s"
+                }
+                """.formatted(rawPassword);
 
         ResultActions loginResult = mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginBody))
                 .andExpect(status().isOk());
 
-        // 기존 AccessToken, RefreshToken 확보
-        String oldAccessToken = loginResult.andReturn()
-                .getResponse()
-                .getContentAsString(); // body에서 accessToken 꺼낼 수 있도록 JSON 파싱 필요
-
+        // 기존 accessToken 추출
+        String oldAccessToken = com.jayway.jsonpath.JsonPath.read(
+                loginResult.andReturn().getResponse().getContentAsString(),
+                "$.data.accessToken"
+        );
         String refreshCookie = loginResult.andReturn()
                 .getResponse()
                 .getCookie("refreshToken")
                 .getValue();
 
-        // when: 재발급 요청 (RefreshToken 쿠키 포함)
+        // Issued At(발급 시간) 분리를 위해 1초 대기
+//        Thread.sleep(1000);
+
+        // when: 재발급 요청
         ResultActions refreshResult = mvc.perform(post("/api/auth/refresh")
                         .cookie(new Cookie("refreshToken", refreshCookie)))
                 .andDo(print());
 
-        // then: 200 OK + 새로운 AccessToken 발급
+        // then: 200 OK + 새로운 accessToken
         refreshResult
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("토큰이 재발급되었습니다."))
                 .andExpect(jsonPath("$.data.accessToken").exists());
 
-        // 새 토큰은 기존 토큰과 달라야 함 (파싱 후 비교)
-//        String newAccessToken = JsonPath.read(refreshResult.andReturn()
-//                .getResponse().getContentAsString(), "$.data.accessToken");
+        // 새로운 토큰이 기존과 달라야 함
+//        String newAccessToken = com.jayway.jsonpath.JsonPath.read(
+//                refreshResult.andReturn().getResponse().getContentAsString(),
+//                "$.data.accessToken"
+//        );
 //        assertThat(newAccessToken).isNotEqualTo(oldAccessToken);
     }
 
@@ -509,7 +557,9 @@ class AuthControllerTest {
         mvc.perform(post("/api/auth/refresh"))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("COMMON_400"));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
     }
 
     @Test
@@ -520,27 +570,28 @@ class AuthControllerTest {
         mvc.perform(post("/api/auth/refresh").cookie(invalid))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTH_401"));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("AUTH_003"))
+                .andExpect(jsonPath("$.message").value("유효하지 않은 리프레시 토큰입니다."));
     }
 
     @Test
     @DisplayName("만료된 RefreshToken → 401 Unauthorized")
     void refreshToken_expiredToken() throws Exception {
-        // given: 이미 만료된 Refresh Token 발급
+        // given: 이미 만료된 RefreshToken 생성
         User user = User.createUser("expiredUser", "expired@example.com", passwordEncoder.encode("P@ssw0rd!"));
         user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
         userRepository.save(user);
 
-        // JwtTokenProvider에 테스트용 메서드 추가 필요
         String expiredRefreshToken = testJwtTokenProvider.createExpiredRefreshToken(user.getId());
-
         Cookie expiredCookie = new Cookie("refreshToken", expiredRefreshToken);
 
         // when & then
         mvc.perform(post("/api/auth/refresh").cookie(expiredCookie))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTH_401"))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("AUTH_005"))
                 .andExpect(jsonPath("$.message").value("만료된 리프레시 토큰입니다."));
     }
 }

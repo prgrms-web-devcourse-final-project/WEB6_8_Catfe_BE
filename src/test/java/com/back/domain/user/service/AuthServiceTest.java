@@ -54,6 +54,8 @@ class AuthServiceTest {
         return saved;
     }
 
+    // ======================== 회원가입 테스트 ========================
+
     @Test
     @DisplayName("정상 회원가입 성공")
     void register_success() {
@@ -176,6 +178,8 @@ class AuthServiceTest {
                 userRepository.findById(response.userId()).get().getPassword())).isTrue();
     }
 
+    // ======================== 로그인 테스트 ========================
+
     @Test
     @DisplayName("정상 로그인 성공")
     void login_success() {
@@ -270,6 +274,9 @@ class AuthServiceTest {
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.USER_DELETED.getMessage());
     }
+
+    // ======================== 로그아웃 테스트 ========================
+
     @Test
     @DisplayName("정상 로그아웃 성공 → RefreshToken DB 삭제 + 쿠키 만료")
     void logout_success() {
@@ -323,8 +330,10 @@ class AuthServiceTest {
         // when & then
         assertThatThrownBy(() -> authService.logout(request, response))
                 .isInstanceOf(CustomException.class)
-                .hasMessage(ErrorCode.INVALID_TOKEN.getMessage());
+                .hasMessage(ErrorCode.INVALID_REFRESH_TOKEN.getMessage());
     }
+
+    // ======================== 토큰 재발급 테스트 ========================
 
     @Test
     @DisplayName("정상 토큰 재발급 성공 → 새로운 AccessToken 반환 및 헤더 설정")
@@ -379,6 +388,6 @@ class AuthServiceTest {
         // when & then
         assertThatThrownBy(() -> authService.refreshToken(request, response))
                 .isInstanceOf(CustomException.class)
-                .hasMessage(ErrorCode.INVALID_TOKEN.getMessage());
+                .hasMessage(ErrorCode.INVALID_REFRESH_TOKEN.getMessage());
     }
 }
