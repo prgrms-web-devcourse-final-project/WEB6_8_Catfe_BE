@@ -76,9 +76,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: [ buildImageAndPush ]
+    env:
+      OWNER: ${{ github.repository_owner }}
     steps:
-      - name: Wait 60 seconds for image to be available
-        run: sleep 60
+      - name: set lower case owner name
+        run: |
+          echo "OWNER_LC=${OWNER,,}" >> ${GITHUB_ENV}
 
       - name: AWS SSM Send-Command
         uses: peterkimzz/aws-ssm-send-command@master
