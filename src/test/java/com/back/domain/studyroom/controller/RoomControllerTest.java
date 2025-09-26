@@ -8,6 +8,7 @@ import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
 import com.back.global.common.dto.RsData;
+import com.back.global.security.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,11 +33,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("RoomController 테스트")
+@DisplayName("RoomController 테스트 - JWT 인증 통합")
 class RoomControllerTest {
 
     @Mock
     private RoomService roomService;
+
+    @Mock
+    private CurrentUser currentUser;
 
     @InjectMocks
     private RoomController roomController;
@@ -75,12 +79,16 @@ class RoomControllerTest {
 
         // 테스트 멤버 생성
         testMember = RoomMember.createHost(testRoom, testUser);
+
+        // CurrentUser Mock 설정은 각 테스트에서 필요할 때만 설정
     }
 
     @Test
-    @DisplayName("방 생성 API 테스트")
+    @DisplayName("방 생성 API 테스트 - JWT 인증")
     void createRoom() {
         // given
+        given(currentUser.getUserId()).willReturn(1L);
+
         CreateRoomRequest request = new CreateRoomRequest(
                 "테스트 방",
                 "테스트 설명",
@@ -95,59 +103,65 @@ class RoomControllerTest {
                 anyBoolean(),
                 any(),
                 anyInt(),
-                anyLong()
+                eq(1L)
         )).willReturn(testRoom);
 
         // when
-        ResponseEntity<RsData<RoomResponse>> response = roomController.createRoom(request, "Bearer token");
-
+        ResponseEntity<RsData<RoomResponse>> response = roomController.createRoom(request);
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
         assertThat(response.getBody().getData().getTitle()).isEqualTo("테스트 방");
-        
+
+        verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).createRoom(
                 anyString(),
                 anyString(),
                 anyBoolean(),
                 any(),
                 anyInt(),
-                anyLong()
+                eq(1L)
         );
     }
 
     @Test
-    @DisplayName("방 입장 API 테스트")
+    @DisplayName("방 입장 API 테스트 - JWT 인증")
     void joinRoom() {
         // given
+        given(currentUser.getUserId()).willReturn(1L);
+        
         JoinRoomRequest request = new JoinRoomRequest(null);
-        given(roomService.joinRoom(anyLong(), any(), anyLong())).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), any(), eq(1L))).willReturn(testMember);
 
         // when
-        ResponseEntity<RsData<JoinRoomResponse>> response = roomController.joinRoom(1L, request, "Bearer token");
+        ResponseEntity<RsData<JoinRoomResponse>> response = roomController.joinRoom(1L, request);
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
-        
-        verify(roomService, times(1)).joinRoom(anyLong(), any(), anyLong());
+
+        verify(currentUser, times(1)).getUserId();
+        verify(roomService, times(1)).joinRoom(eq(1L), any(), eq(1L));
     }
 
     @Test
-    @DisplayName("방 나가기 API 테스트")
+    @DisplayName("방 나가기 API 테스트 - JWT 인증")
     void leaveRoom() {
         // given
+        given(currentUser.getUserId()).willReturn(1L);
+        
         // when
-        ResponseEntity<RsData<Void>> response = roomController.leaveRoom(1L, "Bearer token");
+        ResponseEntity<RsData<Void>> response = roomController.leaveRoom(1L);
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
-        
-        verify(roomService, times(1)).leaveRoom(anyLong(), anyLong());
+
+        verify(currentUser, times(1)).getUserId();
+        verify(roomService, times(1)).leaveRoom(eq(1L), eq(1L));
     }
 
     @Test
@@ -174,29 +188,34 @@ class RoomControllerTest {
     }
 
     @Test
-    @DisplayName("방 상세 정보 조회 API 테스트")
+    @DisplayName("방 상세 정보 조회 API 테스트 - JWT 인증")
     void getRoomDetail() {
         // given
-        given(roomService.getRoomDetail(anyLong(), anyLong())).willReturn(testRoom);
-        given(roomService.getRoomMembers(anyLong(), anyLong())).willReturn(Arrays.asList(testMember));
+        given(currentUser.getUserId()).willReturn(1L);
+        
+        given(roomService.getRoomDetail(eq(1L), eq(1L))).willReturn(testRoom);
+        given(roomService.getRoomMembers(eq(1L), eq(1L))).willReturn(Arrays.asList(testMember));
 
         // when
-        ResponseEntity<RsData<RoomDetailResponse>> response = roomController.getRoomDetail(1L, "Bearer token");
+        ResponseEntity<RsData<RoomDetailResponse>> response = roomController.getRoomDetail(1L);
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
         assertThat(response.getBody().getData().getTitle()).isEqualTo("테스트 방");
-        
-        verify(roomService, times(1)).getRoomDetail(anyLong(), anyLong());
-        verify(roomService, times(1)).getRoomMembers(anyLong(), anyLong());
+
+        verify(currentUser, times(1)).getUserId();
+        verify(roomService, times(1)).getRoomDetail(eq(1L), eq(1L));
+        verify(roomService, times(1)).getRoomMembers(eq(1L), eq(1L));
     }
 
     @Test
-    @DisplayName("내 참여 방 목록 조회 API 테스트")
+    @DisplayName("내 참여 방 목록 조회 API 테스트 - JWT 인증")
     void getMyRooms() {
         // given
+        given(currentUser.getUserId()).willReturn(1L);
+
         // Room에 ID 설정 (리플렉션 사용)
         try {
             java.lang.reflect.Field idField = testRoom.getClass().getSuperclass().getDeclaredField("id");
@@ -205,12 +224,12 @@ class RoomControllerTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        
-        given(roomService.getUserRooms(anyLong())).willReturn(Arrays.asList(testRoom));
-        given(roomService.getUserRoomRole(eq(1L), anyLong())).willReturn(RoomRole.HOST);
+
+        given(roomService.getUserRooms(eq(1L))).willReturn(Arrays.asList(testRoom));
+        given(roomService.getUserRoomRole(eq(1L), eq(1L))).willReturn(RoomRole.HOST);
 
         // when
-        ResponseEntity<RsData<List<MyRoomResponse>>> response = roomController.getMyRooms("Bearer token");
+        ResponseEntity<RsData<List<MyRoomResponse>>> response = roomController.getMyRooms();
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -218,14 +237,17 @@ class RoomControllerTest {
         assertThat(response.getBody().isSuccess()).isTrue();
         assertThat(response.getBody().getData()).hasSize(1);
         assertThat(response.getBody().getData().get(0).getTitle()).isEqualTo("테스트 방");
-        
-        verify(roomService, times(1)).getUserRooms(anyLong());
+
+        verify(currentUser, times(1)).getUserId();
+        verify(roomService, times(1)).getUserRooms(eq(1L));
     }
 
     @Test
-    @DisplayName("방 설정 수정 API 테스트")
+    @DisplayName("방 설정 수정 API 테스트 - JWT 인증")
     void updateRoom() {
         // given
+        given(currentUser.getUserId()).willReturn(1L);
+
         UpdateRoomSettingsRequest request = new UpdateRoomSettingsRequest(
                 "변경된 제목",
                 "변경된 설명",
@@ -236,48 +258,54 @@ class RoomControllerTest {
         );
 
         // when
-        ResponseEntity<RsData<Void>> response = roomController.updateRoom(1L, request, "Bearer token");
+        ResponseEntity<RsData<Void>> response = roomController.updateRoom(1L, request);
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
-        
+
+        verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).updateRoomSettings(
-                anyLong(),
+                eq(1L),
                 anyString(),
                 anyString(),
                 anyInt(),
                 anyBoolean(),
                 anyBoolean(),
                 anyBoolean(),
-                anyLong()
+                eq(1L)
         );
     }
 
     @Test
-    @DisplayName("방 종료 API 테스트")
+    @DisplayName("방 종료 API 테스트 - JWT 인증")
     void deleteRoom() {
         // given
+        given(currentUser.getUserId()).willReturn(1L);
+        
         // when
-        ResponseEntity<RsData<Void>> response = roomController.deleteRoom(1L, "Bearer token");
+        ResponseEntity<RsData<Void>> response = roomController.deleteRoom(1L);
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
-        
-        verify(roomService, times(1)).terminateRoom(anyLong(), anyLong());
+
+        verify(currentUser, times(1)).getUserId();
+        verify(roomService, times(1)).terminateRoom(eq(1L), eq(1L));
     }
 
     @Test
-    @DisplayName("방 멤버 목록 조회 API 테스트")
+    @DisplayName("방 멤버 목록 조회 API 테스트 - JWT 인증")
     void getRoomMembers() {
         // given
-        given(roomService.getRoomMembers(anyLong(), anyLong())).willReturn(Arrays.asList(testMember));
+        given(currentUser.getUserId()).willReturn(1L);
+        
+        given(roomService.getRoomMembers(eq(1L), eq(1L))).willReturn(Arrays.asList(testMember));
 
         // when
-        ResponseEntity<RsData<List<RoomMemberResponse>>> response = roomController.getRoomMembers(1L, "Bearer token");
+        ResponseEntity<RsData<List<RoomMemberResponse>>> response = roomController.getRoomMembers(1L);
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -285,8 +313,9 @@ class RoomControllerTest {
         assertThat(response.getBody().isSuccess()).isTrue();
         assertThat(response.getBody().getData()).hasSize(1);
         assertThat(response.getBody().getData().get(0).getNickname()).isEqualTo("테스트유저");
-        
-        verify(roomService, times(1)).getRoomMembers(anyLong(), anyLong());
+
+        verify(currentUser, times(1)).getUserId();
+        verify(roomService, times(1)).getRoomMembers(eq(1L), eq(1L));
     }
 
     @Test

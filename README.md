@@ -7,7 +7,7 @@
 # 개발 및 배포 프로세스 & Git 컨벤션 가이드
 해당 프로젝트는 `dev` 브랜치에서 개발하고, `main`브랜치에서 배포합니다. <br/> <br/>
 아래에 브랜치 전략, 커밋/PR 컨벤션, 워크플로우 전략, 브랜치 보호 규칙, 응답 데이터 및 예외처리 전략을 정리하였습니다. <br/> <br/>
-개발 전에 꼭 읽어봐주세요! 
+개발 전에 꼭 읽어봐주세요!
 <br/>
 <br/>
 
@@ -21,7 +21,7 @@
   - 안정화된 코드를 머지하여 배포
   - `dev` → `main` PR은 관리자 혹은 릴리즈 담당자만 생성 및 승인 가능
   - 직접 push 및 외부 PR 제한
-<br/>
+    <br/>
 
 ## 2. 커밋/PR 컨벤션
 
@@ -153,11 +153,11 @@ public ResponseEntity<RsData<Void>> handleCustomException(
 // 응답 데이터 예시 (json)
 
 {
-  "code": ErrorCode.code,
-  "message": ErrorCode.message,
-  "data": {...} or {null},
-  "success": false
-}
+        "code": ErrorCode.code,
+        "message": ErrorCode.message,
+        "data": {...} or {null},
+        "success": false
+        }
 ```
 
 <br/>
