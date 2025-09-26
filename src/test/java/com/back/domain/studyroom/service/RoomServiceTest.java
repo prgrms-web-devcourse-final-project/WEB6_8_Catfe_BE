@@ -221,7 +221,7 @@ class RoomServiceTest {
     void getRoomDetail_Success() {
         // given
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
-        given(roomMemberRepository.existsByRoomIdAndUserId(1L, 1L)).willReturn(true);
+        // 공개방이므로 existsByRoomIdAndUserId는 호출되지 않음 - stub 제거
 
         // when
         Room result = roomService.getRoomDetail(1L, 1L);
