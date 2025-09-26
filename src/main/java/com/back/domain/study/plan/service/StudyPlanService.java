@@ -1,11 +1,9 @@
 package com.back.domain.study.plan.service;
 
+import com.back.domain.study.plan.dto.StudyPlanDeleteRequest;
 import com.back.domain.study.plan.dto.StudyPlanRequest;
 import com.back.domain.study.plan.dto.StudyPlanResponse;
-import com.back.domain.study.plan.entity.RepeatRule;
-import com.back.domain.study.plan.entity.RepeatRuleEmbeddable;
-import com.back.domain.study.plan.entity.StudyPlan;
-import com.back.domain.study.plan.entity.StudyPlanException;
+import com.back.domain.study.plan.entity.*;
 import com.back.domain.study.plan.repository.StudyPlanExceptionRepository;
 import com.back.domain.study.plan.repository.StudyPlanRepository;
 import com.back.global.exception.CustomException;
@@ -201,7 +199,7 @@ public class StudyPlanService{
     private StudyPlanException getEffectiveException(Long planId, LocalDate targetDate) {
         // 해당 날짜에 직접적인 예외가 있는지 확인
         Optional<StudyPlanException> directException = studyPlanExceptionRepository
-                .findByPlanIdAndDate(planId, targetDate.atStartOfDay());
+                .findByPlanIdAndDate(planId, targetDate);
         if (directException.isPresent()) {
             return directException.get();
         }
@@ -210,7 +208,7 @@ public class StudyPlanService{
         List<StudyPlanException> scopeExceptions = studyPlanExceptionRepository
                 .findByStudyPlanIdAndApplyScopeAndExceptionDateBefore(
                         planId,
-                        StudyPlanException.ApplyScope.FROM_THIS_DATE,
+                        ApplyScope.FROM_THIS_DATE,
                         targetDate.atStartOfDay()
                 );
 
@@ -279,9 +277,9 @@ public class StudyPlanService{
         REPEAT_INSTANCE_UPDATE   // 기존 예외 수정
     }
     @Transactional
-    public StudyPlanResponse updateStudyPlan(Long userId, Long planId, StudyPlanRequest request, StudyPlanException.ApplyScope applyScope) {
+    public StudyPlanResponse updateStudyPlan(Long userId, Long planId, StudyPlanRequest request, ApplyScope applyScope) {
         StudyPlan originalPlan = studyPlanRepository.findById(planId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorCode.PLAN_NOT_FOUND));
 
         validateUserAccess(originalPlan, userId);
 
@@ -318,9 +316,9 @@ public class StudyPlanService{
             return UpdateType.ORIGINAL_PLAN_UPDATE;
         }
 
-        // 1-2. 반복 계획에서 다른 날짜인 경우 -> 기존 예외 확인
+        // 1-2. 반복 계획에서 다른 날짜인 경우 -> 기존 예외 존재 유무 확인
         Optional<StudyPlanException> existingException = studyPlanExceptionRepository
-                .findByPlanIdAndDate(originalPlan.getId(), requestDate.atStartOfDay());
+                .findByPlanIdAndDate(originalPlan.getId(), requestDate);
 
         if (existingException.isPresent()) {
         return UpdateType.REPEAT_INSTANCE_UPDATE; // 기존 예외 수정
@@ -347,17 +345,17 @@ public class StudyPlanService{
     }
 
     // 새로운 예외 추가
-    private StudyPlanResponse createRepeatException(StudyPlan originalPlan, StudyPlanRequest request, StudyPlanException.ApplyScope applyScope) {
+    private StudyPlanResponse createRepeatException(StudyPlan originalPlan, StudyPlanRequest request, ApplyScope applyScope) {
         LocalDate exceptionDate = request.getStartDate().toLocalDate();
 
         // 해당 날짜에 실제로 반복 계획이 있는지 확인
         if (!shouldRepeatOnDate(originalPlan, exceptionDate)) {
-            throw new CustomException(ErrorCode.BAD_REQUEST);
+            throw new CustomException(ErrorCode.PLAN_ORIGINAL_REPEAT_NOT_FOUND);
         }
 
         StudyPlanException exception = new StudyPlanException();
         exception.setStudyPlan(originalPlan);
-        exception.setExceptionDate(exceptionDate.atStartOfDay());
+        exception.setExceptionDate(exceptionDate);
         exception.setExceptionType(StudyPlanException.ExceptionType.MODIFIED);
         exception.setApplyScope(applyScope); // 파라미터로 받은 applyScope
 
@@ -379,7 +377,7 @@ public class StudyPlanService{
                     LocalDate untilDate = LocalDate.parse(request.getRepeatRule().getUntilDate());
                     embeddable.setUntilDate(untilDate);
                 } catch (Exception e) {
-                    throw new CustomException(ErrorCode.BAD_REQUEST);
+                    throw new CustomException(ErrorCode.PLAN_INVALID_DATE_FORMAT);
                 }
             }
 
@@ -392,12 +390,12 @@ public class StudyPlanService{
     }
 
     // 기존 예외 수정
-    private StudyPlanResponse updateExistingException(StudyPlan originalPlan, StudyPlanRequest request, StudyPlanException.ApplyScope applyScope) {
+    private StudyPlanResponse updateExistingException(StudyPlan originalPlan, StudyPlanRequest request, ApplyScope applyScope) {
         LocalDate exceptionDate = request.getStartDate().toLocalDate();
 
         StudyPlanException existingException = studyPlanExceptionRepository
-                .findByPlanIdAndDate(originalPlan.getId(), exceptionDate.atStartOfDay())
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .findByPlanIdAndDate(originalPlan.getId(), exceptionDate)
+                .orElse(null);
 
         // 기존 예외 정보 업데이트
         if (request.getSubject() != null) existingException.setModifiedSubject(request.getSubject());
@@ -420,7 +418,7 @@ public class StudyPlanService{
                     LocalDate untilDate = LocalDate.parse(request.getRepeatRule().getUntilDate());
                     embeddable.setUntilDate(untilDate);
                 } catch (Exception e) {
-                    throw new CustomException(ErrorCode.BAD_REQUEST);
+                    throw new CustomException(ErrorCode.PLAN_INVALID_DATE_FORMAT);
                 }
             }
 
@@ -443,13 +441,55 @@ public class StudyPlanService{
                 LocalDate untilDate = LocalDate.parse(request.getUntilDate());
                 repeatRule.setUntilDate(untilDate);
             } catch (Exception e) {
-                throw new CustomException(ErrorCode.BAD_REQUEST);
+                throw new CustomException(ErrorCode.PLAN_INVALID_DATE_FORMAT);
             }
         }
     }
 
     // ==================== 삭제 ===================
+    @Transactional
+    public void deleteStudyPlan(Long userId, Long planId, LocalDate selectedDate, ApplyScope applyScope) {
+        StudyPlan studyPlan = studyPlanRepository.findById(planId)
+                .orElseThrow(() -> new CustomException(ErrorCode.PLAN_NOT_FOUND));
 
+        validateUserAccess(studyPlan, userId);
+
+        // 단발성 계획 삭제 (반복 룰이 null이거나 applyScope가 null인 경우)
+        if (studyPlan.getRepeatRule() == null || applyScope == null ) {
+            studyPlanRepository.delete(studyPlan);
+            return;
+        }
+
+        // 반복성 계획 삭제 - applyScope에 따른 처리
+        deleteRepeatPlan(studyPlan, selectedDate, applyScope);
+    }
+
+    private void deleteRepeatPlan(StudyPlan studyPlan, LocalDate selectedDate, ApplyScope applyScope) {
+        switch (applyScope) {
+            case FROM_THIS_DATE:
+                // 원본 날짜부터 삭제하는 경우 = 전체 계획 삭제
+                if (selectedDate.equals(studyPlan.getStartDate().toLocalDate())) {
+                    studyPlanRepository.delete(studyPlan); // CASCADE로 RepeatRule, Exception 모두 삭제
+                } else {
+                    // 중간 날짜부터 삭제하는 경우 = untilDate 수정
+                    RepeatRule repeatRule = studyPlan.getRepeatRule();
+                    LocalDate newUntilDate = selectedDate.minusDays(1);
+                    repeatRule.setUntilDate(newUntilDate);
+                    studyPlanRepository.save(studyPlan);
+                }
+                break;
+
+            case THIS_ONLY:
+                // 선택한 날짜만 삭제 - 예외 생성
+                StudyPlanException exception = new StudyPlanException();
+                exception.setStudyPlan(studyPlan);
+                exception.setExceptionDate(selectedDate);
+                exception.setExceptionType(StudyPlanException.ExceptionType.DELETED);
+                exception.setApplyScope(ApplyScope.THIS_ONLY);
+                studyPlanExceptionRepository.save(exception);
+                break;
+        }
+    }
 
     // ==================== 유틸 ===================
     // 인가 (작성자 일치 확인)
@@ -458,8 +498,6 @@ public class StudyPlanService{
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
     }
-
-
 
 
 }
