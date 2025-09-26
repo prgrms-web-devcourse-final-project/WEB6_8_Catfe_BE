@@ -79,7 +79,7 @@ public class AuthService {
         // TODO: 이메일 인증 로직 추가 예정
 
         // UserResponse 변환 및 반환
-        return UserResponse.from(saved, profile);
+        return UserResponse.from(saved);
     }
 
     /**
