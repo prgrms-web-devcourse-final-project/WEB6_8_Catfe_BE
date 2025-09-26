@@ -4,6 +4,69 @@
 <br/>
 <br/>
 
+---
+
+# ✅ PR #1: JWT 인증 통합 완료
+
+## 📋 작업 요약
+스터디룸 API에서 하드코딩된 사용자 ID를 제거하고, JWT 인증 시스템을 완전히 통합했습니다.
+
+### 🔄 주요 변경 사항
+
+#### 1. SecurityConfig 수정
+- `/api/rooms/**` 경로의 `permitAll()` 제거
+- 모든 방 API가 이제 JWT 인증 필수
+
+#### 2. RoomController JWT 통합
+- `CurrentUser` 의존성 주입으로 실제 사용자 ID 추출
+- 하드코딩된 `Long currentUserId = 1L;` 제거 (10개 메서드)
+- 불필요한 `@RequestHeader("Authorization")` 파라미터 제거
+
+### 🔐 인증 흐름
+1. **클라이언트 요청**: Authorization 헤더에 "Bearer {token}" 전달
+2. **JwtAuthenticationFilter**: 토큰 추출 및 검증
+3. **Controller**: `CurrentUser.getUserId()`로 사용자 ID 획득
+4. **인증 실패 시**: 401 Unauthorized 자동 응답
+
+### 🧪 테스트 방법
+```bash
+# 1. 로그인하여 JWT 토큰 받기
+POST /api/auth/login
+{
+  "username": "user",
+  "password": "password"
+}
+
+# 2. 토큰으로 방 생성
+POST /api/rooms
+Authorization: Bearer {받은_토큰}
+{
+  "title": "테스트 방",
+  "isPrivate": false
+}
+
+# 3. 토큰 없이 요청 시 401 에러 확인
+POST /api/rooms  # ❌ 401 Unauthorized
+```
+
+### 📊 영향받는 API 엔드포인트
+| 엔드포인트 | 메서드 | 변경 사항 |
+|-----------|--------|----------|
+| `/api/rooms` | POST | JWT 인증 필수 |
+| `/api/rooms/{roomId}/join` | POST | JWT 인증 필수 |
+| `/api/rooms/{roomId}/leave` | POST | JWT 인증 필수 |
+| `/api/rooms` | GET | JWT 인증 필수 |
+| `/api/rooms/{roomId}` | GET | JWT 인증 필수 |
+| `/api/rooms/my` | GET | JWT 인증 필수 |
+| `/api/rooms/{roomId}` | PUT | JWT 인증 필수 |
+| `/api/rooms/{roomId}` | DELETE | JWT 인증 필수 |
+| `/api/rooms/{roomId}/members` | GET | JWT 인증 필수 |
+| `/api/rooms/popular` | GET | JWT 인증 필수 |
+
+---
+<br/>
+<br/>
+
 # 개발 및 배포 프로세스 & Git 컨벤션 가이드
 해당 프로젝트는 `dev` 브랜치에서 개발하고, `main`브랜치에서 배포합니다. <br/> <br/>
 아래에 브랜치 전략, 커밋/PR 컨벤션, 워크플로우 전략, 브랜치 보호 규칙, 응답 데이터 및 예외처리 전략을 정리하였습니다. <br/> <br/>

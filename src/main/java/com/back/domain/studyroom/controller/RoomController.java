@@ -5,12 +5,12 @@ import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomMember;
 import com.back.domain.studyroom.service.RoomService;
 import com.back.global.common.dto.RsData;
+import com.back.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,16 +27,18 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * - 모든 API는 Authorization 헤더 필요 (JWT 토큰)
- * - 현재는 임시로 하드코딩된 사용자 ID 사용
- * - JWT 연동 시 @CurrentUser 애노테이션으로 교체 예정
+ * 스터디 룸 관련 API 컨트롤러
+ * - JWT 인증 필수 (Spring Security + CurrentUser)
+ * - Swagger에서 테스트 시 "Authorize" 버튼으로 토큰 입력
  */
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
 @Tag(name = "Room API", description = "스터디 룸 관련 API")
+@SecurityRequirement(name = "Bearer Authentication")
 public class RoomController {
     private final RoomService roomService;
+    private final CurrentUser currentUser;
     
     @PostMapping
     @Operation(
@@ -49,10 +51,9 @@ public class RoomController {
         @ApiResponse(responseCode = "401", description = "인증 실패")
     })
     public ResponseEntity<RsData<RoomResponse>> createRoom(
-            @Valid @RequestBody CreateRoomRequest request,
-            @RequestHeader("Authorization") String authorization) {
+            @Valid @RequestBody CreateRoomRequest request) {
 
-        Long currentUserId = 1L; // 임시 하드코딩 - JWT 연동 시 @CurrentUser로 교체
+        Long currentUserId = currentUser.getUserId();
 
         Room room = roomService.createRoom(
                 request.getTitle(),
@@ -83,10 +84,9 @@ public class RoomController {
     })
     public ResponseEntity<RsData<JoinRoomResponse>> joinRoom(
             @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
-            @RequestBody(required = false) JoinRoomRequest request,
-            @RequestHeader("Authorization") String authorization) {
+            @RequestBody(required = false) JoinRoomRequest request) {
 
-        Long currentUserId = 1L; // 임시 하드코딩
+        Long currentUserId = currentUser.getUserId();
 
         String password = null;
         if (request != null) {
@@ -112,10 +112,9 @@ public class RoomController {
         @ApiResponse(responseCode = "401", description = "인증 실패")
     })
     public ResponseEntity<RsData<Void>> leaveRoom(
-            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
-            @RequestHeader("Authorization") String authorization) {
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId) {
 
-        Long currentUserId = 1L; // 임시 하드코딩
+        Long currentUserId = currentUser.getUserId();
 
         roomService.leaveRoom(roomId, currentUserId);
 
@@ -169,10 +168,9 @@ public class RoomController {
         @ApiResponse(responseCode = "401", description = "인증 실패")
     })
     public ResponseEntity<RsData<RoomDetailResponse>> getRoomDetail(
-            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
-            @RequestHeader("Authorization") String authorization) {
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId) {
 
-        Long currentUserId = 1L; // 임시 하드코딩
+        Long currentUserId = currentUser.getUserId();
 
         Room room = roomService.getRoomDetail(roomId, currentUserId);
         List<RoomMember> members = roomService.getRoomMembers(roomId, currentUserId);
@@ -197,10 +195,9 @@ public class RoomController {
         @ApiResponse(responseCode = "200", description = "조회 성공"),
         @ApiResponse(responseCode = "401", description = "인증 실패")
     })
-    public ResponseEntity<RsData<List<MyRoomResponse>>> getMyRooms(
-            @RequestHeader("Authorization") String authorization) {
+    public ResponseEntity<RsData<List<MyRoomResponse>>> getMyRooms() {
 
-        Long currentUserId = 1L; // 임시 하드코딩
+        Long currentUserId = currentUser.getUserId();
 
         List<Room> rooms = roomService.getUserRooms(currentUserId);
 
@@ -230,10 +227,9 @@ public class RoomController {
     })
     public ResponseEntity<RsData<Void>> updateRoom(
             @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
-            @Valid @RequestBody UpdateRoomSettingsRequest request,
-            @RequestHeader("Authorization") String authorization) {
+            @Valid @RequestBody UpdateRoomSettingsRequest request) {
 
-        Long currentUserId = 1L; // 임시 하드코딩
+        Long currentUserId = currentUser.getUserId();
 
         roomService.updateRoomSettings(
                 roomId,
@@ -263,10 +259,9 @@ public class RoomController {
         @ApiResponse(responseCode = "401", description = "인증 실패")
     })
     public ResponseEntity<RsData<Void>> deleteRoom(
-            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
-            @RequestHeader("Authorization") String authorization) {
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId) {
 
-        Long currentUserId = 1L; // 임시 하드코딩
+        Long currentUserId = currentUser.getUserId();
 
         roomService.terminateRoom(roomId, currentUserId);
 
@@ -287,10 +282,9 @@ public class RoomController {
         @ApiResponse(responseCode = "401", description = "인증 실패")
     })
     public ResponseEntity<RsData<List<RoomMemberResponse>>> getRoomMembers(
-            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
-            @RequestHeader("Authorization") String authorization) {
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId) {
 
-        Long currentUserId = 1L; // 임시 하드코딩
+        Long currentUserId = currentUser.getUserId();
 
         List<RoomMember> members = roomService.getRoomMembers(roomId, currentUserId);
         
