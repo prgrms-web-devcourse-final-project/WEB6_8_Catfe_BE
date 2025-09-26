@@ -97,11 +97,11 @@ public class RoomMember extends BaseEntity {
     /**
      * 현재 활성 상태인지 확인
      온라인 멤버 목록 표시, 비활성 사용자 정리 등
-     온라인 상태이고 최근 5분 이내에 heartbeat가 있었던 경우
+     온라인 상태이고 최근 설정된 시간 이내에 heartbeat가 있었던 경우
      */
-    public boolean isActive() {
+    public boolean isActive(int timeoutMinutes) {
         return isOnline && lastHeartbeat != null && 
-               lastHeartbeat.isAfter(LocalDateTime.now().minusMinutes(5));
+               lastHeartbeat.isAfter(LocalDateTime.now().minusMinutes(timeoutMinutes));
     }
 
     

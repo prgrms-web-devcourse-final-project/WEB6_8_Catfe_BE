@@ -1,9 +1,18 @@
 package com.back.domain.studyroom.controller;
 
+import com.back.domain.studyroom.dto.*;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomMember;
 import com.back.domain.studyroom.service.RoomService;
 import com.back.global.common.dto.RsData;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,95 +27,95 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 현재 잡아 놓은 API 목록
- - 방 CRUD
- - 방 입장/퇴장 처리
- - 멤버 관리 (목록 조회, 권한 변경, 추방)
- - 방 목록 조회 (공개방, 인기방, 내 참여방)
-
- 인증:
- - 모든 API는 Authorization 헤더 필요 (JWT 토큰)
- - 현재는 임시로 하드코딩된 사용자 ID 사용, 예원님이 잡아준 임시 jwt 토큰과 연결 예정
+ * - 모든 API는 Authorization 헤더 필요 (JWT 토큰)
+ * - 현재는 임시로 하드코딩된 사용자 ID 사용
+ * - JWT 연동 시 @CurrentUser 애노테이션으로 교체 예정
  */
-
-
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
+@Tag(name = "Room API", description = "스터디 룸 관련 API")
 public class RoomController {
     private final RoomService roomService;
-    // 방 생성
+    
     @PostMapping
-    public ResponseEntity<RsData<Map<String, Object>>> createRoom(
-            @RequestBody Map<String, Object> request,
+    @Operation(
+        summary = "방 생성", 
+        description = "새로운 스터디 룸을 생성합니다. 방 생성자는 자동으로 방장(HOST)이 됩니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "방 생성 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<RoomResponse>> createRoom(
+            @Valid @RequestBody CreateRoomRequest request,
             @RequestHeader("Authorization") String authorization) {
 
-        Long currentUserId = 1L; // 임시 하드코딩 데이터
+        Long currentUserId = 1L; // 임시 하드코딩 - JWT 연동 시 @CurrentUser로 교체
 
         Room room = roomService.createRoom(
-                (String) request.get("title"),
-                (String) request.get("description"),
-                (Boolean) request.getOrDefault("isPrivate", false),
-                (String) request.get("password"),
-                (Integer) request.getOrDefault("maxParticipants", 10),
+                request.getTitle(),
+                request.getDescription(),
+                request.getIsPrivate() != null ? request.getIsPrivate() : false,
+                request.getPassword(),
+                request.getMaxParticipants() != null ? request.getMaxParticipants() : 10,
                 currentUserId
         );
-        Map<String, Object> response = Map.of(
-                "roomId", room.getId(),
-                "title", room.getTitle(),
-                "description", room.getDescription(),
-                "isPrivate", room.isPrivate(),
-                "maxParticipants", room.getMaxParticipants(),
-                "currentParticipants", room.getCurrentParticipants(),
-                "status", room.getStatus(),
-                "createdAt", room.getCreatedAt()
-        );
+        
+        RoomResponse response = RoomResponse.from(room);
+        
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(RsData.success("방 생성 완료", response));
     }
 
-    /**
-     방 입장
-     입장 과정:
-     - 공개 방: 바로 입장 가능
-     - 비공개 방: password 필드에 비밀번호 전송 필요
-     -- password: 비공개 방의 비밀번호
-     - 멤버십 정보 (방 ID, 사용자 ID, 역할, 입장 시간)
-     */
-    @PostMapping("/api/rooms/{roomId}/{id}/join")
-    public ResponseEntity<RsData<Map<String, Object>>> joinRoom(
-            @PathVariable Long roomId,
-            @RequestBody(required = false) Map<String, Object> request,
+    @PostMapping("/{roomId}/join")
+    @Operation(
+        summary = "방 입장", 
+        description = "특정 스터디 룸에 입장합니다. 공개방은 바로 입장 가능하며, 비공개방은 비밀번호가 필요합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "방 입장 성공"),
+        @ApiResponse(responseCode = "400", description = "방이 가득 찼거나 비밀번호가 틀림"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<JoinRoomResponse>> joinRoom(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
+            @RequestBody(required = false) JoinRoomRequest request,
             @RequestHeader("Authorization") String authorization) {
 
-        Long currentUserId = 1L; // 임시 하드코딩 데이터
+        Long currentUserId = 1L; // 임시 하드코딩
 
         String password = null;
         if (request != null) {
-            password = (String) request.get("password");
+            password = request.getPassword();
         }
 
         RoomMember member = roomService.joinRoom(roomId, password, currentUserId);
+        JoinRoomResponse response = JoinRoomResponse.from(member);
 
-        Map<String, Object> response = Map.of(
-                "roomId", member.getRoom().getId(),
-                "userId", member.getUser().getId(),
-                "role", member.getRole(),
-                "joinedAt", member.getJoinedAt()
-        );
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success("방 입장 완료", response));
     }
 
-    // 방 나가기 API
-    @PostMapping("/api/rooms/{roomId}/{id}/leave")
+    @PostMapping("/{roomId}/leave")
+    @Operation(
+        summary = "방 나가기", 
+        description = "특정 스터디 룸에서 퇴장합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "방 퇴장 성공"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방 또는 멤버가 아님"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     public ResponseEntity<RsData<Void>> leaveRoom(
-            @PathVariable Long roomId,
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
             @RequestHeader("Authorization") String authorization) {
 
-        Long currentUserId = 1L; // 임시 하드코딩 데이터
+        Long currentUserId = 1L; // 임시 하드코딩
 
         roomService.leaveRoom(roomId, currentUserId);
 
@@ -115,38 +124,24 @@ public class RoomController {
                 .body(RsData.success("방 퇴장 완료", null));
     }
 
-    /**
-     * 공개 방 목록 조회 API
-     - 공개 방만 조회 (isPrivate = false)
-     - 입장 가능한 방만 조회 (활성화 + 정원 미초과)
-     - 최신 생성 순으로 정렬
-
-     * 현재 쿼리 파라미터:
-     - page: 페이지 번호 (기본값: 0)
-     - size: 페이지 크기 (기본값: 20)
-     - search: 검색어 (향후 구현 예정)
-     */
     @GetMapping
+    @Operation(
+        summary = "공개 방 목록 조회", 
+        description = "입장 가능한 공개 스터디 룸 목록을 페이징하여 조회합니다. 최신 생성 순으로 정렬됩니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     public ResponseEntity<RsData<Map<String, Object>>> getRooms(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") int size) {
 
         Pageable pageable = PageRequest.of(page, size);
         Page<Room> rooms = roomService.getJoinableRooms(pageable);
 
-        List<Map<String, Object>> roomList = rooms.getContent().stream()
-                .map(room -> {
-                    Map<String, Object> roomMap = new HashMap<>();
-                    roomMap.put("roomId", room.getId());
-                    roomMap.put("title", room.getTitle());
-                    roomMap.put("description", room.getDescription() != null ? room.getDescription() : "");
-                    roomMap.put("currentParticipants", room.getCurrentParticipants());
-                    roomMap.put("maxParticipants", room.getMaxParticipants());
-                    roomMap.put("status", room.getStatus());
-                    roomMap.put("createdBy", room.getCreatedBy().getNickname());
-                    roomMap.put("createdAt", room.getCreatedAt());
-                    return roomMap;
-                })
+        List<RoomResponse> roomList = rooms.getContent().stream()
+                .map(RoomResponse::from)
                 .collect(Collectors.toList());
 
         Map<String, Object> response = new HashMap<>();
@@ -162,21 +157,19 @@ public class RoomController {
                 .body(RsData.success("방 목록 조회 완료", response));
     }
 
-    /**
-     * 방 상세 정보 조회 API
-
-     * 조회 정보:
-     - 방 기본 정보 (제목, 설명, 설정 등)
-     - 현재 온라인 멤버 목록 (닉네임, 역할, 상태)
-     - 방 설정 (카메라, 오디오, 화면공유 허용 여부)
-
-     * 접근 제한:
-     - 공개 방: 누구나 조회 가능
-     - 비공개 방: 해당 방 멤버만 조회 가능
-     */
-    @GetMapping("/api/rooms/{roomId}")
-    public ResponseEntity<RsData<Map<String, Object>>> getRoomDetail(
-            @PathVariable Long roomId,
+    @GetMapping("/{roomId}")
+    @Operation(
+        summary = "방 상세 정보 조회", 
+        description = "특정 방의 상세 정보와 현재 온라인 멤버 목록을 조회합니다. 비공개 방은 멤버만 조회 가능합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "403", description = "비공개 방에 대한 접근 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<RoomDetailResponse>> getRoomDetail(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
             @RequestHeader("Authorization") String authorization) {
 
         Long currentUserId = 1L; // 임시 하드코딩
@@ -184,61 +177,38 @@ public class RoomController {
         Room room = roomService.getRoomDetail(roomId, currentUserId);
         List<RoomMember> members = roomService.getRoomMembers(roomId, currentUserId);
 
-        List<Map<String, Object>> memberList = members.stream()
-                .map(member -> {
-                    Map<String, Object> memberMap = new HashMap<>();
-                    memberMap.put("userId", member.getUser().getId());
-                    memberMap.put("nickname", member.getUser().getNickname());
-                    memberMap.put("role", member.getRole());
-                    memberMap.put("isOnline", member.isOnline());
-                    memberMap.put("joinedAt", member.getJoinedAt());
-                    memberMap.put("lastActiveAt", member.getLastActiveAt() != null ? member.getLastActiveAt() : member.getJoinedAt());
-                    return memberMap;
-                })
+        List<RoomMemberResponse> memberResponses = members.stream()
+                .map(RoomMemberResponse::from)
                 .collect(Collectors.toList());
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("roomId", room.getId());
-        response.put("title", room.getTitle());
-        response.put("description", room.getDescription() != null ? room.getDescription() : "");
-        response.put("isPrivate", room.isPrivate());
-        response.put("maxParticipants", room.getMaxParticipants());
-        response.put("currentParticipants", room.getCurrentParticipants());
-        response.put("status", room.getStatus());
-        response.put("allowCamera", room.isAllowCamera());
-        response.put("allowAudio", room.isAllowAudio());
-        response.put("allowScreenShare", room.isAllowScreenShare());
-        response.put("createdBy", room.getCreatedBy().getNickname());
-        response.put("createdAt", room.getCreatedAt());
-        response.put("members", memberList);
+        RoomDetailResponse response = RoomDetailResponse.of(room, memberResponses);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success("방 상세 정보 조회 완료", response));
     }
 
-    //사용자 참여 방 목록 조회 API
-    @GetMapping("/api/rooms/{roomId}/{id}/participants")
-    public ResponseEntity<RsData<List<Map<String, Object>>>> getMyRooms(
+    @GetMapping("/my")
+    @Operation(
+        summary = "내 참여 방 목록 조회", 
+        description = "현재 사용자가 참여 중인 방(멤버 이상) 목록을 조회합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<List<MyRoomResponse>>> getMyRooms(
             @RequestHeader("Authorization") String authorization) {
 
         Long currentUserId = 1L; // 임시 하드코딩
 
         List<Room> rooms = roomService.getUserRooms(currentUserId);
 
-        List<Map<String, Object>> roomList = rooms.stream()
-                .map(room -> {
-                    Map<String, Object> roomMap = new HashMap<>();
-                    roomMap.put("roomId", room.getId());
-                    roomMap.put("title", room.getTitle());
-                    roomMap.put("description", room.getDescription() != null ? room.getDescription() : "");
-                    roomMap.put("currentParticipants", room.getCurrentParticipants());
-                    roomMap.put("maxParticipants", room.getMaxParticipants());
-                    roomMap.put("status", room.getStatus());
-                    roomMap.put("myRole", roomService.getUserRoomRole(room.getId(), currentUserId));
-                    roomMap.put("createdAt", room.getCreatedAt());
-                    return roomMap;
-                })
+        List<MyRoomResponse> roomList = rooms.stream()
+                .map(room -> MyRoomResponse.of(
+                        room, 
+                        roomService.getUserRoomRole(room.getId(), currentUserId)
+                ))
                 .collect(Collectors.toList());
 
         return ResponseEntity
@@ -246,29 +216,33 @@ public class RoomController {
                 .body(RsData.success("내 방 목록 조회 완료", roomList));
     }
 
-    /**
-     * 방 설정 수정 API
-    권한: 방장만 수정 가능
-
-     * 제약 사항:
-     - 최대 참가자 수는 현재 참가자 수보다 작게 설정할 수 없음
-     */
-    @PutMapping("/api/rooms/{roomId}")
+    @PutMapping("/{roomId}")
+    @Operation(
+        summary = "방 설정 수정", 
+        description = "방의 제목, 설명, 정원, RTC 설정 등을 수정합니다. 방장만 수정 가능합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "수정 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 (현재 참가자보다 작은 정원 등)"),
+        @ApiResponse(responseCode = "403", description = "방장 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     public ResponseEntity<RsData<Void>> updateRoom(
-            @PathVariable Long roomId,
-            @RequestBody Map<String, Object> request,
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
+            @Valid @RequestBody UpdateRoomSettingsRequest request,
             @RequestHeader("Authorization") String authorization) {
 
         Long currentUserId = 1L; // 임시 하드코딩
 
         roomService.updateRoomSettings(
                 roomId,
-                (String) request.get("title"),
-                (String) request.get("description"),
-                (Integer) request.get("maxParticipants"),
-                (Boolean) request.getOrDefault("allowCamera", true),
-                (Boolean) request.getOrDefault("allowAudio", true),
-                (Boolean) request.getOrDefault("allowScreenShare", true),
+                request.getTitle(),
+                request.getDescription(),
+                request.getMaxParticipants(),
+                request.getAllowCamera() != null ? request.getAllowCamera() : true,
+                request.getAllowAudio() != null ? request.getAllowAudio() : true,
+                request.getAllowScreenShare() != null ? request.getAllowScreenShare() : true,
                 currentUserId
         );
 
@@ -277,18 +251,19 @@ public class RoomController {
                 .body(RsData.success("방 설정 변경 완료", null));
     }
 
-    /**
-     * 방 종료 API
-     권한: 방장만 종료 가능
-
-     * 종료 처리:
-     - 방 상태를 TERMINATED로 변경
-     - 모든 멤버를 강제 오프라인 처리 (강퇴처리 식으로 진행 해야 할 지, 로직 처리 필요)
-     - 더 이상 입장 불가능한 상태로 변경
-     */
-    @DeleteMapping("/api/rooms/{roomId}")
+    @DeleteMapping("/{roomId}")
+    @Operation(
+        summary = "방 종료", 
+        description = "방을 종료합니다. 모든 멤버가 강제 퇴장되며 더 이상 입장할 수 없습니다. 방장만 실행 가능합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "종료 성공"),
+        @ApiResponse(responseCode = "403", description = "방장 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     public ResponseEntity<RsData<Void>> deleteRoom(
-            @PathVariable Long roomId,
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
             @RequestHeader("Authorization") String authorization) {
 
         Long currentUserId = 1L; // 임시 하드코딩
@@ -300,35 +275,27 @@ public class RoomController {
                 .body(RsData.success("방 종료 완료", null));
     }
 
-    /**
-     * 방 멤버 목록 조회 API
-     - 현재 온라인 상태인 인원만 조회 (룸 내에서든 외에서든)
-     - 역할별로 정렬 (방장 > 부방장 > 멤버 > 방문객)
-
-     * 접근 제한:
-     - 공개 방: 누구나 조회 가능
-     - 비공개 방: 해당 방 멤버만 조회 가능
-     */
-    @GetMapping("/api/rooms/{roomId}/participants")
-    public ResponseEntity<RsData<List<Map<String, Object>>>> getRoomMembers(
-            @PathVariable Long roomId,
+    @GetMapping("/{roomId}/members")
+    @Operation(
+        summary = "방 멤버 목록 조회", 
+        description = "방의 현재 온라인 멤버 목록을 조회합니다. 역할별로 정렬됩니다(방장>부방장>멤버>방문객)."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "403", description = "비공개 방에 대한 접근 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<List<RoomMemberResponse>>> getRoomMembers(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
             @RequestHeader("Authorization") String authorization) {
 
         Long currentUserId = 1L; // 임시 하드코딩
 
         List<RoomMember> members = roomService.getRoomMembers(roomId, currentUserId);
         
-        List<Map<String, Object>> memberList = members.stream()
-                .map(member -> {
-                    Map<String, Object> memberMap = new HashMap<>();
-                    memberMap.put("userId", member.getUser().getId());
-                    memberMap.put("nickname", member.getUser().getNickname());
-                    memberMap.put("role", member.getRole());
-                    memberMap.put("isOnline", member.isOnline());
-                    memberMap.put("joinedAt", member.getJoinedAt());
-                    memberMap.put("lastActiveAt", member.getLastActiveAt() != null ? member.getLastActiveAt() : member.getJoinedAt());
-                    return memberMap;
-                })
+        List<RoomMemberResponse> memberList = members.stream()
+                .map(RoomMemberResponse::from)
                 .collect(Collectors.toList());
 
         return ResponseEntity
@@ -336,37 +303,24 @@ public class RoomController {
                 .body(RsData.success("방 멤버 목록 조회 완료", memberList));
     }
 
-    /**
-     * 인기 방 목록 조회 API
-     * 정렬 기준:
-     - 1순위: 현재 참가자 수 (내림차순)
-     - 2순위: 생성 시간 (최신순)
-
-     * 조회 조건:
-     - 공개 방만 조회
-     - 활성화된 방만 조회
-     */
     @GetMapping("/popular")
+    @Operation(
+        summary = "인기 방 목록 조회", 
+        description = "참가자 수가 많은 인기 방 목록을 페이징하여 조회합니다. 참가자 수 내림차순에서 최신순으로 정렬됩니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     public ResponseEntity<RsData<Map<String, Object>>> getPopularRooms(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") int size) {
 
         Pageable pageable = PageRequest.of(page, size);
         Page<Room> rooms = roomService.getPopularRooms(pageable);
 
-        List<Map<String, Object>> roomList = rooms.getContent().stream()
-                .map(room -> {
-                    Map<String, Object> roomMap = new HashMap<>();
-                    roomMap.put("roomId", room.getId());
-                    roomMap.put("title", room.getTitle());
-                    roomMap.put("description", room.getDescription() != null ? room.getDescription() : "");
-                    roomMap.put("currentParticipants", room.getCurrentParticipants());
-                    roomMap.put("maxParticipants", room.getMaxParticipants());
-                    roomMap.put("status", room.getStatus());
-                    roomMap.put("createdBy", room.getCreatedBy().getNickname());
-                    roomMap.put("createdAt", room.getCreatedAt());
-                    return roomMap;
-                })
+        List<RoomResponse> roomList = rooms.getContent().stream()
+                .map(RoomResponse::from)
                 .collect(Collectors.toList());
 
         Map<String, Object> response = new HashMap<>();
