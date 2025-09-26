@@ -44,7 +44,7 @@ public class StudyPlanResponse {
         private Integer repeatInterval;
         private String byDay; // "MON" 형태의 문자열
 
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
         private LocalDate untilDate;
 
         public RepeatRuleResponse(com.back.domain.study.plan.entity.RepeatRule repeatRule) {
