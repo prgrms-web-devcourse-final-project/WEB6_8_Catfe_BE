@@ -28,10 +28,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
 @Transactional
 @ActiveProfiles("test")
-class UserServiceTest {
+class AuthServiceTest {
 
     @Autowired
-    private UserService userService;
+    private AuthService authService;
 
     @Autowired
     private UserRepository userRepository;
@@ -47,7 +47,7 @@ class UserServiceTest {
 
     private User setupUser(String username, String email, String password, String nickname, UserStatus status) {
         UserRegisterRequest request = new UserRegisterRequest(username, email, password, nickname);
-        UserResponse response = userService.register(request);
+        UserResponse response = authService.register(request);
 
         User saved = userRepository.findById(response.userId()).orElseThrow();
         saved.setUserStatus(status); // 상태 변경 (PENDING, SUSPENDED, DELETED)
@@ -63,7 +63,7 @@ class UserServiceTest {
         );
 
         // when: 회원가입 실행
-        UserResponse response = userService.register(request);
+        UserResponse response = authService.register(request);
 
         // then: 반환된 값 검증
         assertThat(response.username()).isEqualTo("testuser");
@@ -84,13 +84,13 @@ class UserServiceTest {
     @DisplayName("중복된 username이면 예외 발생")
     void register_duplicateUsername() {
         // given: 동일 username으로 첫 번째 가입
-        userService.register(new UserRegisterRequest(
+        authService.register(new UserRegisterRequest(
                 "dupuser", "dup@example.com", "P@ssw0rd!", "닉네임"
         ));
 
         // when & then: 같은 username으로 가입 시 예외 발생
         assertThatThrownBy(() ->
-                userService.register(new UserRegisterRequest(
+                authService.register(new UserRegisterRequest(
                         "dupuser", "other@example.com", "P@ssw0rd!", "다른닉네임"
                 ))
         ).isInstanceOf(CustomException.class)
@@ -101,13 +101,13 @@ class UserServiceTest {
     @DisplayName("중복된 email이면 예외 발생")
     void register_duplicateEmail() {
         // given: 동일 email로 첫 번째 가입
-        userService.register(new UserRegisterRequest(
+        authService.register(new UserRegisterRequest(
                 "user1", "dup@example.com", "P@ssw0rd!", "닉네임"
         ));
 
         // when & then: 같은 email로 가입 시 예외 발생
         assertThatThrownBy(() ->
-                userService.register(new UserRegisterRequest(
+                authService.register(new UserRegisterRequest(
                         "user2", "dup@example.com", "P@ssw0rd!", "다른닉네임"
                 ))
         ).isInstanceOf(CustomException.class)
@@ -118,13 +118,13 @@ class UserServiceTest {
     @DisplayName("중복된 nickname이면 예외 발생")
     void register_duplicateNickname() {
         // given: 동일 nickname으로 첫 번째 가입
-        userService.register(new UserRegisterRequest(
+        authService.register(new UserRegisterRequest(
                 "user1", "user1@example.com", "P@ssw0rd!", "dupnick"
         ));
 
         // when & then: 같은 nickname으로 가입 시 예외 발생
         assertThatThrownBy(() ->
-                userService.register(new UserRegisterRequest(
+                authService.register(new UserRegisterRequest(
                         "user2", "user2@example.com", "P@ssw0rd!", "dupnick"
                 ))
         ).isInstanceOf(CustomException.class)
@@ -140,7 +140,7 @@ class UserServiceTest {
         );
 
         // when & then: 정책 위반으로 예외 발생
-        assertThatThrownBy(() -> userService.register(request))
+        assertThatThrownBy(() -> authService.register(request))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.INVALID_PASSWORD.getMessage());
     }
@@ -154,7 +154,7 @@ class UserServiceTest {
         );
 
         // when & then: 정책 위반으로 예외 발생
-        assertThatThrownBy(() -> userService.register(request))
+        assertThatThrownBy(() -> authService.register(request))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.INVALID_PASSWORD.getMessage());
     }
@@ -168,7 +168,7 @@ class UserServiceTest {
         );
 
         // when: 회원가입 실행
-        UserResponse response = userService.register(request);
+        UserResponse response = authService.register(request);
 
         // then: username과 비밀번호 인코딩 검증
         assertThat(response.username()).isEqualTo("user3");
@@ -185,7 +185,7 @@ class UserServiceTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when: 로그인 요청 실행
-        LoginResponse loginResponse = userService.login(
+        LoginResponse loginResponse = authService.login(
                 new LoginRequest("loginuser", rawPassword), response);
 
         // then: 응답에 username과 토큰/쿠키가 포함됨
@@ -197,7 +197,6 @@ class UserServiceTest {
         assertThat(refreshCookie.isHttpOnly()).isTrue();
     }
 
-
     @Test
     @DisplayName("잘못된 비밀번호 → INVALID_CREDENTIALS 예외 발생")
     void login_invalidPassword() {
@@ -206,7 +205,7 @@ class UserServiceTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when & then: 로그인 시도 시 INVALID_CREDENTIALS 예외 발생
-        assertThatThrownBy(() -> userService.login(
+        assertThatThrownBy(() -> authService.login(
                 new LoginRequest("loginuser", "wrongPassword"), response
         ))
                 .isInstanceOf(CustomException.class)
@@ -220,7 +219,7 @@ class UserServiceTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when & then: 로그인 시도 시 INVALID_CREDENTIALS 예외 발생
-        assertThatThrownBy(() -> userService.login(
+        assertThatThrownBy(() -> authService.login(
                 new LoginRequest("nouser", "P@ssw0rd!"), response
         ))
                 .isInstanceOf(CustomException.class)
@@ -235,7 +234,7 @@ class UserServiceTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when & then: 로그인 시도 시 USER_EMAIL_NOT_VERIFIED 예외 발생
-        assertThatThrownBy(() -> userService.login(
+        assertThatThrownBy(() -> authService.login(
                 new LoginRequest(user.getUsername(), "P@ssw0rd!"), response
         ))
                 .isInstanceOf(CustomException.class)
@@ -250,7 +249,7 @@ class UserServiceTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when & then: 로그인 시도 시 USER_SUSPENDED 예외 발생
-        assertThatThrownBy(() -> userService.login(
+        assertThatThrownBy(() -> authService.login(
                 new LoginRequest(user.getUsername(), "P@ssw0rd!"), response
         ))
                 .isInstanceOf(CustomException.class)
@@ -265,7 +264,7 @@ class UserServiceTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when & then: 로그인 시도 시 USER_DELETED 예외 발생
-        assertThatThrownBy(() -> userService.login(
+        assertThatThrownBy(() -> authService.login(
                 new LoginRequest(user.getUsername(), "P@ssw0rd!"), response
         ))
                 .isInstanceOf(CustomException.class)
@@ -279,7 +278,7 @@ class UserServiceTest {
         User user = setupUser("logoutuser", "logout@example.com", rawPassword, "닉네임", UserStatus.ACTIVE);
         MockHttpServletResponse loginResponse = new MockHttpServletResponse();
 
-        userService.login(new LoginRequest("logoutuser", rawPassword), loginResponse);
+        authService.login(new LoginRequest("logoutuser", rawPassword), loginResponse);
         Cookie refreshCookie = loginResponse.getCookie("refreshToken");
         assertThat(refreshCookie).isNotNull();
 
@@ -288,7 +287,7 @@ class UserServiceTest {
         request.setCookies(refreshCookie); // 쿠키를 요청에 실어줌
 
         // when: 로그아웃 실행
-        userService.logout(request, logoutResponse);
+        authService.logout(request, logoutResponse);
 
         // then: DB에서 refreshToken 삭제됨
         assertThat(userTokenRepository.findByRefreshToken(refreshCookie.getValue())).isEmpty();
@@ -308,7 +307,7 @@ class UserServiceTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when & then
-        assertThatThrownBy(() -> userService.logout(request, response))
+        assertThatThrownBy(() -> authService.logout(request, response))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.BAD_REQUEST.getMessage());
     }
@@ -322,7 +321,7 @@ class UserServiceTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when & then
-        assertThatThrownBy(() -> userService.logout(request, response))
+        assertThatThrownBy(() -> authService.logout(request, response))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.INVALID_TOKEN.getMessage());
     }
@@ -335,7 +334,7 @@ class UserServiceTest {
         User user = setupUser("refreshuser", "refresh@example.com", rawPassword, "닉네임", UserStatus.ACTIVE);
         MockHttpServletResponse loginResponse = new MockHttpServletResponse();
 
-        LoginResponse loginRes = userService.login(new LoginRequest("refreshuser", rawPassword), loginResponse);
+        LoginResponse loginRes = authService.login(new LoginRequest("refreshuser", rawPassword), loginResponse);
         String oldAccessToken = loginRes.accessToken();
         Cookie refreshCookie = loginResponse.getCookie("refreshToken");
         assertThat(refreshCookie).isNotNull();
@@ -349,7 +348,7 @@ class UserServiceTest {
 //        Thread.sleep(1000);
 
         // when: 토큰 재발급 실행
-        String newAccessToken = userService.refreshToken(request, response);
+        String newAccessToken = authService.refreshToken(request, response);
 
         // then: 반환값 및 응답 헤더 검증
         assertThat(newAccessToken).isNotBlank();
@@ -365,7 +364,7 @@ class UserServiceTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when & then
-        assertThatThrownBy(() -> userService.refreshToken(request, response))
+        assertThatThrownBy(() -> authService.refreshToken(request, response))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.BAD_REQUEST.getMessage());
     }
@@ -379,7 +378,7 @@ class UserServiceTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when & then
-        assertThatThrownBy(() -> userService.refreshToken(request, response))
+        assertThatThrownBy(() -> authService.refreshToken(request, response))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.INVALID_TOKEN.getMessage());
     }

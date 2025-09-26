@@ -28,7 +28,7 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class UserService {
+public class AuthService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserTokenRepository userTokenRepository;
