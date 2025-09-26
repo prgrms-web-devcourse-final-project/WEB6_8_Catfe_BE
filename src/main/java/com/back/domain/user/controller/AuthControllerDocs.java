@@ -131,8 +131,7 @@ public interface AuthControllerDocs {
 
     @Operation(
             summary = "로그인",
-            description = "username + password로 로그인합니다. " +
-                    "로그인 성공 시 Access Token은 `Authorization` 헤더에, Refresh Token은 HttpOnly 쿠키로 발급됩니다."
+            description = "username + password로 로그인합니다. "
     )
     @ApiResponses({
             @ApiResponse(
@@ -146,13 +145,16 @@ public interface AuthControllerDocs {
                                       "code": "SUCCESS_200",
                                       "message": "로그인에 성공했습니다.",
                                       "data": {
-                                        "userId": 1,
-                                        "username": "testuser",
-                                        "email": "test@example.com",
-                                        "nickname": "홍길동",
-                                        "role": "USER",
-                                        "status": "ACTIVE",
-                                        "createdAt": "2025-09-19T15:00:00"
+                                        "accessToken": "{accessToken}",
+                                        "user": {
+                                          "userId": 1,
+                                          "username": "testuser",
+                                          "email": "test@example.com",
+                                          "nickname": "홍길동",
+                                          "role": "USER",
+                                          "status": "ACTIVE",
+                                          "createdAt": "2025-09-19T15:00:00"
+                                        }
                                       }
                                     }
                                     """)
