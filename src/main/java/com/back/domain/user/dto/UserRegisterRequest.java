@@ -2,6 +2,7 @@ package com.back.domain.user.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * 사용자 회원 가입 요청을 나타내는 DTO
@@ -15,5 +16,5 @@ public record UserRegisterRequest(
         @NotBlank String username,
         @NotBlank @Email String email,
         @NotBlank String password,
-        @NotBlank String nickname
+        @NotBlank @Size(max = 20) String nickname
 ) {}

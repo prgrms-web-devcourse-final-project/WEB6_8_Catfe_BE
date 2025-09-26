@@ -131,7 +131,8 @@ public interface AuthControllerDocs {
 
     @Operation(
             summary = "로그인",
-            description = "username + password로 로그인합니다. "
+            description = "username + password로 로그인합니다. " +
+                    "로그인 성공 시 Access Token을 응답 본문에, Refresh Token을 HttpOnly 쿠키에 담아 반환합니다. "
     )
     @ApiResponses({
             @ApiResponse(
@@ -311,7 +312,7 @@ public interface AuthControllerDocs {
     @Operation(
             summary = "토큰 재발급",
             description = "만료된 Access Token 대신 Refresh Token을 이용해 새로운 Access Token을 발급받습니다. " +
-                    "Refresh Token은 HttpOnly 쿠키에서 추출하며, 재발급 성공 시 응답 헤더와 본문에 새로운 Access Token을 담습니다."
+                    "Refresh Token은 HttpOnly 쿠키에서 추출하며, 재발급 성공 시 본문에 새로운 Access Token을 담습니다."
     )
     @ApiResponses({
             @ApiResponse(

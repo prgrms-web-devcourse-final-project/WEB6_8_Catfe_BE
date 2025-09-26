@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Getter
@@ -25,7 +25,7 @@ public class UserProfile extends BaseEntity {
 
     private String bio;
 
-    private LocalDateTime birthDate;
+    private LocalDate birthDate;
 
     private int point;
 }

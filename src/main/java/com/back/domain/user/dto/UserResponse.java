@@ -27,12 +27,12 @@ public record UserResponse(
         UserStatus status,
         LocalDateTime createdAt
 ) {
-    public static UserResponse from(User user, UserProfile profile) {
+    public static UserResponse from(User user) {
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
-                profile.getNickname(),
+                user.getUserProfile().getNickname(),
                 user.getRole(),
                 user.getUserStatus(),
                 user.getCreatedAt()

@@ -27,9 +27,6 @@ public class TestJwtTokenProvider {
 
     /**
      * 만료된 리프레시 토큰 생성
-     *
-     * @param userId 사용자 ID
-     * @return 만료된 JWT 리프레시 토큰 문자열
      */
     public String createExpiredRefreshToken(Long userId) {
         Date issuedAt = new Date(System.currentTimeMillis() - 2000L); // 2초 전 발급
@@ -37,6 +34,40 @@ public class TestJwtTokenProvider {
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
+                .issuedAt(issuedAt)
+                .expiration(expiredAt)
+                .signWith(key)
+                .compact();
+    }
+
+    /**
+     * 만료된 액세스 토큰 생성
+     */
+    public String createExpiredAccessToken(Long userId, String username, String role) {
+        Date issuedAt = new Date(System.currentTimeMillis() - 2000L); // 2초 전 발급
+        Date expiredAt = new Date(System.currentTimeMillis() - 1000L); // 1초 전 만료
+
+        return Jwts.builder()
+                .subject(username)
+                .claim("userId", userId)
+                .claim("role", role)
+                .issuedAt(issuedAt)
+                .expiration(expiredAt)
+                .signWith(key)
+                .compact();
+    }
+
+    /**
+     * 유효한 액세스 토큰 생성
+     */
+    public String createAccessToken(Long userId, String username, String role) {
+        Date issuedAt = new Date();
+        Date expiredAt = new Date(System.currentTimeMillis() + 1000L * 60 * 10); // 10분 유효
+
+        return Jwts.builder()
+                .subject(username)
+                .claim("userId", userId)
+                .claim("role", role)
                 .issuedAt(issuedAt)
                 .expiration(expiredAt)
                 .signWith(key)
