@@ -16,7 +16,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("api/ws")
 @RequiredArgsConstructor
-@Tag(name = "WebSocket REST API", description = "WebSocket 서버 상태 확인 및 실시간 연결 정보 제공 API")
+@Tag(name = "WebSocket REST API", description = "WebSocket 서버 상태 확인 + 실시간 연결 정보 제공 API")
 public class WebSocketApiController {
 
     private final WebSocketSessionManager sessionManager;
@@ -55,7 +55,6 @@ public class WebSocketApiController {
         connectionInfo.put("stompVersion", "1.2");
         connectionInfo.put("heartbeatInterval", "5분");
         connectionInfo.put("sessionTTL", "10분");
-        connectionInfo.put("description", "RoomController와 협력하여 실시간 온라인 상태 관리");
         connectionInfo.put("subscribeTopics", Map.of(
                 "roomChat", "/topic/rooms/{roomId}/chat",
                 "privateMessage", "/user/queue/messages",

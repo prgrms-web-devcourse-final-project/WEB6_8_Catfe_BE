@@ -21,10 +21,10 @@ public class WebSocketMessageController {
     @MessageMapping("/heartbeat")
     public void handleHeartbeat(@Payload HeartbeatMessage message) {
         try {
-            if (message.getUserId() != null) {
+            if (message.userId() != null) {
                 // TTL 10분으로 연장
-                sessionManager.updateLastActivity(message.getUserId());
-                log.debug("Heartbeat 처리 완료 - 사용자: {}", message.getUserId());
+                sessionManager.updateLastActivity(message.userId());
+                log.debug("Heartbeat 처리 완료 - 사용자: {}", message.userId());
             } else {
                 log.warn("유효하지 않은 Heartbeat 메시지 수신: userId가 null");
             }
@@ -40,9 +40,9 @@ public class WebSocketMessageController {
     @MessageMapping("/rooms/{roomId}/join")
     public void handleJoinRoom(@DestinationVariable Long roomId, @Payload HeartbeatMessage message) {
         try {
-            if (message.getUserId() != null) {
-                sessionManager.joinRoom(message.getUserId(), roomId);
-                log.info("STOMP 방 입장 처리 완료 - 사용자: {}, 방: {}", message.getUserId(), roomId);
+            if (message.userId() != null) {
+                sessionManager.joinRoom(message.userId(), roomId);
+                log.info("STOMP 방 입장 처리 완료 - 사용자: {}, 방: {}", message.userId(), roomId);
             } else {
                 log.warn("유효하지 않은 방 입장 요청: userId가 null");
             }
@@ -57,9 +57,9 @@ public class WebSocketMessageController {
     @MessageMapping("/rooms/{roomId}/leave")
     public void handleLeaveRoom(@DestinationVariable Long roomId, @Payload HeartbeatMessage message) {
         try {
-            if (message.getUserId() != null) {
-                sessionManager.leaveRoom(message.getUserId(), roomId);
-                log.info("STOMP 방 퇴장 처리 완료 - 사용자: {}, 방: {}", message.getUserId(), roomId);
+            if (message.userId() != null) {
+                sessionManager.leaveRoom(message.userId(), roomId);
+                log.info("STOMP 방 퇴장 처리 완료 - 사용자: {}, 방: {}", message.userId(), roomId);
             } else {
                 log.warn("유효하지 않은 방 퇴장 요청: userId가 null");
             }
@@ -74,9 +74,9 @@ public class WebSocketMessageController {
     @MessageMapping("/activity")
     public void handleActivity(@Payload HeartbeatMessage message) {
         try {
-            if (message.getUserId() != null) {
-                sessionManager.updateLastActivity(message.getUserId());
-                log.debug("사용자 활동 신호 처리 완료 - 사용자: {}", message.getUserId());
+            if (message.userId() != null) {
+                sessionManager.updateLastActivity(message.userId());
+                log.debug("사용자 활동 신호 처리 완료 - 사용자: {}", message.userId());
             }
         } catch (CustomException e) {
             log.error("활동 신호 처리 실패: {}", e.getMessage());

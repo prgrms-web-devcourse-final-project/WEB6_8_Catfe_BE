@@ -1,10 +1,10 @@
-package com.back.domain.chat.controller;
+package com.back.domain.chat.room.controller;
 
 import com.back.domain.studyroom.entity.RoomChatMessage;
-import com.back.domain.chat.dto.ChatMessageDto;
+import com.back.domain.chat.room.dto.RoomChatMessageDto;
 import com.back.global.security.CustomUserDetails;
 import com.back.global.websocket.dto.WebSocketErrorResponse;
-import com.back.domain.chat.service.ChatService;
+import com.back.domain.chat.room.service.RoomChatService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -18,10 +18,10 @@ import java.security.Principal;
 
 @Controller
 @RequiredArgsConstructor
-@Tag(name = "Chat WebSocket", description = "STOMP를 이용한 실시간 채팅 WebSocket 컨트롤러 (Swagger에서 직접 테스트 불가)")
-public class ChatWebSocketController {
+@Tag(name = "RoomChat WebSocket", description = "STOMP를 이용한 실시간 채팅 WebSocket 컨트롤러 (Swagger에서 직접 테스트 불가)")
+public class RoomChatWebSocketController {
 
-    private final ChatService chatService;
+    private final RoomChatService roomChatService;
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -35,7 +35,7 @@ public class ChatWebSocketController {
      */
     @MessageMapping("/chat/room/{roomId}")
     public void handleRoomChat(@DestinationVariable Long roomId,
-                               ChatMessageDto chatMessage,
+                               RoomChatMessageDto chatMessage,
                                SimpMessageHeaderAccessor headerAccessor,
                                Principal principal) {
 
@@ -51,25 +51,26 @@ public class ChatWebSocketController {
             String currentUserNickname = userDetails.getUsername();
 
             // 메시지 정보 보완
-            chatMessage.setRoomId(roomId);
-            chatMessage.setUserId(currentUserId);
-            chatMessage.setNickname(currentUserNickname);
+            RoomChatMessageDto enrichedMessage = chatMessage
+                    .withRoomId(roomId)
+                    .withUserId(currentUserId)
+                    .withNickname(currentUserNickname);
 
             // DB에 메시지 저장
-            RoomChatMessage savedMessage = chatService.saveRoomChatMessage(chatMessage);
+            RoomChatMessage savedMessage = roomChatService.saveRoomChatMessage(enrichedMessage);
 
             // 저장된 메시지 정보로 응답 DTO 생성
-            ChatMessageDto responseMessage = ChatMessageDto.builder()
-                    .messageId(savedMessage.getId())
-                    .roomId(roomId)
-                    .userId(savedMessage.getUser().getId())
-                    .nickname(savedMessage.getUser().getNickname())
-                    .profileImageUrl(savedMessage.getUser().getProfileImageUrl())
-                    .content(savedMessage.getContent())
-                    .messageType(chatMessage.getMessageType())
-                    .attachment(null) // 텍스트 채팅에서는 null
-                    .createdAt(savedMessage.getCreatedAt())
-                    .build();
+            RoomChatMessageDto responseMessage = RoomChatMessageDto.createResponse(
+                    savedMessage.getId(),
+                    roomId,
+                    savedMessage.getUser().getId(),
+                    savedMessage.getUser().getNickname(),
+                    savedMessage.getUser().getProfileImageUrl(),
+                    savedMessage.getContent(),
+                    chatMessage.messageType(),
+                    null, // 텍스트 채팅에서는 null
+                    savedMessage.getCreatedAt()
+            );
 
             // 해당 방의 모든 구독자에게 브로드캐스트
             messagingTemplate.convertAndSend("/topic/room/" + roomId, responseMessage);
