@@ -25,7 +25,7 @@ public class RepeatRule extends BaseEntity {
     @Column(name = "interval_value", nullable = false)
     private int repeatInterval;
 
-    //요일은 계획 날짜에 따라 자동 설정
+    //요일은 응답에 들어있는 요일을 그대로 저장 (예: "WED")
     @Column(name = "by_day")
     private String byDay;
 

@@ -93,7 +93,7 @@ class StudyPlanControllerTest {
 
     @Test
     @DisplayName("단발성 계획 생성")
-    void createSinglePlan() throws Exception {
+    void t1() throws Exception {
 
         ResultActions resultActions = mvc.perform(post("/api/plans")
                         .header("Authorization", "Bearer faketoken")
@@ -107,22 +107,61 @@ class StudyPlanControllerTest {
                     }
                     """))
                 .andDo(print());
-        // 먼저 HTTP 응답 검증
+
+
+
+        // 추가 검증
         resultActions
                 .andExpect(status().isOk()) // 200 OK인지 확인
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(handler().methodName("createStudyPlan"))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 생성되었습니다."));
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 생성되었습니다."))
+                .andExpect(jsonPath("$.data.subject").value("단발성 계획"))
+                .andExpect(jsonPath("$.data.color").value("RED"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-09-26T10:46:12"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-09-26T11:46:12"))
+                .andExpect(jsonPath("$.data.repeatRule").doesNotExist());
 
-        List<StudyPlan> plans = studyPlanRepository.findAll();
-        StudyPlan plan = plans.get(0);
+    }
 
-        // 추가 검증
-        assertThat(plan.getSubject()).isEqualTo("단발성 계획");
-        assertThat(plan.getColor()).isEqualTo(Color.RED);
-        assertThat(plan.getUser().getId()).isEqualTo(testUser.getId());
+    @Test
+    @DisplayName("반복성 계획 생성")
+    void t2() throws Exception {
 
+        ResultActions resultActions = mvc.perform(post("/api/plans")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                    {
+                        "subject": "반복 계획",
+                        "startDate": "2025-09-26T10:46:12",
+                        "endDate": "2025-09-26T11:46:12",
+                        "color": "BLUE",
+                        "repeatRule": {
+                            "frequency": "WEEKLY",
+                            "repeatInterval": 1,
+                            "byDay": "FRI",
+                            "untilDate": "2025-12-31"
+                        }
+                    }
+                    """))
+                    .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk()) // 200 OK인지 확인
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(handler().methodName("createStudyPlan"))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 생성되었습니다."))
+                .andExpect(jsonPath("$.data.subject").value("반복 계획"))
+                .andExpect(jsonPath("$.data.color").value("BLUE"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-09-26T10:46:12"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-09-26T11:46:12"))
+                .andExpect(jsonPath("$.data.repeatRule.frequency").value("WEEKLY"))
+                .andExpect(jsonPath("$.data.repeatRule.repeatInterval").value(1))
+                .andExpect(jsonPath("$.data.repeatRule.byDay").value("FRI"))
+                .andExpect(jsonPath("$.data.repeatRule.untilDate").value("2025-12-31"));
 
     }
 }
