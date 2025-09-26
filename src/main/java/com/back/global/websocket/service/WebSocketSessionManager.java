@@ -9,7 +9,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,12 +30,7 @@ public class WebSocketSessionManager {
     // 사용자 세션 추가 (연결 시 호출)
     public void addSession(Long userId, String sessionId) {
         try {
-            WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.builder()
-                    .userId(userId)
-                    .sessionId(sessionId)
-                    .connectedAt(LocalDateTime.now())
-                    .lastActiveAt(LocalDateTime.now())
-                    .build();
+            WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
 
             String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
             String sessionKey = SESSION_USER_KEY.replace("{}", sessionId);
@@ -44,7 +38,7 @@ public class WebSocketSessionManager {
             // 기존 세션이 있다면 제거 (중복 연결 방지)
             WebSocketSessionInfo existingSession = getSessionInfo(userId);
             if (existingSession != null) {
-                removeSessionInternal(existingSession.getSessionId());
+                removeSessionInternal(existingSession.sessionId());
                 log.info("기존 세션 제거 후 새 세션 등록 - 사용자: {}", userId);
             }
 
@@ -72,7 +66,7 @@ public class WebSocketSessionManager {
         }
     }
 
-   // 사용자 세션 정보 조회
+    // 사용자 세션 정보 조회
     public WebSocketSessionInfo getSessionInfo(Long userId) {
         try {
             String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
@@ -100,11 +94,12 @@ public class WebSocketSessionManager {
             WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
             if (sessionInfo != null) {
                 // 마지막 활동 시간 업데이트
-                sessionInfo.setLastActiveAt(LocalDateTime.now());
+                WebSocketSessionInfo updatedSessionInfo = sessionInfo.withUpdatedActivity();
 
                 String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
-                // TTL 10분으로 연장 (Heartbeat의 핵심!)
-                redisTemplate.opsForValue().set(userKey, sessionInfo, Duration.ofMinutes(SESSION_TTL_MINUTES));
+
+                // TTL 10분으로 연장
+                redisTemplate.opsForValue().set(userKey, updatedSessionInfo, Duration.ofMinutes(SESSION_TTL_MINUTES));
 
                 log.debug("사용자 활동 시간 업데이트 완료 - 사용자: {}, TTL 연장", userId);
             } else {
@@ -125,16 +120,15 @@ public class WebSocketSessionManager {
             WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
             if (sessionInfo != null) {
                 // 기존 방에서 퇴장
-                if (sessionInfo.getCurrentRoomId() != null) {
-                    leaveRoom(userId, sessionInfo.getCurrentRoomId());
+                if (sessionInfo.currentRoomId() != null) {
+                    leaveRoom(userId, sessionInfo.currentRoomId());
                 }
 
                 // 새 방 정보 업데이트
-                sessionInfo.setCurrentRoomId(roomId);
-                sessionInfo.setLastActiveAt(LocalDateTime.now());
+                WebSocketSessionInfo updatedSessionInfo = sessionInfo.withRoomId(roomId);
 
                 String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
-                redisTemplate.opsForValue().set(userKey, sessionInfo, Duration.ofMinutes(SESSION_TTL_MINUTES));
+                redisTemplate.opsForValue().set(userKey, updatedSessionInfo, Duration.ofMinutes(SESSION_TTL_MINUTES));
 
                 // 방 참여자 목록에 추가
                 String roomUsersKey = ROOM_USERS_KEY.replace("{}", roomId.toString());
@@ -158,11 +152,11 @@ public class WebSocketSessionManager {
         try {
             WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
             if (sessionInfo != null) {
-                sessionInfo.setCurrentRoomId(null);
-                sessionInfo.setLastActiveAt(LocalDateTime.now());
+                // 방 정보 제거
+                WebSocketSessionInfo updatedSessionInfo = sessionInfo.withoutRoom();
 
                 String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
-                redisTemplate.opsForValue().set(userKey, sessionInfo, Duration.ofMinutes(SESSION_TTL_MINUTES));
+                redisTemplate.opsForValue().set(userKey, updatedSessionInfo, Duration.ofMinutes(SESSION_TTL_MINUTES));
 
                 // 방 참여자 목록에서 제거
                 String roomUsersKey = ROOM_USERS_KEY.replace("{}", roomId.toString());
@@ -223,14 +217,14 @@ public class WebSocketSessionManager {
     public Long getUserCurrentRoomId(Long userId) {
         try {
             WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
-            return sessionInfo != null ? sessionInfo.getCurrentRoomId() : null;
+            return sessionInfo != null ? sessionInfo.currentRoomId() : null;
         } catch (CustomException e) {
             log.error("사용자 현재 방 조회 실패 - 사용자: {}", userId, e);
             return null; // 조회용이므로 예외 대신 null 반환
         }
     }
 
-   // 내부적으로 세션 제거 처리
+    // 내부적으로 세션 제거 처리
     private void removeSessionInternal(String sessionId) {
         String sessionKey = SESSION_USER_KEY.replace("{}", sessionId);
         Long userId = (Long) redisTemplate.opsForValue().get(sessionKey);
@@ -239,8 +233,8 @@ public class WebSocketSessionManager {
             WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
 
             // 방에서 퇴장 처리
-            if (sessionInfo != null && sessionInfo.getCurrentRoomId() != null) {
-                leaveRoom(userId, sessionInfo.getCurrentRoomId());
+            if (sessionInfo != null && sessionInfo.currentRoomId() != null) {
+                leaveRoom(userId, sessionInfo.currentRoomId());
             }
 
             // 세션 데이터 삭제
