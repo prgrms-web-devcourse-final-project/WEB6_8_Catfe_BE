@@ -303,7 +303,7 @@ class AuthServiceTest {
         Cookie cleared = logoutResponse.getCookie("refreshToken");
         assertThat(cleared).isNotNull();
         assertThat(cleared.getMaxAge()).isZero();
-        assertThat(cleared.getValue()).isNull();
+        assertThat(cleared.getValue()).isEmpty();
     }
 
     @Test
