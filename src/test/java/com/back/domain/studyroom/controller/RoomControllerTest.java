@@ -88,7 +88,7 @@ class RoomControllerTest {
     void createRoom() {
         // given
         given(currentUser.getUserId()).willReturn(1L);
-        
+
         CreateRoomRequest request = new CreateRoomRequest(
                 "테스트 방",
                 "테스트 설명",
@@ -108,13 +108,12 @@ class RoomControllerTest {
 
         // when
         ResponseEntity<RsData<RoomResponse>> response = roomController.createRoom(request);
-
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
         assertThat(response.getBody().getData().getTitle()).isEqualTo("테스트 방");
-        
+
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).createRoom(
                 anyString(),
@@ -142,7 +141,7 @@ class RoomControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
-        
+
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).joinRoom(eq(1L), any(), eq(1L));
     }
@@ -160,7 +159,7 @@ class RoomControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
-        
+
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).leaveRoom(eq(1L), eq(1L));
     }
@@ -205,7 +204,7 @@ class RoomControllerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
         assertThat(response.getBody().getData().getTitle()).isEqualTo("테스트 방");
-        
+
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).getRoomDetail(eq(1L), eq(1L));
         verify(roomService, times(1)).getRoomMembers(eq(1L), eq(1L));
@@ -216,7 +215,7 @@ class RoomControllerTest {
     void getMyRooms() {
         // given
         given(currentUser.getUserId()).willReturn(1L);
-        
+
         // Room에 ID 설정 (리플렉션 사용)
         try {
             java.lang.reflect.Field idField = testRoom.getClass().getSuperclass().getDeclaredField("id");
@@ -225,7 +224,7 @@ class RoomControllerTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        
+
         given(roomService.getUserRooms(eq(1L))).willReturn(Arrays.asList(testRoom));
         given(roomService.getUserRoomRole(eq(1L), eq(1L))).willReturn(RoomRole.HOST);
 
@@ -238,7 +237,7 @@ class RoomControllerTest {
         assertThat(response.getBody().isSuccess()).isTrue();
         assertThat(response.getBody().getData()).hasSize(1);
         assertThat(response.getBody().getData().get(0).getTitle()).isEqualTo("테스트 방");
-        
+
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).getUserRooms(eq(1L));
     }
@@ -248,7 +247,7 @@ class RoomControllerTest {
     void updateRoom() {
         // given
         given(currentUser.getUserId()).willReturn(1L);
-        
+
         UpdateRoomSettingsRequest request = new UpdateRoomSettingsRequest(
                 "변경된 제목",
                 "변경된 설명",
@@ -265,7 +264,7 @@ class RoomControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
-        
+
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).updateRoomSettings(
                 eq(1L),
@@ -292,7 +291,7 @@ class RoomControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
-        
+
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).terminateRoom(eq(1L), eq(1L));
     }
@@ -314,7 +313,7 @@ class RoomControllerTest {
         assertThat(response.getBody().isSuccess()).isTrue();
         assertThat(response.getBody().getData()).hasSize(1);
         assertThat(response.getBody().getData().get(0).getNickname()).isEqualTo("테스트유저");
-        
+
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).getRoomMembers(eq(1L), eq(1L));
     }
