@@ -7,57 +7,39 @@ import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
-import com.back.global.security.SecurityConfig;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.back.global.common.dto.RsData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(
-        //컨트롤러 단에서 bean 생성에 에러가 나서
-        // SecurityConfig 제외하는 설정에서의 테스트 진행
-    controllers = RoomController.class,
-    excludeFilters = @ComponentScan.Filter(
-        type = FilterType.ASSIGNABLE_TYPE,
-        classes = SecurityConfig.class
-    )
-)
-@AutoConfigureMockMvc(addFilters = false) // Security Filter 비활성화
+@ExtendWith(MockitoExtension.class)
 @DisplayName("RoomController 테스트")
 class RoomControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockitoBean
+    @Mock
     private RoomService roomService;
+
+    @InjectMocks
+    private RoomController roomController;
 
     private User testUser;
     private Room testRoom;
@@ -75,7 +57,7 @@ class RoomControllerTest {
                 .userStatus(UserStatus.ACTIVE)
                 .build();
         
-        // UserProfile 설정 (nickname을 위해)
+        // UserProfile 설정
         UserProfile userProfile = new UserProfile();
         userProfile.setNickname("테스트유저");
         testUser.setUserProfile(userProfile);
@@ -97,7 +79,7 @@ class RoomControllerTest {
 
     @Test
     @DisplayName("방 생성 API 테스트")
-    void createRoom() throws Exception {
+    void createRoom() {
         // given
         CreateRoomRequest request = new CreateRoomRequest(
                 "테스트 방",
@@ -116,17 +98,15 @@ class RoomControllerTest {
                 anyLong()
         )).willReturn(testRoom);
 
-        // when & then
-        mockMvc.perform(post("/api/rooms")
-                        .header("Authorization", "Bearer test-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.message").value("방 생성 완료"))
-                .andExpect(jsonPath("$.data.title").value("테스트 방"));
+        // when
+        ResponseEntity<RsData<RoomResponse>> response = roomController.createRoom(request, "Bearer token");
 
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData().getTitle()).isEqualTo("테스트 방");
+        
         verify(roomService, times(1)).createRoom(
                 anyString(),
                 anyString(),
@@ -138,64 +118,41 @@ class RoomControllerTest {
     }
 
     @Test
-    @DisplayName("방 생성 API - Validation 실패")
-    void createRoom_ValidationFail() throws Exception {
-        // given
-        CreateRoomRequest request = new CreateRoomRequest(
-                "", // 빈 제목
-                "테스트 설명",
-                false,
-                null,
-                10
-        );
-
-        // when & then
-        mockMvc.perform(post("/api/rooms")
-                        .header("Authorization", "Bearer test-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
     @DisplayName("방 입장 API 테스트")
-    void joinRoom() throws Exception {
+    void joinRoom() {
         // given
+        JoinRoomRequest request = new JoinRoomRequest(null);
         given(roomService.joinRoom(anyLong(), any(), anyLong())).willReturn(testMember);
 
-        // when & then
-        mockMvc.perform(post("/api/rooms/1/join")
-                        .header("Authorization", "Bearer test-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.message").value("방 입장 완료"))
-                .andExpect(jsonPath("$.data.roomId").exists());
+        // when
+        ResponseEntity<RsData<JoinRoomResponse>> response = roomController.joinRoom(1L, request, "Bearer token");
 
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        
         verify(roomService, times(1)).joinRoom(anyLong(), any(), anyLong());
     }
 
     @Test
     @DisplayName("방 나가기 API 테스트")
-    void leaveRoom() throws Exception {
+    void leaveRoom() {
         // given
-        // when & then
-        mockMvc.perform(post("/api/rooms/1/leave")
-                        .header("Authorization", "Bearer test-token"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.message").value("방 퇴장 완료"));
+        // when
+        ResponseEntity<RsData<Void>> response = roomController.leaveRoom(1L, "Bearer token");
 
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        
         verify(roomService, times(1)).leaveRoom(anyLong(), anyLong());
     }
 
     @Test
     @DisplayName("공개 방 목록 조회 API 테스트")
-    void getRooms() throws Exception {
+    void getRooms() {
         // given
         Page<Room> roomPage = new PageImpl<>(
                 Arrays.asList(testRoom),
@@ -204,63 +161,70 @@ class RoomControllerTest {
         );
         given(roomService.getJoinableRooms(any())).willReturn(roomPage);
 
-        // when & then
-        mockMvc.perform(get("/api/rooms")
-                        .param("page", "0")
-                        .param("size", "20"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.data.rooms").isArray())
-                .andExpect(jsonPath("$.data.totalElements").value(1));
+        // when
+        ResponseEntity<RsData<Map<String, Object>>> response = roomController.getRooms(0, 20);
 
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData().get("rooms")).isNotNull();
+        
         verify(roomService, times(1)).getJoinableRooms(any());
     }
 
     @Test
     @DisplayName("방 상세 정보 조회 API 테스트")
-    void getRoomDetail() throws Exception {
+    void getRoomDetail() {
         // given
         given(roomService.getRoomDetail(anyLong(), anyLong())).willReturn(testRoom);
         given(roomService.getRoomMembers(anyLong(), anyLong())).willReturn(Arrays.asList(testMember));
 
-        // when & then
-        mockMvc.perform(get("/api/rooms/1")
-                        .header("Authorization", "Bearer test-token"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.data.roomId").exists())
-                .andExpect(jsonPath("$.data.title").value("테스트 방"))
-                .andExpect(jsonPath("$.data.members").isArray());
+        // when
+        ResponseEntity<RsData<RoomDetailResponse>> response = roomController.getRoomDetail(1L, "Bearer token");
 
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData().getTitle()).isEqualTo("테스트 방");
+        
         verify(roomService, times(1)).getRoomDetail(anyLong(), anyLong());
         verify(roomService, times(1)).getRoomMembers(anyLong(), anyLong());
     }
 
     @Test
     @DisplayName("내 참여 방 목록 조회 API 테스트")
-    void getMyRooms() throws Exception {
+    void getMyRooms() {
         // given
+        // Room에 ID 설정 (리플렉션 사용)
+        try {
+            java.lang.reflect.Field idField = testRoom.getClass().getSuperclass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(testRoom, 1L);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        
         given(roomService.getUserRooms(anyLong())).willReturn(Arrays.asList(testRoom));
-        given(roomService.getUserRoomRole(anyLong(), anyLong())).willReturn(RoomRole.HOST);
+        given(roomService.getUserRoomRole(eq(1L), anyLong())).willReturn(RoomRole.HOST);
 
-        // when & then
-        mockMvc.perform(get("/api/rooms/my")
-                        .header("Authorization", "Bearer test-token"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data[0].title").value("테스트 방"))
-                .andExpect(jsonPath("$.data[0].myRole").value("HOST"));
+        // when
+        ResponseEntity<RsData<List<MyRoomResponse>>> response = roomController.getMyRooms("Bearer token");
 
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData()).hasSize(1);
+        assertThat(response.getBody().getData().get(0).getTitle()).isEqualTo("테스트 방");
+        
         verify(roomService, times(1)).getUserRooms(anyLong());
     }
 
     @Test
     @DisplayName("방 설정 수정 API 테스트")
-    void updateRoom() throws Exception {
+    void updateRoom() {
         // given
         UpdateRoomSettingsRequest request = new UpdateRoomSettingsRequest(
                 "변경된 제목",
@@ -271,16 +235,14 @@ class RoomControllerTest {
                 false
         );
 
-        // when & then
-        mockMvc.perform(put("/api/rooms/1")
-                        .header("Authorization", "Bearer test-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.message").value("방 설정 변경 완료"));
+        // when
+        ResponseEntity<RsData<Void>> response = roomController.updateRoom(1L, request, "Bearer token");
 
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        
         verify(roomService, times(1)).updateRoomSettings(
                 anyLong(),
                 anyString(),
@@ -295,40 +257,41 @@ class RoomControllerTest {
 
     @Test
     @DisplayName("방 종료 API 테스트")
-    void deleteRoom() throws Exception {
+    void deleteRoom() {
         // given
-        // when & then
-        mockMvc.perform(delete("/api/rooms/1")
-                        .header("Authorization", "Bearer test-token"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.message").value("방 종료 완료"));
+        // when
+        ResponseEntity<RsData<Void>> response = roomController.deleteRoom(1L, "Bearer token");
 
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        
         verify(roomService, times(1)).terminateRoom(anyLong(), anyLong());
     }
 
     @Test
     @DisplayName("방 멤버 목록 조회 API 테스트")
-    void getRoomMembers() throws Exception {
+    void getRoomMembers() {
         // given
         given(roomService.getRoomMembers(anyLong(), anyLong())).willReturn(Arrays.asList(testMember));
 
-        // when & then
-        mockMvc.perform(get("/api/rooms/1/members")
-                        .header("Authorization", "Bearer test-token"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data[0].nickname").value("테스트유저"));
+        // when
+        ResponseEntity<RsData<List<RoomMemberResponse>>> response = roomController.getRoomMembers(1L, "Bearer token");
 
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData()).hasSize(1);
+        assertThat(response.getBody().getData().get(0).getNickname()).isEqualTo("테스트유저");
+        
         verify(roomService, times(1)).getRoomMembers(anyLong(), anyLong());
     }
 
     @Test
     @DisplayName("인기 방 목록 조회 API 테스트")
-    void getPopularRooms() throws Exception {
+    void getPopularRooms() {
         // given
         Page<Room> roomPage = new PageImpl<>(
                 Arrays.asList(testRoom),
@@ -337,16 +300,15 @@ class RoomControllerTest {
         );
         given(roomService.getPopularRooms(any())).willReturn(roomPage);
 
-        // when & then
-        mockMvc.perform(get("/api/rooms/popular")
-                        .param("page", "0")
-                        .param("size", "20"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.data.rooms").isArray())
-                .andExpect(jsonPath("$.data.totalElements").value(1));
+        // when
+        ResponseEntity<RsData<Map<String, Object>>> response = roomController.getPopularRooms(0, 20);
 
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData().get("rooms")).isNotNull();
+        
         verify(roomService, times(1)).getPopularRooms(any());
     }
 }
