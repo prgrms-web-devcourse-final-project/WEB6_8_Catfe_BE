@@ -28,6 +28,7 @@ dependencies {
     // Spring
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
 
     // Database & JPA
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")

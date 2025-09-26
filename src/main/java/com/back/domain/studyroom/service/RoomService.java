@@ -1,5 +1,6 @@
 package com.back.domain.studyroom.service;
 
+import com.back.domain.studyroom.config.StudyRoomProperties;
 import com.back.domain.studyroom.entity.*;
 import com.back.domain.studyroom.repository.*;
 import com.back.domain.user.entity.User;
@@ -17,19 +18,17 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 스터디룸 관련 비즈니스 로직을 담당하는 Service 클래스
- * 
- * 🎯 주요 책임:
- * - 방 생성, 입장, 퇴장 로직 처리
- * - 멤버 권한 관리 (승격, 강등, 추방)
- * - 방 상태 관리 (활성화, 일시정지, 종료)
- * - 방장 위임 로직 (방장이 나갈 때 자동 위임)
- * - 실시간 참가자 수 동기화
- * 
- * 🔐 보안:
- * - 모든 권한 검증을 서비스 레이어에서 처리
- * - 비공개 방 접근 권한 체크
- * - 방장/부방장 권한이 필요한 작업들의 권한 검증
+ - 방 생성, 입장, 퇴장 로직 처리
+ - 멤버 권한 관리 (승격, 강등, 추방)
+ - 방 상태 관리 (활성화, 일시정지, 종료)
+ - 방장 위임 로직 (방장이 나갈 때 자동 위임)
+ - 실시간 참가자 수 동기화
+
+ - 모든 권한 검증을 서비스 레이어에서 처리
+ - 비공개 방 접근 권한 체크
+ - 방장/부방장 권한이 필요한 작업들의 권한 검증
+
+ * 설정값 주입을 StudyRoomProperties를 통해 외부 설정 관리
  */
 @Service
 @RequiredArgsConstructor
@@ -40,20 +39,20 @@ public class RoomService {
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final UserRepository userRepository;
+    private final StudyRoomProperties properties;
 
     /**
      * 방 생성 메서드
-     * 
-     * 🏗️ 생성 과정:
+     * 생성 과정:
      * 1. 사용자 존재 확인
-     * 2. Room 엔티티 생성 (기본값 설정)
+     * 2. Room 엔티티 생성 (외부 설정값 적용)
      * 3. 방장을 RoomMember로 등록
      * 4. 참가자 수 1로 설정
-     * 
-     * 💡 기본 설정:
-     * - 상태: WAITING (대기 중)
-     * - 카메라/오디오/화면공유: 모두 허용
-     * - 참가자 수: 0명에서 시작 후 방장 추가로 1명
+
+     * 기본 설정:
+     - 상태: WAITING (대기 중)
+     - 카메라/오디오/화면공유: application.yml의 설정값 사용
+     - 참가자 수: 0명에서 시작 후 방장 추가로 1명
      */
     @Transactional
     public Room createRoom(String title, String description, boolean isPrivate, 
@@ -79,21 +78,24 @@ public class RoomService {
     /**
      * 방 입장 메서드
      * 
-     * 🔐 입장 검증 과정:
-     * 1. 방 존재 및 활성 상태 확인
+     * 입장 검증 과정:
+     * 1. 방 존재 및 활성 상태 확인 (비관적 락으로 동시성 제어)
      * 2. 방 상태가 입장 가능한지 확인 (WAITING, ACTIVE)
      * 3. 정원 초과 여부 확인
      * 4. 비공개 방인 경우 비밀번호 확인
      * 5. 이미 참여 중인지 확인 (재입장 처리)
-     * 
-     * 👤 멤버 등록:
+
+     * 멤버 등록: (현재는 visitor로 등록이지만 추후 역할 부여가 안된 인원을 visitor로 띄우는 식으로 저장 데이터 줄일 예정)
      * - 신규 사용자: VISITOR 역할로 등록
      * - 기존 사용자: 온라인 상태로 변경
+     * 
+     * 동시성 제어: 비관적 락(PESSIMISTIC_WRITE)으로 정원 초과 방지
      */
     @Transactional
     public RoomMember joinRoom(Long roomId, String password, Long userId) {
         
-        Room room = roomRepository.findById(roomId)
+        // 비관적 락으로 방 조회 - 동시 입장 시 정원 초과 방지
+        Room room = roomRepository.findByIdWithLock(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
         if (!room.isActive()) {

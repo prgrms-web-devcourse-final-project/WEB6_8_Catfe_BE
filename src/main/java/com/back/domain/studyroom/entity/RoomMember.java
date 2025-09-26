@@ -52,10 +52,6 @@ public class RoomMember extends BaseEntity {
 
     private LocalDateTime lastHeartbeat;  // 마지막 heartbeat 시간 (연결 상태 확인용)
 
-    // Heartbeat 타임아웃 시간 (분 단위) - application.yml에서 주입
-    @Transient
-    private int heartbeatTimeoutMinutes = 5;
-
     // 💡 권한 확인 메서드들 (RoomRole enum의 메서드를 위임)
     
     /**
@@ -103,16 +99,9 @@ public class RoomMember extends BaseEntity {
      온라인 멤버 목록 표시, 비활성 사용자 정리 등
      온라인 상태이고 최근 설정된 시간 이내에 heartbeat가 있었던 경우
      */
-    public boolean isActive() {
+    public boolean isActive(int timeoutMinutes) {
         return isOnline && lastHeartbeat != null && 
-               lastHeartbeat.isAfter(LocalDateTime.now().minusMinutes(heartbeatTimeoutMinutes));
-    }
-
-    /**
-     * Heartbeat 타임아웃 시간 설정 (외부에서 주입)
-     */
-    public void setHeartbeatTimeoutMinutes(int minutes) {
-        this.heartbeatTimeoutMinutes = minutes;
+               lastHeartbeat.isAfter(LocalDateTime.now().minusMinutes(timeoutMinutes));
     }
 
     

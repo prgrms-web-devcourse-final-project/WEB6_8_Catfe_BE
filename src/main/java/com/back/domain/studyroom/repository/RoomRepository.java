@@ -2,9 +2,11 @@ package com.back.domain.studyroom.repository;
 
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -45,7 +47,7 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
      공개 방 중 입장 가능한 방들 조회 (페이징)
      - 메인 페이지에서 사용자에게 입장 가능한 방 목록을 보여줄 때
      비공개가 아니고, 활성화되어 있고, 입장 가능한 상태이며, 정원이 가득 차지 않은 방
-     JOIN FETCH로 N+1 문제 해결 (createdBy를 미리 로딩)
+     JOIN FETCH로 N+1 문제 방지 (createdBy 즉시 로딩)
      */
     @Query("SELECT r FROM Room r " +
            "JOIN FETCH r.createdBy " +
@@ -61,7 +63,7 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     /*
      사용자가 참여 중인 방 조회
      해당 사용자가 멤버로 등록되어 있고 현재 온라인 상태인 방
-     JOIN FETCH로 N+1 문제 해결
+     JOIN FETCH로 N+1 문제 방지
      */
     @Query("SELECT r FROM Room r " +
            "JOIN FETCH r.createdBy " +
@@ -103,10 +105,15 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     int terminateInactiveRooms(@Param("cutoffTime") java.time.LocalDateTime cutoffTime);
 
     // 인기 방 조회 (참가자 수 기준, 로직에 따라 수정 가능)
-    // JOIN FETCH로 N+1 문제 해결
+    // JOIN FETCH로 N+1 문제 방지
     @Query("SELECT r FROM Room r " +
            "JOIN FETCH r.createdBy " +
            "WHERE r.isPrivate = false AND r.isActive = true " +
            "ORDER BY r.currentParticipants DESC, r.createdAt DESC")
     Page<Room> findPopularRooms(Pageable pageable);
+
+    // 비관적 락으로 방 조회 (동시성 제어용)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Room r WHERE r.id = :roomId")
+    Optional<Room> findByIdWithLock(@Param("roomId") Long roomId);
 }
