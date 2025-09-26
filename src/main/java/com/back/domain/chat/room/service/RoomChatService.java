@@ -100,16 +100,13 @@ public class RoomChatService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // 사용자가 해당 방의 멤버인지 확인
-        RoomMember roomMember = roomMemberRepository.findByRoomAndUser(room, user)
+        RoomMember roomMember = roomMemberRepository.findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
 
         // 권한 확인 - 방장(HOST) 또는 부방장(SUB_HOST)만 가능
         if (!canManageChat(roomMember.getRole())) {
             throw new SecurityException("채팅 삭제 권한이 없습니다");
         }
-
-        // 삭제 전 메시지 수 조회 (로깅용)
-        int messageCountBefore = roomChatMessageRepository.countByRoomId(roomId);
 
         try {
             // 해당 방의 모든 채팅 메시지 삭제
@@ -154,6 +151,11 @@ public class RoomChatService {
                 null,   // 텍스트 채팅에서는 null
                 message.getCreatedAt()
         );
+    }
+
+    // 방의 현재 채팅 메시지 수 조회
+    public int getRoomChatCount(Long roomId) {
+        return roomChatMessageRepository.countByRoomId(roomId);
     }
 
 }
