@@ -51,7 +51,7 @@ class UserControllerTest {
         return testJwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
     }
 
-    // ---------------------- getMyInfo ----------------------
+    // ====================== 내 정보 조회 테스트 ======================
 
     @Test
     @DisplayName("내 정보 조회 성공 → 200 OK")
@@ -89,11 +89,12 @@ class UserControllerTest {
 
         String accessToken = generateAccessToken(user);
 
-        // when & then
+        // when & then: 410 Gone + USER_009
         mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + accessToken))
                 .andDo(print())
                 .andExpect(status().isGone())
-                .andExpect(jsonPath("$.code").value("USER_009"));
+                .andExpect(jsonPath("$.code").value("USER_009"))
+                .andExpect(jsonPath("$.message").value("탈퇴한 계정입니다."));
     }
 
     @Test
@@ -107,53 +108,56 @@ class UserControllerTest {
 
         String accessToken = generateAccessToken(user);
 
-        // when & then
+        // when & then: 403 Forbidden + USER_008
         mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + accessToken))
                 .andDo(print())
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("USER_008"));
+                .andExpect(jsonPath("$.code").value("USER_008"))
+                .andExpect(jsonPath("$.message").value("정지된 계정입니다. 관리자에게 문의하세요."));
     }
 
     @Test
     @DisplayName("AccessToken 없음 → 401 Unauthorized")
     void getMyInfo_noAccessToken() throws Exception {
-        // when & then
+        // when & then: 401 Unauthorized + AUTH_001
         mvc.perform(get("/api/users/me"))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTH_401"));
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
     }
 
-    // TODO: 인증 에러 처리 로직 수정 후 테스트 케이스 활성화
-//    @Test
-//    @DisplayName("잘못된 AccessToken → 401 Unauthorized")
-//    void getMyInfo_invalidAccessToken() throws Exception {
-//        // when & then
-//        mvc.perform(get("/api/users/me").header("Authorization", "Bearer invalidToken"))
-//                .andDo(print())
-//                .andExpect(status().isUnauthorized())
-//                .andExpect(jsonPath("$.code").value("AUTH_401"));
-//    }
-//
-//    @Test
-//    @DisplayName("만료된 AccessToken → 401 Unauthorized")
-//    void getMyInfo_expiredAccessToken() throws Exception {
-//        // given: 만료된 토큰 발급
-//        User user = User.createUser("expired", "expired@example.com", passwordEncoder.encode("P@ssw0rd!"));
-//        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
-//        user.setUserStatus(UserStatus.ACTIVE);
-//        userRepository.save(user);
-//
-//        String expiredToken = testJwtTokenProvider.createExpiredAccessToken(user.getId(), user.getUsername(), user.getRole().name());
-//
-//        // when & then
-//        mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + expiredToken))
-//                .andDo(print())
-//                .andExpect(status().isUnauthorized())
-//                .andExpect(jsonPath("$.code").value("AUTH_401"));
-//    }
+    @Test
+    @DisplayName("잘못된 AccessToken → 401 Unauthorized")
+    void getMyInfo_invalidAccessToken() throws Exception {
+        // when & then: 401 Unauthorized + AUTH_002
+        mvc.perform(get("/api/users/me").header("Authorization", "Bearer invalidToken"))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_002"))
+                .andExpect(jsonPath("$.message").value("유효하지 않은 액세스 토큰입니다."));
+    }
 
-    // ---------------------- updateMyProfile ----------------------
+    @Test
+    @DisplayName("만료된 AccessToken → 401 Unauthorized")
+    void getMyInfo_expiredAccessToken() throws Exception {
+        // given: 만료된 토큰 발급
+        User user = User.createUser("expired", "expired@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String expiredToken = testJwtTokenProvider.createExpiredAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+
+        // when & then: 401 Unauthorized + AUTH_004
+        mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + expiredToken))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_004"))
+                .andExpect(jsonPath("$.message").value("만료된 액세스 토큰입니다."));
+    }
+
+    // ====================== 내 프로필 수정 테스트 ======================
 
     @Test
     @DisplayName("내 프로필 수정 성공 → 200 OK")
@@ -173,7 +177,7 @@ class UserControllerTest {
                 LocalDate.of(2000, 5, 10)
         );
 
-        // when
+        // when: 정상 프로필 수정 요청
         ResultActions resultActions = mvc.perform(
                 patch("/api/users/me")
                         .header("Authorization", "Bearer " + accessToken)
@@ -181,9 +185,11 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(request))
         ).andDo(print());
 
-        // then
+        // then: 200 OK + 변경된 값 검증
         resultActions
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("회원 정보를 수정했습니다."))
                 .andExpect(jsonPath("$.data.profile.nickname").value("새닉네임"))
                 .andExpect(jsonPath("$.data.profile.bio").value("저는 개발자입니다!"))
                 .andExpect(jsonPath("$.data.profile.birthDate").value("2000-05-10"));
@@ -192,7 +198,7 @@ class UserControllerTest {
     @Test
     @DisplayName("중복 닉네임 수정 → 409 Conflict")
     void updateMyProfile_duplicateNickname() throws Exception {
-        // given: user1, user2 저장
+        // given: user1, user2 저장 (닉네임 중복 상황)
         User user1 = User.createUser("user1", "user1@example.com", passwordEncoder.encode("P@ssw0rd!"));
         user1.setUserProfile(new UserProfile(user1, "닉1", null, null, null, 0));
         user1.setUserStatus(UserStatus.ACTIVE);
@@ -214,7 +220,8 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("USER_004"));
+                .andExpect(jsonPath("$.code").value("USER_004"))
+                .andExpect(jsonPath("$.message").value("이미 사용 중인 닉네임입니다."));
     }
 
     @Test
@@ -237,7 +244,8 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
                 .andExpect(status().isGone())
-                .andExpect(jsonPath("$.code").value("USER_009"));
+                .andExpect(jsonPath("$.code").value("USER_009"))
+                .andExpect(jsonPath("$.message").value("탈퇴한 계정입니다."));
     }
 
     @Test
@@ -260,13 +268,14 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("USER_008"));
+                .andExpect(jsonPath("$.code").value("USER_008"))
+                .andExpect(jsonPath("$.message").value("정지된 계정입니다. 관리자에게 문의하세요."));
     }
 
     @Test
-    @DisplayName("AccessToken 없음으로 프로필 수정 → 401 Unauthorized")
+    @DisplayName("AccessToken 없음으로 프로필 수정 → 401 Unauthorized (AUTH_001)")
     void updateMyProfile_noAccessToken() throws Exception {
-        // given
+        // given: 요청 바디 준비
         UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
 
         // when & then
@@ -275,46 +284,50 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTH_401"));
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
     }
 
-    // TODO: 인증 에러 처리 로직 수정 후 테스트 케이스 활성화
-//    @Test
-//    @DisplayName("잘못된 AccessToken으로 프로필 수정 → 401 Unauthorized")
-//    void updateMyProfile_invalidAccessToken() throws Exception {
-//        // given
-//        UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
-//
-//        // when & then
-//        mvc.perform(patch("/api/users/me")
-//                        .header("Authorization", "Bearer invalidToken")
-//                        .contentType(MediaType.APPLICATION_JSON)
-//                        .content(objectMapper.writeValueAsString(request)))
-//                .andDo(print())
-//                .andExpect(status().isUnauthorized())
-//                .andExpect(jsonPath("$.code").value("AUTH_401"));
-//    }
-//
-//    @Test
-//    @DisplayName("만료된 AccessToken으로 프로필 수정 → 401 Unauthorized")
-//    void updateMyProfile_expiredAccessToken() throws Exception {
-//        // given: 만료된 토큰 발급
-//        User user = User.createUser("expired2", "expired2@example.com", passwordEncoder.encode("P@ssw0rd!"));
-//        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
-//        user.setUserStatus(UserStatus.ACTIVE);
-//        userRepository.save(user);
-//
-//        String expiredToken = testJwtTokenProvider.createExpiredAccessToken(user.getId(), user.getUsername(), user.getRole().name());
-//
-//        UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
-//
-//        // when & then
-//        mvc.perform(patch("/api/users/me")
-//                        .header("Authorization", "Bearer " + expiredToken)
-//                        .contentType(MediaType.APPLICATION_JSON)
-//                        .content(objectMapper.writeValueAsString(request)))
-//                .andDo(print())
-//                .andExpect(status().isUnauthorized())
-//                .andExpect(jsonPath("$.code").value("AUTH_401"));
-//    }
+    @Test
+    @DisplayName("잘못된 AccessToken으로 프로필 수정 → 401 Unauthorized (AUTH_002)")
+    void updateMyProfile_invalidAccessToken() throws Exception {
+        // given
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
+
+        // when & then
+        mvc.perform(patch("/api/users/me")
+                        .header("Authorization", "Bearer invalidToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_002"))
+                .andExpect(jsonPath("$.message").value("유효하지 않은 액세스 토큰입니다."));
+    }
+
+    @Test
+    @DisplayName("만료된 AccessToken으로 프로필 수정 → 401 Unauthorized (AUTH_004)")
+    void updateMyProfile_expiredAccessToken() throws Exception {
+        // given: 만료된 토큰 발급
+        User user = User.createUser("expired2", "expired2@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String expiredToken = testJwtTokenProvider.createExpiredAccessToken(
+                user.getId(), user.getUsername(), user.getRole().name()
+        );
+
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
+
+        // when & then
+        mvc.perform(patch("/api/users/me")
+                        .header("Authorization", "Bearer " + expiredToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_004"))
+                .andExpect(jsonPath("$.message").value("만료된 액세스 토큰입니다."));
+    }
 }

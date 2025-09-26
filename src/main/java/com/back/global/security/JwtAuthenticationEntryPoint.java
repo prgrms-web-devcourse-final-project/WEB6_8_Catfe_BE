@@ -1,6 +1,7 @@
 package com.back.global.security;
 
 import com.back.global.common.dto.RsData;
+import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,17 +23,24 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public void commence(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            AuthenticationException authException
-    ) throws IOException {
+    public void commence(HttpServletRequest request,
+                         HttpServletResponse response,
+                         AuthenticationException authException) throws IOException {
 
         response.setContentType("application/json;charset=UTF-8");
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
-        RsData<Void> body = RsData.fail(ErrorCode.UNAUTHORIZED);
+        // request attribute에서 ErrorCode 꺼내기
+        ErrorCode errorCode = (ErrorCode) request.getAttribute("errorCode");
+
+        // ErrorCode가 없으면 UNAUTHORIZED로 기본 설정
+        if (errorCode == null) {
+            errorCode = ErrorCode.UNAUTHORIZED;
+        }
+
+        response.setStatus(errorCode.getStatus().value());
+        RsData<Void> body = RsData.fail(errorCode);
 
         response.getWriter().write(objectMapper.writeValueAsString(body));
     }
+
 }
