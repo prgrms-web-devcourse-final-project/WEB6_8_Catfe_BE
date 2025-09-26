@@ -131,7 +131,7 @@ public class AuthService {
         // LoginResponse 반환
         return new LoginResponse(
                 accessToken,
-                UserResponse.from(user, user.getUserProfile())
+                UserResponse.from(user)
         );
     }
 
@@ -190,16 +190,11 @@ public class AuthService {
         User user = userToken.getUser();
 
         // 새로운 Access Token 발급
-        String newAccessToken = jwtTokenProvider.createAccessToken(
+        return jwtTokenProvider.createAccessToken(
                 user.getId(),
                 user.getUsername(),
                 user.getRole().name()
         );
-
-        // 새로운 Access Token을 응답 헤더에 설정
-        response.setHeader("Authorization", "Bearer " + newAccessToken);
-
-        return newAccessToken;
     }
 
     /**
