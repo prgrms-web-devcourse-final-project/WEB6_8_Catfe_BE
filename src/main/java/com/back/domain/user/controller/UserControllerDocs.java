@@ -87,17 +87,35 @@ public interface UserControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "401",
-                    description = "인증 실패 (토큰 없음/만료/잘못됨)",
+                    description = "인증 실패 (Access Token 문제)",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "success": false,
-                                      "code": "AUTH_401",
-                                      "message": "인증이 필요합니다.",
-                                      "data": null
-                                    }
-                                    """)
+                            examples = {
+                                    @ExampleObject(name = "토큰 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_001",
+                                              "message": "인증이 필요합니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "유효하지 않은 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_002",
+                                              "message": "유효하지 않은 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "만료된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_004",
+                                              "message": "만료된 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
                     )
             ),
             @ApiResponse(
@@ -219,17 +237,35 @@ public interface UserControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "401",
-                    description = "인증 실패 (토큰 없음/만료/잘못됨)",
+                    description = "인증 실패 (토큰 없음/잘못됨/만료)",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "success": false,
-                                      "code": "AUTH_401",
-                                      "message": "인증이 필요합니다.",
-                                      "data": null
-                                    }
-                                    """)
+                            examples = {
+                                    @ExampleObject(name = "토큰 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_001",
+                                              "message": "인증이 필요합니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "잘못된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_002",
+                                              "message": "유효하지 않은 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "만료된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_004",
+                                              "message": "만료된 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
                     )
             ),
             @ApiResponse(
