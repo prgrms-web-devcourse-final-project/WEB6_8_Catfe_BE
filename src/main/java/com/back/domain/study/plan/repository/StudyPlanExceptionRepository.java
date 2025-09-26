@@ -1,11 +1,13 @@
 package com.back.domain.study.plan.repository;
 
+import com.back.domain.study.plan.entity.ApplyScope;
 import com.back.domain.study.plan.entity.StudyPlanException;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -19,7 +21,7 @@ public interface StudyPlanExceptionRepository extends JpaRepository<StudyPlanExc
             "ORDER BY spe.exceptionDate DESC")
     List<StudyPlanException> findByStudyPlanIdAndApplyScopeAndExceptionDateBefore(
             @Param("planId") Long planId,
-            @Param("applyScope") StudyPlanException.ApplyScope applyScope,
+            @Param("applyScope") ApplyScope applyScope,
             @Param("targetDate") LocalDateTime targetDate);
 // 특정 계획의 특정 기간 동안(start~end)의 예외를 조회
     @Query("SELECT spe FROM StudyPlanException spe WHERE spe.studyPlan.id = :planId " +
@@ -32,5 +34,5 @@ public interface StudyPlanExceptionRepository extends JpaRepository<StudyPlanExc
     @Query("SELECT spe FROM StudyPlanException spe WHERE spe.studyPlan.id = :planId " +
             "AND DATE(spe.exceptionDate) = DATE(:targetDate)")
     Optional<StudyPlanException> findByPlanIdAndDate(@Param("planId") Long planId,
-                                                     @Param("targetDate") LocalDateTime targetDate);
+                                                     @Param("targetDate") LocalDate targetDate);
 }

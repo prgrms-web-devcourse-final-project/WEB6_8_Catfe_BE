@@ -32,6 +32,13 @@ public enum ErrorCode {
     CANNOT_KICK_HOST(HttpStatus.BAD_REQUEST, "ROOM_010", "방장은 추방할 수 없습니다."),
     CANNOT_CHANGE_HOST_ROLE(HttpStatus.BAD_REQUEST, "ROOM_011", "방장의 권한은 변경할 수 없습니다."),
 
+    // ======================== 스터디 플래너 관련 ========================
+    PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "PLAN_001", "존재하지 않는 학습 계획입니다."),
+    PLAN_FORBIDDEN(HttpStatus.FORBIDDEN, "PLAN_002", "학습 계획에 대한 접근 권한이 없습니다."),
+    PLAN_EXCEPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "PLAN_003", "학습 계획의 예외가 존재하지 않습니다."),
+    PLAN_ORIGINAL_REPEAT_NOT_FOUND(HttpStatus.BAD_REQUEST, "PLAN_004", "해당 날짜에 원본 반복 계획을 찾을 수 없습니다."),
+    PLAN_INVALID_DATE_FORMAT(HttpStatus.BAD_REQUEST, "PLAN_005", "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD 형식을 사용해주세요)"),
+
     // ======================== 메시지 관련 ========================
     MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MESSAGE_001", "존재하지 않는 메시지입니다."),
     MESSAGE_FORBIDDEN(HttpStatus.FORBIDDEN, "MESSAGE_002", "자신의 메시지만 삭제할 수 있습니다."),
