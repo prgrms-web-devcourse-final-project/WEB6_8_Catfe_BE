@@ -150,9 +150,7 @@ public class AuthService {
         }
 
         // Refresh Token 검증
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new CustomException(ErrorCode.INVALID_TOKEN);
-        }
+        jwtTokenProvider.validateRefreshToken(refreshToken);
 
         // DB에서 Refresh Token 삭제
         userTokenRepository.deleteByRefreshToken(refreshToken);
@@ -178,13 +176,11 @@ public class AuthService {
         }
 
         // Refresh Token 검증
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new CustomException(ErrorCode.INVALID_TOKEN);
-        }
+        jwtTokenProvider.validateRefreshToken(refreshToken);
 
         // DB에서 Refresh Token 조회
         UserToken userToken = userTokenRepository.findByRefreshToken(refreshToken)
-                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_TOKEN));
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_REFRESH_TOKEN));
 
         // 사용자 정보 조회
         User user = userToken.getUser();

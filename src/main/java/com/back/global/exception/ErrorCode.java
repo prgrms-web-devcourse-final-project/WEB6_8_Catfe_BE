@@ -60,7 +60,8 @@ public enum ErrorCode {
 
     // ======================== 인증/인가 에러 ========================
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH_401", "인증이 필요합니다."),
-    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_401", "유효하지 않은 토큰입니다."),
+    INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_401", "유효하지 않은 액세스 토큰입니다."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_401", "유효하지 않은 리프레시 토큰입니다."),
     EXPIRED_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_401", "만료된 액세스 토큰입니다."),
     EXPIRED_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_401", "만료된 리프레시 토큰입니다."),
     REFRESH_TOKEN_REUSE(HttpStatus.FORBIDDEN, "AUTH_403", "재사용된 리프레시 토큰입니다."),
