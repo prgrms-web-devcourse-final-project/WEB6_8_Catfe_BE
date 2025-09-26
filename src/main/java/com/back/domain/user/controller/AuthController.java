@@ -4,7 +4,7 @@ import com.back.domain.user.dto.LoginRequest;
 import com.back.domain.user.dto.LoginResponse;
 import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
-import com.back.domain.user.service.UserService;
+import com.back.domain.user.service.AuthService;
 import com.back.global.common.dto.RsData;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,14 +23,14 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController implements AuthControllerDocs {
-    private final UserService userService;
+    private final AuthService authService;
 
     // 회원가입
     @PostMapping("/register")
     public ResponseEntity<RsData<UserResponse>> register(
             @Valid @RequestBody UserRegisterRequest request
     ) {
-        UserResponse response = userService.register(request);
+        UserResponse response = authService.register(request);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(RsData.success(
@@ -45,7 +45,7 @@ public class AuthController implements AuthControllerDocs {
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response
     ) {
-        LoginResponse loginResponse = userService.login(request, response);
+        LoginResponse loginResponse = authService.login(request, response);
         return ResponseEntity
                 .ok(RsData.success(
                         "로그인에 성공했습니다.",
@@ -59,7 +59,7 @@ public class AuthController implements AuthControllerDocs {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        userService.logout(request, response);
+        authService.logout(request, response);
         return ResponseEntity
                 .ok(RsData.success(
                         "로그아웃 되었습니다.",
@@ -73,7 +73,7 @@ public class AuthController implements AuthControllerDocs {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        String newAccessToken = userService.refreshToken(request, response);
+        String newAccessToken = authService.refreshToken(request, response);
         return ResponseEntity.ok(RsData.success(
                 "토큰이 재발급되었습니다.",
                 Map.of("accessToken", newAccessToken)
