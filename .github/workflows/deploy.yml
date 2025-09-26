@@ -91,6 +91,9 @@ jobs:
           working-directory: /
           comment: Deploy
           command: |
+            # 0. env 변수 확인
+            echo "OWNER_LC = ${{ env.OWNER_LC }}"
+            
             # 1. 최신 이미지 pull
             docker pull ghcr.io/${{ env.OWNER_LC }}/catfe-backend:latest
             
