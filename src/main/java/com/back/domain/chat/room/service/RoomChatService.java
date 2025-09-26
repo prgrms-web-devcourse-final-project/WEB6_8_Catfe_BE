@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -73,9 +74,12 @@ public class RoomChatService {
             messagesPage = roomChatMessageRepository.findMessagesByRoomId(roomId, pageable);
         }
 
-        Page<RoomChatMessageDto> dtoPage = messagesPage.map(this::convertToDto);
+        List<RoomChatMessageDto> convertedContent = messagesPage.getContent()
+                .stream()
+                .map(this::convertToDto)
+                .toList();
 
-        return RoomChatPageResponse.from(dtoPage);
+        return RoomChatPageResponse.from(messagesPage, convertedContent);
     }
 
     // size 값 검증 및 최대값 제한

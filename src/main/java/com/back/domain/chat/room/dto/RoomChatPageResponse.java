@@ -1,44 +1,55 @@
 package com.back.domain.chat.room.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.data.domain.Page;
-
 import java.util.List;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class RoomChatPageResponse {
+public record RoomChatPageResponse(
+        List<RoomChatMessageDto> content,
+        PageableDto pageable,
+        long totalElements
+) {
 
-    private List<RoomChatMessageDto> content;
-    private PageableDto pageable;
-    private long totalElements;
+    // 페이지 정보 DTO
+    public record PageableDto(
+            int page,
+            int size,
+            boolean hasNext
+    ) {}
 
-    // 페이징 정보 DTO
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class PageableDto {
-        private int page;
-        private int size;
-        private boolean hasNext;
+    // 페이지 응답 생성
+    public static RoomChatPageResponse from(
+            org.springframework.data.domain.Page<?> page,
+            List<RoomChatMessageDto> convertedContent) {
+
+        return new RoomChatPageResponse(
+                convertedContent,
+                new PageableDto(
+                        page.getNumber(),
+                        page.getSize(),
+                        page.hasNext()
+                ),
+                page.getTotalElements()
+        );
     }
 
-    // Page<RoomChatMessageDto> -> RoomChatPageResponse 변환 헬퍼
-    public static RoomChatPageResponse from(Page<RoomChatMessageDto> page) {
-        return RoomChatPageResponse.builder()
-                .content(page.getContent())
-                .pageable(PageableDto.builder()
-                        .page(page.getNumber())
-                        .size(page.getSize())
-                        .hasNext(page.hasNext())
-                        .build())
-                .totalElements(page.getTotalElements())
-                .build();
+    // 빈 페이지 응답 생성
+    public static RoomChatPageResponse empty(int page, int size) {
+        return new RoomChatPageResponse(
+                List.of(),
+                new PageableDto(page, size, false),
+                0L
+        );
+    }
+
+    // 단일 페이지 응답 생성 (테스트용)
+    public static RoomChatPageResponse of(List<RoomChatMessageDto> content,
+                                          int page,
+                                          int size,
+                                          boolean hasNext,
+                                          long totalElements) {
+        return new RoomChatPageResponse(
+                content,
+                new PageableDto(page, size, hasNext),
+                totalElements
+        );
     }
 }

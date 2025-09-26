@@ -1,7 +1,6 @@
-package com.back.domain.chat.controller;
+package com.back.domain.chat.room.controller;
 
 import com.back.domain.chat.room.dto.RoomChatMessageDto;
-import com.back.domain.chat.room.controller.RoomChatWebSocketController;
 import com.back.domain.chat.room.service.RoomChatService;
 import com.back.domain.studyroom.entity.RoomChatMessage;
 import com.back.domain.user.entity.User;
@@ -28,8 +27,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("ChatWebSocketController 테스트")
-class ChatWebSocketApiControllerTest {
+@DisplayName("RoomChatWebSocketController 테스트")
+class RoomChatWebSocketControllerTest {
 
     @Mock
     private RoomChatService roomChatService;
@@ -114,10 +113,11 @@ class ChatWebSocketApiControllerTest {
     void t1() {
         // Given
         Long roomId = 1L;
-        RoomChatMessageDto inputMessage = RoomChatMessageDto.builder()
-                .content("테스트 메시지")
-                .messageType("TEXT")
-                .build();
+
+        RoomChatMessageDto inputMessage = RoomChatMessageDto.createRequest(
+                "테스트 메시지",
+                "TEXT"
+        );
 
         // 실제로 필요한 stubbing만 설정
         given(roomChatService.saveRoomChatMessage(any(RoomChatMessageDto.class))).willReturn(mockSavedMessage);
@@ -127,21 +127,21 @@ class ChatWebSocketApiControllerTest {
 
         // Then
         verify(roomChatService).saveRoomChatMessage(argThat(dto ->
-                dto.getRoomId().equals(roomId) &&
-                        dto.getUserId().equals(1L) &&
-                        dto.getContent().equals("테스트 메시지")
+                dto.roomId().equals(roomId) &&
+                        dto.userId().equals(1L) &&
+                        dto.content().equals("테스트 메시지")
         ));
 
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/room/" + roomId),
                 argThat((RoomChatMessageDto responseDto) ->
-                        responseDto.getMessageId().equals(100L) &&
-                                responseDto.getRoomId().equals(roomId) &&
-                                responseDto.getUserId().equals(1L) &&
-                                responseDto.getNickname().equals("테스터") &&
-                                responseDto.getProfileImageUrl().equals("https://example.com/profile.jpg") &&
-                                responseDto.getContent().equals("테스트 메시지") &&
-                                responseDto.getMessageType().equals("TEXT")
+                        responseDto.messageId().equals(100L) &&
+                                responseDto.roomId().equals(roomId) &&
+                                responseDto.userId().equals(1L) &&
+                                responseDto.nickname().equals("테스터") &&
+                                responseDto.profileImageUrl().equals("https://example.com/profile.jpg") &&
+                                responseDto.content().equals("테스트 메시지") &&
+                                responseDto.messageType().equals("TEXT")
                 )
         );
 
@@ -153,18 +153,21 @@ class ChatWebSocketApiControllerTest {
     @DisplayName("인증되지 않은 사용자의 메시지 처리 - 에러 전송")
     void t2() {
         Long roomId = 1L;
-        RoomChatMessageDto inputMessage = RoomChatMessageDto.builder()
-                .content("테스트 메시지")
-                .messageType("TEXT")
-                .build();
+
+        RoomChatMessageDto inputMessage = RoomChatMessageDto.createRequest(
+                "테스트 메시지",
+                "TEXT"
+        );
 
         Principal invalidPrincipal = null; // 인증 정보 없음
 
         // 에러 응답을 위해 sessionId가 필요
         given(headerAccessor.getSessionId()).willReturn("test-session-123");
 
+        // When
         roomChatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, invalidPrincipal);
 
+        // Then
         verify(roomChatService, never()).saveRoomChatMessage(any());
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 
@@ -173,8 +176,8 @@ class ChatWebSocketApiControllerTest {
                 eq("test-session-123"),
                 eq("/queue/errors"),
                 argThat((WebSocketErrorResponse errorResponse) ->
-                        errorResponse.getError().getCode().equals("WS_UNAUTHORIZED") &&
-                                errorResponse.getError().getMessage().equals("인증이 필요합니다")
+                        errorResponse.error().code().equals("WS_UNAUTHORIZED") &&
+                                errorResponse.error().message().equals("인증이 필요합니다")
                 )
         );
     }
@@ -183,25 +186,28 @@ class ChatWebSocketApiControllerTest {
     @DisplayName("서비스 계층 예외 발생 시 에러 처리")
     void t3() {
         Long roomId = 1L;
-        RoomChatMessageDto inputMessage = RoomChatMessageDto.builder()
-                .content("테스트 메시지")
-                .messageType("TEXT")
-                .build();
+
+        RoomChatMessageDto inputMessage = RoomChatMessageDto.createRequest(
+                "테스트 메시지",
+                "TEXT"
+        );
 
         // 예외 발생 시 sessionId와 서비스 예외 설정
         given(headerAccessor.getSessionId()).willReturn("test-session-123");
         given(roomChatService.saveRoomChatMessage(any())).willThrow(new RuntimeException("DB 오류"));
 
+        // When
         roomChatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, testPrincipal);
 
+        // Then
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 
         verify(messagingTemplate).convertAndSendToUser(
                 eq("test-session-123"),
                 eq("/queue/errors"),
                 argThat((WebSocketErrorResponse errorResponse) ->
-                        errorResponse.getError().getCode().equals("WS_ROOM_NOT_FOUND") &&
-                                errorResponse.getError().getMessage().equals("존재하지 않는 방입니다")
+                        errorResponse.error().code().equals("WS_ROOM_NOT_FOUND") &&
+                                errorResponse.error().message().equals("존재하지 않는 방입니다")
                 )
         );
     }
@@ -210,18 +216,21 @@ class ChatWebSocketApiControllerTest {
     @DisplayName("잘못된 Principal 타입 처리")
     void t4() {
         Long roomId = 1L;
-        RoomChatMessageDto inputMessage = RoomChatMessageDto.builder()
-                .content("테스트 메시지")
-                .messageType("TEXT")
-                .build();
+
+        RoomChatMessageDto inputMessage = RoomChatMessageDto.createRequest(
+                "테스트 메시지",
+                "TEXT"
+        );
 
         // Authentication이 아닌 다른 Principal
         Principal invalidTypePrincipal = () -> "some-principal-name";
 
         given(headerAccessor.getSessionId()).willReturn("test-session-123");
 
+        // When
         roomChatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, invalidTypePrincipal);
 
+        // Then
         verify(roomChatService, never()).saveRoomChatMessage(any());
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 
@@ -236,10 +245,11 @@ class ChatWebSocketApiControllerTest {
     @DisplayName("CustomUserDetails가 아닌 Principal 객체 처리")
     void t5() {
         Long roomId = 1L;
-        RoomChatMessageDto inputMessage = RoomChatMessageDto.builder()
-                .content("테스트 메시지")
-                .messageType("TEXT")
-                .build();
+
+        RoomChatMessageDto inputMessage = RoomChatMessageDto.createRequest(
+                "테스트 메시지",
+                "TEXT"
+        );
 
         Authentication authWithWrongPrincipal = new UsernamePasswordAuthenticationToken(
                 "string-principal", null, null
@@ -247,8 +257,10 @@ class ChatWebSocketApiControllerTest {
 
         given(headerAccessor.getSessionId()).willReturn("test-session-123");
 
+        // When
         roomChatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, authWithWrongPrincipal);
 
+        // Then
         verify(roomChatService, never()).saveRoomChatMessage(any());
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 

@@ -36,7 +36,7 @@ import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("test")
-@DisplayName("ChatService 테스트")
+@DisplayName("RoomChatService 테스트")
 class RoomChatServiceTest {
 
     @Mock
@@ -116,11 +116,11 @@ class RoomChatServiceTest {
     @DisplayName("채팅 메시지 저장 성공")
     void t1() {
         // Given
-        RoomChatMessageDto roomChatMessageDto = RoomChatMessageDto.builder()
-                .roomId(1L)
-                .userId(1L)
-                .content("안녕하세요!")
-                .build();
+        // createRequest 사용 후 필드 업데이트
+        RoomChatMessageDto roomChatMessageDto = RoomChatMessageDto
+                .createRequest("안녕하세요!", "TEXT")
+                .withRoomId(1L)
+                .withUserId(1L);
 
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
         given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
@@ -142,11 +142,10 @@ class RoomChatServiceTest {
     @Test
     @DisplayName("채팅 메시지 저장 실패 - 존재하지 않는 방")
     void t2() {
-        RoomChatMessageDto roomChatMessageDto = RoomChatMessageDto.builder()
-                .roomId(999L)
-                .userId(1L)
-                .content("메시지")
-                .build();
+        RoomChatMessageDto roomChatMessageDto = RoomChatMessageDto
+                .createRequest("메시지", "TEXT")
+                .withRoomId(999L)
+                .withUserId(1L);
 
         given(roomRepository.findById(999L)).willReturn(Optional.empty());
 
@@ -162,11 +161,10 @@ class RoomChatServiceTest {
     @Test
     @DisplayName("채팅 메시지 저장 실패 - 존재하지 않는 사용자")
     void t3() {
-        RoomChatMessageDto roomChatMessageDto = RoomChatMessageDto.builder()
-                .roomId(1L)
-                .userId(999L)
-                .content("메시지")
-                .build();
+        RoomChatMessageDto roomChatMessageDto = RoomChatMessageDto
+                .createRequest("메시지", "TEXT")
+                .withRoomId(1L)
+                .withUserId(999L);
 
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
         given(userRepository.findById(999L)).willReturn(Optional.empty());
@@ -198,16 +196,17 @@ class RoomChatServiceTest {
         RoomChatPageResponse result = roomChatService.getRoomChatHistory(roomId, page, size, before);
 
         assertThat(result).isNotNull();
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.totalElements()).isEqualTo(1);
 
-        RoomChatMessageDto messageDto = result.getContent().get(0);
-        assertThat(messageDto.getMessageId()).isEqualTo(1L);
-        assertThat(messageDto.getRoomId()).isEqualTo(1L);
-        assertThat(messageDto.getUserId()).isEqualTo(1L);
-        assertThat(messageDto.getNickname()).isEqualTo("테스터");
-        assertThat(messageDto.getContent()).isEqualTo("테스트 메시지");
-        assertThat(messageDto.getMessageType()).isEqualTo("TEXT");
+        RoomChatMessageDto messageDto = result.content().get(0);
+
+        assertThat(messageDto.messageId()).isEqualTo(1L);
+        assertThat(messageDto.roomId()).isEqualTo(1L);
+        assertThat(messageDto.userId()).isEqualTo(1L);
+        assertThat(messageDto.nickname()).isEqualTo("테스터");
+        assertThat(messageDto.content()).isEqualTo("테스트 메시지");
+        assertThat(messageDto.messageType()).isEqualTo("TEXT");
 
         verify(roomChatMessageRepository).findMessagesByRoomId(eq(roomId), any(Pageable.class));
         verify(roomChatMessageRepository, never()).findMessagesByRoomIdBefore(any(), any(), any());
@@ -231,11 +230,12 @@ class RoomChatServiceTest {
         RoomChatPageResponse result = roomChatService.getRoomChatHistory(roomId, page, size, before);
 
         assertThat(result).isNotNull();
-        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.content()).hasSize(1);
 
-        RoomChatMessageDto messageDto = result.getContent().get(0);
-        assertThat(messageDto.getNickname()).isEqualTo("테스터");
-        assertThat(messageDto.getProfileImageUrl()).isEqualTo("https://example.com/profile.jpg");
+        RoomChatMessageDto messageDto = result.content().get(0);
+
+        assertThat(messageDto.nickname()).isEqualTo("테스터");
+        assertThat(messageDto.profileImageUrl()).isEqualTo("https://example.com/profile.jpg");
 
         verify(roomChatMessageRepository).findMessagesByRoomIdBefore(eq(roomId), eq(before), any(Pageable.class));
         verify(roomChatMessageRepository, never()).findMessagesByRoomId(any(), any());
@@ -370,8 +370,8 @@ class RoomChatServiceTest {
         RoomChatPageResponse result = roomChatService.getRoomChatHistory(roomId, 0, 10, null);
 
         assertThat(result).isNotNull();
-        assertThat(result.getContent()).isEmpty();
-        assertThat(result.getTotalElements()).isEqualTo(0);
+        assertThat(result.content()).isEmpty();
+        assertThat(result.totalElements()).isEqualTo(0);
     }
 
     @Test
@@ -384,14 +384,15 @@ class RoomChatServiceTest {
         RoomChatMessageDto result = (RoomChatMessageDto) convertToDtoMethod.invoke(roomChatService, testMessage);
 
         assertThat(result).isNotNull();
-        assertThat(result.getMessageId()).isEqualTo(1L);
-        assertThat(result.getRoomId()).isEqualTo(1L);
-        assertThat(result.getUserId()).isEqualTo(1L);
-        assertThat(result.getNickname()).isEqualTo("테스터");
-        assertThat(result.getProfileImageUrl()).isEqualTo("https://example.com/profile.jpg");
-        assertThat(result.getContent()).isEqualTo("테스트 메시지");
-        assertThat(result.getMessageType()).isEqualTo("TEXT");
-        assertThat(result.getAttachment()).isNull();
-        assertThat(result.getCreatedAt()).isNotNull();
+
+        assertThat(result.messageId()).isEqualTo(1L);
+        assertThat(result.roomId()).isEqualTo(1L);
+        assertThat(result.userId()).isEqualTo(1L);
+        assertThat(result.nickname()).isEqualTo("테스터");
+        assertThat(result.profileImageUrl()).isEqualTo("https://example.com/profile.jpg");
+        assertThat(result.content()).isEqualTo("테스트 메시지");
+        assertThat(result.messageType()).isEqualTo("TEXT");
+        assertThat(result.attachment()).isNull();
+        assertThat(result.createdAt()).isNotNull();
     }
 }

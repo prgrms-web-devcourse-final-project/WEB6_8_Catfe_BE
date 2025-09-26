@@ -15,7 +15,6 @@ import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.*;
@@ -68,12 +67,9 @@ class WebSocketSessionManagerTest {
     void t2() {
         // given
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        WebSocketSessionInfo existingSession = WebSocketSessionInfo.builder()
-                .userId(TEST_USER_ID)
-                .sessionId("old-session-123")
-                .connectedAt(LocalDateTime.now().minusMinutes(5))
-                .lastActiveAt(LocalDateTime.now().minusMinutes(1))
-                .build();
+
+        WebSocketSessionInfo existingSession = WebSocketSessionInfo.createNewSession(TEST_USER_ID, "old-session-123")
+                .withUpdatedActivity(); // 활동 시간 업데이트
 
         // when
         when(valueOperations.get("ws:user:123")).thenReturn(existingSession);
@@ -146,13 +142,11 @@ class WebSocketSessionManagerTest {
     void t7() {
         // given
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        WebSocketSessionInfo expectedSessionInfo = WebSocketSessionInfo.builder()
-                .userId(TEST_USER_ID)
-                .sessionId(TEST_SESSION_ID)
-                .connectedAt(LocalDateTime.now())
-                .lastActiveAt(LocalDateTime.now())
-                .currentRoomId(TEST_ROOM_ID)
-                .build();
+
+        // 체이닝으로 세션 정보 생성
+        WebSocketSessionInfo expectedSessionInfo = WebSocketSessionInfo
+                .createNewSession(TEST_USER_ID, TEST_SESSION_ID)
+                .withRoomId(TEST_ROOM_ID);
 
         when(valueOperations.get("ws:user:123")).thenReturn(expectedSessionInfo);
 
@@ -161,9 +155,9 @@ class WebSocketSessionManagerTest {
 
         // then
         assertThat(result).isNotNull();
-        assertThat(result.getUserId()).isEqualTo(TEST_USER_ID);
-        assertThat(result.getSessionId()).isEqualTo(TEST_SESSION_ID);
-        assertThat(result.getCurrentRoomId()).isEqualTo(TEST_ROOM_ID);
+        assertThat(result.userId()).isEqualTo(TEST_USER_ID);
+        assertThat(result.sessionId()).isEqualTo(TEST_SESSION_ID);
+        assertThat(result.currentRoomId()).isEqualTo(TEST_ROOM_ID);
     }
 
     @Test
@@ -185,12 +179,9 @@ class WebSocketSessionManagerTest {
     void t9() {
         // given
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.builder()
-                .userId(TEST_USER_ID)
-                .sessionId(TEST_SESSION_ID)
-                .connectedAt(LocalDateTime.now().minusMinutes(10))
-                .lastActiveAt(LocalDateTime.now().minusMinutes(5))
-                .build();
+
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
+                .createNewSession(TEST_USER_ID, TEST_SESSION_ID);
 
         when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
 
@@ -225,12 +216,9 @@ class WebSocketSessionManagerTest {
         // given
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(redisTemplate.opsForSet()).thenReturn(setOperations);
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.builder()
-                .userId(TEST_USER_ID)
-                .sessionId(TEST_SESSION_ID)
-                .connectedAt(LocalDateTime.now())
-                .lastActiveAt(LocalDateTime.now())
-                .build();
+
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
+                .createNewSession(TEST_USER_ID, TEST_SESSION_ID);
 
         when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
 
@@ -252,13 +240,10 @@ class WebSocketSessionManagerTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(redisTemplate.opsForSet()).thenReturn(setOperations);
         Long previousRoomId = 999L;
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.builder()
-                .userId(TEST_USER_ID)
-                .sessionId(TEST_SESSION_ID)
-                .connectedAt(LocalDateTime.now())
-                .lastActiveAt(LocalDateTime.now())
-                .currentRoomId(previousRoomId)
-                .build();
+
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
+                .createNewSession(TEST_USER_ID, TEST_SESSION_ID)
+                .withRoomId(previousRoomId);
 
         when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
 
@@ -281,13 +266,10 @@ class WebSocketSessionManagerTest {
         // given
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(redisTemplate.opsForSet()).thenReturn(setOperations);
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.builder()
-                .userId(TEST_USER_ID)
-                .sessionId(TEST_SESSION_ID)
-                .connectedAt(LocalDateTime.now())
-                .lastActiveAt(LocalDateTime.now())
-                .currentRoomId(TEST_ROOM_ID)
-                .build();
+
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
+                .createNewSession(TEST_USER_ID, TEST_SESSION_ID)
+                .withRoomId(TEST_ROOM_ID);
 
         when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
 
@@ -392,11 +374,10 @@ class WebSocketSessionManagerTest {
     void t20() {
         // given
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.builder()
-                .userId(TEST_USER_ID)
-                .sessionId(TEST_SESSION_ID)
-                .currentRoomId(TEST_ROOM_ID)
-                .build();
+
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
+                .createNewSession(TEST_USER_ID, TEST_SESSION_ID)
+                .withRoomId(TEST_ROOM_ID);
 
         when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
 
@@ -412,11 +393,10 @@ class WebSocketSessionManagerTest {
     void t21() {
         // given
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.builder()
-                .userId(TEST_USER_ID)
-                .sessionId(TEST_SESSION_ID)
-                .currentRoomId(null)
-                .build();
+
+        // 방 정보 없는 세션
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
+                .createNewSession(TEST_USER_ID, TEST_SESSION_ID); // currentRoomId는 null
 
         when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
 
@@ -449,11 +429,9 @@ class WebSocketSessionManagerTest {
         when(redisTemplate.opsForSet()).thenReturn(setOperations);
         when(valueOperations.get("ws:session:session-123")).thenReturn(TEST_USER_ID);
 
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.builder()
-                .userId(TEST_USER_ID)
-                .sessionId(TEST_SESSION_ID)
-                .currentRoomId(TEST_ROOM_ID)
-                .build();
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
+                .createNewSession(TEST_USER_ID, TEST_SESSION_ID)
+                .withRoomId(TEST_ROOM_ID);
         when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
 
         // when
@@ -481,5 +459,4 @@ class WebSocketSessionManagerTest {
         // 아무것도 삭제하지 않음
         verify(redisTemplate, never()).delete(anyString());
     }
-
 }
