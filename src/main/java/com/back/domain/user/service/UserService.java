@@ -1,6 +1,7 @@
 package com.back.domain.user.service;
 
 import com.back.domain.user.dto.LoginRequest;
+import com.back.domain.user.dto.LoginResponse;
 import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
 import com.back.domain.user.entity.User;
@@ -87,9 +88,9 @@ public class UserService {
      * 2. 사용자 상태 검증 (PENDING, SUSPENDED, DELETED)
      * 3. Access/Refresh Token 발급
      * 4. Refresh Token을 HttpOnly 쿠키로, Access Token은 헤더로 설정
-     * 5. UserResponse 반환
+     * 5. LoginResponse 반환
      */
-    public UserResponse login(LoginRequest request, HttpServletResponse response) {
+    public LoginResponse login(LoginRequest request, HttpServletResponse response) {
         // 사용자 조회
         User user = userRepository.findByUsername(request.username())
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
@@ -127,11 +128,11 @@ public class UserService {
                 "/api/auth"
         );
 
-        // Access Token을 응답 헤더에 설정
-        response.setHeader("Authorization", "Bearer " + accessToken);
-
-        // UserResponse 반환
-        return UserResponse.from(user, user.getUserProfile());
+        // LoginResponse 반환
+        return new LoginResponse(
+                accessToken,
+                UserResponse.from(user, user.getUserProfile())
+        );
     }
 
     /**
