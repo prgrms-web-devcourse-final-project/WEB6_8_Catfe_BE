@@ -52,14 +52,6 @@ public class User extends BaseEntity {
     private List<UserToken> userTokens = new ArrayList<>();
 
     @Builder.Default
-    @OneToMany(mappedBy = "fromUser", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PrivateChatMessage> sentMessages = new ArrayList<>();
-
-    @Builder.Default
-    @OneToMany(mappedBy = "toUser", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PrivateChatMessage> receivedMessages = new ArrayList<>();
-
-    @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RoomMember> roomMembers = new ArrayList<>();
 
