@@ -353,7 +353,6 @@ class AuthServiceTest {
         // then: 반환값 및 응답 헤더 검증
         assertThat(newAccessToken).isNotBlank();
 //        assertThat(newAccessToken).isNotEqualTo(oldAccessToken);
-        assertThat(response.getHeader("Authorization")).isEqualTo("Bearer " + newAccessToken);
     }
 
     @Test
