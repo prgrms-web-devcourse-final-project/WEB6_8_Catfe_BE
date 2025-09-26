@@ -1,4 +1,4 @@
-package com.back.domain.chat.service;
+package com.back.domain.chat.room.service;
 
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomChatMessage;
@@ -6,8 +6,8 @@ import com.back.domain.studyroom.repository.RoomChatMessageRepository;
 import com.back.domain.studyroom.repository.RoomRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
-import com.back.domain.chat.dto.ChatMessageDto;
-import com.back.domain.chat.dto.ChatPageResponse;
+import com.back.domain.chat.room.dto.RoomChatMessageDto;
+import com.back.domain.chat.room.dto.RoomChatPageResponse;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.back.global.security.CurrentUser;
@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class ChatService {
+public class RoomChatService {
 
     private final RoomChatMessageRepository roomChatMessageRepository;
     private final RoomRepository roomRepository;
@@ -36,25 +36,25 @@ public class ChatService {
 
     // 방 채팅 메시지 저장
     @Transactional
-    public RoomChatMessage saveRoomChatMessage(ChatMessageDto chatMessageDto) {
+    public RoomChatMessage saveRoomChatMessage(RoomChatMessageDto roomChatMessageDto) {
 
         // 방 존재 여부 확인
-        Room room = roomRepository.findById(chatMessageDto.roomId())
+        Room room = roomRepository.findById(roomChatMessageDto.roomId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
         // 사용자 존재 여부 확인
-        User user = userRepository.findById(chatMessageDto.userId())
+        User user = userRepository.findById(roomChatMessageDto.userId())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // RoomChatMessage 엔티티 생성 및 저장
-        RoomChatMessage message = new RoomChatMessage(room, user, chatMessageDto.content());
+        RoomChatMessage message = new RoomChatMessage(room, user, roomChatMessageDto.content());
         RoomChatMessage savedMessage = roomChatMessageRepository.save(message);
 
         return savedMessage;
     }
 
     // 방 채팅 기록 조회
-    public ChatPageResponse getRoomChatHistory(Long roomId, int page, int size, LocalDateTime before) {
+    public RoomChatPageResponse getRoomChatHistory(Long roomId, int page, int size, LocalDateTime before) {
 
         // 방 존재 여부 확인
         roomRepository.findById(roomId)
@@ -73,9 +73,9 @@ public class ChatService {
             messagesPage = roomChatMessageRepository.findMessagesByRoomId(roomId, pageable);
         }
 
-        Page<ChatMessageDto> dtoPage = messagesPage.map(this::convertToDto);
+        Page<RoomChatMessageDto> dtoPage = messagesPage.map(this::convertToDto);
 
-        return ChatPageResponse.from(dtoPage);
+        return RoomChatPageResponse.from(dtoPage);
     }
 
     // size 값 검증 및 최대값 제한
@@ -87,8 +87,8 @@ public class ChatService {
     }
 
     // 메시지 엔티티를 DTO로 변환
-    private ChatMessageDto convertToDto(RoomChatMessage message) {
-        return ChatMessageDto.createResponse(
+    private RoomChatMessageDto convertToDto(RoomChatMessage message) {
+        return RoomChatMessageDto.createResponse(
                 message.getId(),
                 message.getRoom().getId(),
                 message.getUser().getId(),

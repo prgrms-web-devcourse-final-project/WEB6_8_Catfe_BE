@@ -1,7 +1,8 @@
 package com.back.domain.chat.controller;
 
-import com.back.domain.chat.dto.ChatMessageDto;
-import com.back.domain.chat.service.ChatService;
+import com.back.domain.chat.room.dto.RoomChatMessageDto;
+import com.back.domain.chat.room.controller.RoomChatWebSocketController;
+import com.back.domain.chat.room.service.RoomChatService;
 import com.back.domain.studyroom.entity.RoomChatMessage;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
@@ -22,8 +23,6 @@ import org.springframework.security.core.Authentication;
 import java.lang.reflect.Field;
 import java.security.Principal;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
@@ -33,7 +32,7 @@ import static org.mockito.BDDMockito.*;
 class ChatWebSocketApiControllerTest {
 
     @Mock
-    private ChatService chatService;
+    private RoomChatService roomChatService;
 
     @Mock
     private SimpMessagingTemplate messagingTemplate;
@@ -42,7 +41,7 @@ class ChatWebSocketApiControllerTest {
     private SimpMessageHeaderAccessor headerAccessor;
 
     @InjectMocks
-    private ChatWebSocketController chatWebSocketController;
+    private RoomChatWebSocketController roomChatWebSocketController;
 
     private CustomUserDetails testUser;
     private Principal testPrincipal;
@@ -115,19 +114,19 @@ class ChatWebSocketApiControllerTest {
     void t1() {
         // Given
         Long roomId = 1L;
-        ChatMessageDto inputMessage = ChatMessageDto.builder()
+        RoomChatMessageDto inputMessage = RoomChatMessageDto.builder()
                 .content("테스트 메시지")
                 .messageType("TEXT")
                 .build();
 
         // 실제로 필요한 stubbing만 설정
-        given(chatService.saveRoomChatMessage(any(ChatMessageDto.class))).willReturn(mockSavedMessage);
+        given(roomChatService.saveRoomChatMessage(any(RoomChatMessageDto.class))).willReturn(mockSavedMessage);
 
         // When
-        chatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, testPrincipal);
+        roomChatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, testPrincipal);
 
         // Then
-        verify(chatService).saveRoomChatMessage(argThat(dto ->
+        verify(roomChatService).saveRoomChatMessage(argThat(dto ->
                 dto.getRoomId().equals(roomId) &&
                         dto.getUserId().equals(1L) &&
                         dto.getContent().equals("테스트 메시지")
@@ -135,7 +134,7 @@ class ChatWebSocketApiControllerTest {
 
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/room/" + roomId),
-                argThat((ChatMessageDto responseDto) ->
+                argThat((RoomChatMessageDto responseDto) ->
                         responseDto.getMessageId().equals(100L) &&
                                 responseDto.getRoomId().equals(roomId) &&
                                 responseDto.getUserId().equals(1L) &&
@@ -154,7 +153,7 @@ class ChatWebSocketApiControllerTest {
     @DisplayName("인증되지 않은 사용자의 메시지 처리 - 에러 전송")
     void t2() {
         Long roomId = 1L;
-        ChatMessageDto inputMessage = ChatMessageDto.builder()
+        RoomChatMessageDto inputMessage = RoomChatMessageDto.builder()
                 .content("테스트 메시지")
                 .messageType("TEXT")
                 .build();
@@ -164,9 +163,9 @@ class ChatWebSocketApiControllerTest {
         // 에러 응답을 위해 sessionId가 필요
         given(headerAccessor.getSessionId()).willReturn("test-session-123");
 
-        chatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, invalidPrincipal);
+        roomChatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, invalidPrincipal);
 
-        verify(chatService, never()).saveRoomChatMessage(any());
+        verify(roomChatService, never()).saveRoomChatMessage(any());
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 
         // 에러 메시지가 해당 사용자에게만 전송되는지 확인
@@ -184,16 +183,16 @@ class ChatWebSocketApiControllerTest {
     @DisplayName("서비스 계층 예외 발생 시 에러 처리")
     void t3() {
         Long roomId = 1L;
-        ChatMessageDto inputMessage = ChatMessageDto.builder()
+        RoomChatMessageDto inputMessage = RoomChatMessageDto.builder()
                 .content("테스트 메시지")
                 .messageType("TEXT")
                 .build();
 
         // 예외 발생 시 sessionId와 서비스 예외 설정
         given(headerAccessor.getSessionId()).willReturn("test-session-123");
-        given(chatService.saveRoomChatMessage(any())).willThrow(new RuntimeException("DB 오류"));
+        given(roomChatService.saveRoomChatMessage(any())).willThrow(new RuntimeException("DB 오류"));
 
-        chatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, testPrincipal);
+        roomChatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, testPrincipal);
 
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 
@@ -211,7 +210,7 @@ class ChatWebSocketApiControllerTest {
     @DisplayName("잘못된 Principal 타입 처리")
     void t4() {
         Long roomId = 1L;
-        ChatMessageDto inputMessage = ChatMessageDto.builder()
+        RoomChatMessageDto inputMessage = RoomChatMessageDto.builder()
                 .content("테스트 메시지")
                 .messageType("TEXT")
                 .build();
@@ -221,9 +220,9 @@ class ChatWebSocketApiControllerTest {
 
         given(headerAccessor.getSessionId()).willReturn("test-session-123");
 
-        chatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, invalidTypePrincipal);
+        roomChatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, invalidTypePrincipal);
 
-        verify(chatService, never()).saveRoomChatMessage(any());
+        verify(roomChatService, never()).saveRoomChatMessage(any());
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 
         verify(messagingTemplate).convertAndSendToUser(
@@ -237,7 +236,7 @@ class ChatWebSocketApiControllerTest {
     @DisplayName("CustomUserDetails가 아닌 Principal 객체 처리")
     void t5() {
         Long roomId = 1L;
-        ChatMessageDto inputMessage = ChatMessageDto.builder()
+        RoomChatMessageDto inputMessage = RoomChatMessageDto.builder()
                 .content("테스트 메시지")
                 .messageType("TEXT")
                 .build();
@@ -248,9 +247,9 @@ class ChatWebSocketApiControllerTest {
 
         given(headerAccessor.getSessionId()).willReturn("test-session-123");
 
-        chatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, authWithWrongPrincipal);
+        roomChatWebSocketController.handleRoomChat(roomId, inputMessage, headerAccessor, authWithWrongPrincipal);
 
-        verify(chatService, never()).saveRoomChatMessage(any());
+        verify(roomChatService, never()).saveRoomChatMessage(any());
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 
         verify(messagingTemplate).convertAndSendToUser(

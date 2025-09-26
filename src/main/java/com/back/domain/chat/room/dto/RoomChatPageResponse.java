@@ -1,9 +1,10 @@
-package com.back.domain.chat.dto;
+package com.back.domain.chat.room.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -11,9 +12,9 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatPageResponse {
+public class RoomChatPageResponse {
 
-    private List<ChatMessageDto> content;
+    private List<RoomChatMessageDto> content;
     private PageableDto pageable;
     private long totalElements;
 
@@ -28,9 +29,9 @@ public class ChatPageResponse {
         private boolean hasNext;
     }
 
-    // Page<ChatMessageDto> -> ChatPageResponse 변환 헬퍼
-    public static ChatPageResponse from(org.springframework.data.domain.Page<ChatMessageDto> page) {
-        return ChatPageResponse.builder()
+    // Page<RoomChatMessageDto> -> RoomChatPageResponse 변환 헬퍼
+    public static RoomChatPageResponse from(Page<RoomChatMessageDto> page) {
+        return RoomChatPageResponse.builder()
                 .content(page.getContent())
                 .pageable(PageableDto.builder()
                         .page(page.getNumber())

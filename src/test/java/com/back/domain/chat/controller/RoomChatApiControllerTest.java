@@ -1,7 +1,7 @@
 package com.back.domain.chat.controller;
 
-import com.back.domain.chat.dto.ChatPageResponse;
-import com.back.domain.chat.service.ChatService;
+import com.back.domain.chat.room.dto.RoomChatPageResponse;
+import com.back.domain.chat.room.service.RoomChatService;
 import com.back.global.security.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,7 +26,7 @@ import java.util.List;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class ChatApiControllerTest {
+class RoomChatApiControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -35,14 +35,14 @@ class ChatApiControllerTest {
     private JwtTokenProvider jwtTokenProvider;
 
     @MockitoBean
-    private ChatService chatService;
+    private RoomChatService roomChatService;
 
     @Test
     @DisplayName("채팅 기록 조회 성공")
     void t1() throws Exception {
-        ChatPageResponse mockResponse = ChatPageResponse.builder()
+        RoomChatPageResponse mockResponse = RoomChatPageResponse.builder()
                 .content(List.of())
-                .pageable(ChatPageResponse.PageableDto.builder()
+                .pageable(RoomChatPageResponse.PageableDto.builder()
                         .page(0)
                         .size(20)
                         .hasNext(false)
@@ -50,7 +50,7 @@ class ChatApiControllerTest {
                 .totalElements(0)
                 .build();
 
-        given(chatService.getRoomChatHistory(anyLong(), anyInt(), anyInt(), any()))
+        given(roomChatService.getRoomChatHistory(anyLong(), anyInt(), anyInt(), any()))
                 .willReturn(mockResponse);
 
         // JWT 관련 스텁

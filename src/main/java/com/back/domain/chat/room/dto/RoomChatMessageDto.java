@@ -1,8 +1,8 @@
-package com.back.domain.chat.dto;
+package com.back.domain.chat.room.dto;
 
 import java.time.LocalDateTime;
 
-public record ChatMessageDto(
+public record RoomChatMessageDto(
     // WebSocket Request
     String content,
     String messageType,
@@ -28,8 +28,8 @@ public record ChatMessageDto(
     ) {}
 
     // 텍스트 채팅 요청 생성 헬퍼
-    public static ChatMessageDto createRequest(String content, String messageType) {
-        return new ChatMessageDto(
+    public static RoomChatMessageDto createRequest(String content, String messageType) {
+        return new RoomChatMessageDto(
             content,
             messageType,
             null, // attachmentId - 텍스트 채팅에서는 null
@@ -44,24 +44,24 @@ public record ChatMessageDto(
     }
     
     // 필드 업데이트
-    public ChatMessageDto withRoomId(Long roomId) {
-        return new ChatMessageDto(content, messageType, attachmentId, messageId, roomId, userId, nickname, profileImageUrl, attachment, createdAt);
+    public RoomChatMessageDto withRoomId(Long roomId) {
+        return new RoomChatMessageDto(content, messageType, attachmentId, messageId, roomId, userId, nickname, profileImageUrl, attachment, createdAt);
     }
     
-    public ChatMessageDto withUserId(Long userId) {
-        return new ChatMessageDto(content, messageType, attachmentId, messageId, roomId, userId, nickname, profileImageUrl, attachment, createdAt);
+    public RoomChatMessageDto withUserId(Long userId) {
+        return new RoomChatMessageDto(content, messageType, attachmentId, messageId, roomId, userId, nickname, profileImageUrl, attachment, createdAt);
     }
     
-    public ChatMessageDto withNickname(String nickname) {
-        return new ChatMessageDto(content, messageType, attachmentId, messageId, roomId, userId, nickname, profileImageUrl, attachment, createdAt);
+    public RoomChatMessageDto withNickname(String nickname) {
+        return new RoomChatMessageDto(content, messageType, attachmentId, messageId, roomId, userId, nickname, profileImageUrl, attachment, createdAt);
     }
     
     // Response용 생성자
-    public static ChatMessageDto createResponse(
+    public static RoomChatMessageDto createResponse(
             Long messageId, Long roomId, Long userId, String nickname, 
             String profileImageUrl, String content, String messageType, 
             AttachmentDto attachment, LocalDateTime createdAt) {
-        return new ChatMessageDto(
+        return new RoomChatMessageDto(
             content, messageType, null, // attachmentId는 request용이므로 null
             messageId, roomId, userId, nickname, profileImageUrl, attachment, createdAt
         );
