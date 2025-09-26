@@ -260,17 +260,27 @@ public interface AuthControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "401",
-                    description = "이미 만료되었거나 유효하지 않은 Refresh Token",
+                    description = "만료 또는 유효하지 않은 Refresh Token",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "success": false,
-                                      "code": "AUTH_401",
-                                      "message": "이미 만료되었거나 유효하지 않은 토큰입니다.",
-                                      "data": null
-                                    }
-                                    """)
+                            examples = {
+                                    @ExampleObject(name = "만료된 Refresh Token", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_005",
+                                              "message": "만료된 리프레시 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "유효하지 않은 Refresh Token", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_003",
+                                              "message": "유효하지 않은 리프레시 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
                     )
             ),
             @ApiResponse(
@@ -356,7 +366,7 @@ public interface AuthControllerDocs {
                                     @ExampleObject(name = "Refresh Token 만료", value = """
                                             {
                                               "success": false,
-                                              "code": "AUTH_401",
+                                              "code": "AUTH_005",
                                               "message": "만료된 리프레시 토큰입니다.",
                                               "data": null
                                             }
@@ -364,8 +374,8 @@ public interface AuthControllerDocs {
                                     @ExampleObject(name = "Refresh Token 위조/무효", value = """
                                             {
                                               "success": false,
-                                              "code": "AUTH_401",
-                                              "message": "유효하지 않은 Refresh Token입니다.",
+                                              "code": "AUTH_003",
+                                              "message": "유효하지 않은 리프레시 토큰입니다.",
                                               "data": null
                                             }
                                             """)
