@@ -45,8 +45,11 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
      공개 방 중 입장 가능한 방들 조회 (페이징)
      - 메인 페이지에서 사용자에게 입장 가능한 방 목록을 보여줄 때
      비공개가 아니고, 활성화되어 있고, 입장 가능한 상태이며, 정원이 가득 차지 않은 방
+     JOIN FETCH로 N+1 문제 해결 (createdBy를 미리 로딩)
      */
-    @Query("SELECT r FROM Room r WHERE r.isPrivate = false AND r.isActive = true " +
+    @Query("SELECT r FROM Room r " +
+           "JOIN FETCH r.createdBy " +
+           "WHERE r.isPrivate = false AND r.isActive = true " +
            "AND r.status IN ('WAITING', 'ACTIVE') AND r.currentParticipants < r.maxParticipants " +
            "ORDER BY r.createdAt DESC")
     Page<Room> findJoinablePublicRooms(Pageable pageable);
@@ -58,8 +61,11 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     /*
      사용자가 참여 중인 방 조회
      해당 사용자가 멤버로 등록되어 있고 현재 온라인 상태인 방
+     JOIN FETCH로 N+1 문제 해결
      */
-    @Query("SELECT r FROM Room r JOIN r.roomMembers rm " +
+    @Query("SELECT r FROM Room r " +
+           "JOIN FETCH r.createdBy " +
+           "JOIN r.roomMembers rm " +
            "WHERE rm.user.id = :userId AND rm.isOnline = true")
     List<Room> findRoomsByUserId(@Param("userId") Long userId);
 
@@ -97,7 +103,10 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     int terminateInactiveRooms(@Param("cutoffTime") java.time.LocalDateTime cutoffTime);
 
     // 인기 방 조회 (참가자 수 기준, 로직에 따라 수정 가능)
-    @Query("SELECT r FROM Room r WHERE r.isPrivate = false AND r.isActive = true " +
+    // JOIN FETCH로 N+1 문제 해결
+    @Query("SELECT r FROM Room r " +
+           "JOIN FETCH r.createdBy " +
+           "WHERE r.isPrivate = false AND r.isActive = true " +
            "ORDER BY r.currentParticipants DESC, r.createdAt DESC")
     Page<Room> findPopularRooms(Pageable pageable);
 }

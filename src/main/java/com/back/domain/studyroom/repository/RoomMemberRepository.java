@@ -24,7 +24,10 @@ public interface RoomMemberRepository extends JpaRepository<RoomMember, Long> {
     List<RoomMember> findByRoomIdOrderByRole(@Param("roomId") Long roomId);
 
     // 방의 온라인 멤버 조회
-    @Query("SELECT rm FROM RoomMember rm WHERE rm.room.id = :roomId AND rm.isOnline = true " +
+    // JOIN FETCH로 N+1 문제 해결 (user를 미리 로딩)
+    @Query("SELECT rm FROM RoomMember rm " +
+           "JOIN FETCH rm.user " +
+           "WHERE rm.room.id = :roomId AND rm.isOnline = true " +
            "ORDER BY rm.role, rm.lastActiveAt DESC")
     List<RoomMember> findOnlineMembersByRoomId(@Param("roomId") Long roomId);
 

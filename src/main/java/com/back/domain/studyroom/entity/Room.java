@@ -124,6 +124,9 @@ public class Room extends BaseEntity {
      방장이 스터디를 시작할 때 또는 대기 중인 방을 활성화할 때
      */
     public void activate() {
+        if (this.status == RoomStatus.TERMINATED) {
+            throw new IllegalStateException("종료된 방은 활성화할 수 없습니다.");
+        }
         this.status = RoomStatus.ACTIVE;
         this.isActive = true;
     }
@@ -132,6 +135,12 @@ public class Room extends BaseEntity {
      * 방을 일시 정지 상태로 변경
      */
     public void pause() {
+        if (this.status == RoomStatus.TERMINATED) {
+            throw new IllegalStateException("종료된 방은 일시정지할 수 없습니다.");
+        }
+        if (this.status != RoomStatus.ACTIVE) {
+            throw new IllegalStateException("활성화된 방만 일시정지할 수 있습니다.");
+        }
         this.status = RoomStatus.PAUSED;
     }
 
@@ -140,6 +149,9 @@ public class Room extends BaseEntity {
      방장이 스터디를 완전히 끝내거나, 빈 방을 자동 정리할 때 (종료 처리를 어떻게 뺄지에 따라 변경 될 예정)
      */
     public void terminate() {
+        if (this.status == RoomStatus.TERMINATED) {
+            return; // 이미 종료된 방은 무시
+        }
         this.status = RoomStatus.TERMINATED;
         this.isActive = false;
     }
