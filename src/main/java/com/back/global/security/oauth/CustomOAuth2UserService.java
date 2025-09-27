@@ -44,6 +44,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             OAuth2UserInfo userInfo = switch (registrationId) {
                 case "kakao" -> new KakaoOAuth2UserInfo(attributes);
                 case "naver" -> new NaverOAuth2UserInfo(attributes);
+                case "google" -> new GoogleOAuth2UserInfo(attributes);
                 default -> throw new CustomException(ErrorCode.UNSUPPORTED_OAUTH_PROVIDER);
             };
 
