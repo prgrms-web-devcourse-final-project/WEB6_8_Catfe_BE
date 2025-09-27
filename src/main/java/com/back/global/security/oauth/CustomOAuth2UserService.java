@@ -28,9 +28,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
-
     private final UserRepository userRepository;
-    private final UserProfileRepository userProfileRepository;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -45,6 +43,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             // 소셜 제공자별로 사용자 정보 매핑
             OAuth2UserInfo userInfo = switch (registrationId) {
                 case "kakao" -> new KakaoOAuth2UserInfo(attributes);
+                case "naver" -> new NaverOAuth2UserInfo(attributes);
                 default -> throw new CustomException(ErrorCode.UNSUPPORTED_OAUTH_PROVIDER);
             };
 
