@@ -1,6 +1,10 @@
 package com.back.global.security;
 
+import com.back.global.security.jwt.JwtAccessDeniedHandler;
+import com.back.global.security.jwt.JwtAuthenticationEntryPoint;
+import com.back.global.security.jwt.JwtAuthenticationFilter;
 import com.back.global.security.oauth.CustomOAuth2UserService;
+import com.back.global.security.oauth.OAuth2LoginSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -3,7 +3,7 @@ package com.back.domain.chat.room.controller;
 import com.back.domain.chat.room.dto.RoomChatPageResponse;
 import com.back.domain.chat.room.service.RoomChatService;
 import com.back.global.common.dto.RsData;
-import com.back.global.security.CustomUserDetails;
+import com.back.global.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

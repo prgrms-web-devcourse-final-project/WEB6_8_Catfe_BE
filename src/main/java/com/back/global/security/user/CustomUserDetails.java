@@ -1,4 +1,4 @@
-package com.back.global.security;
+package com.back.global.security.user;
 
 import com.back.domain.user.entity.Role;
 import lombok.AllArgsConstructor;

@@ -1,4 +1,4 @@
-package com.back.global.security;
+package com.back.global.security.oauth;
 
 import com.back.domain.user.dto.LoginResponse;
 import com.back.domain.user.dto.UserResponse;
@@ -9,6 +9,7 @@ import com.back.domain.user.repository.UserTokenRepository;
 import com.back.global.common.dto.RsData;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import com.back.global.security.jwt.JwtTokenProvider;
 import com.back.global.util.CookieUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
