@@ -105,9 +105,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             String token = authHeader.substring(7); // "Bearer " 제거
 
             // JWT 토큰 검증
-            if (!jwtTokenProvider.validateToken(token)) {
-                throw new RuntimeException("유효하지 않은 인증 토큰입니다");
-            }
+            jwtTokenProvider.validateAccessToken(token);
 
             // 토큰에서 사용자 정보 추출
             Authentication authentication = jwtTokenProvider.getAuthentication(token);

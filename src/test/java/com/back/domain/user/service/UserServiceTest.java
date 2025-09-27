@@ -39,7 +39,7 @@ class UserServiceTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // ---------------------- getUserInfo ----------------------
+    // ====================== 사용자 정보 조회 테스트 ======================
 
     @Test
     @DisplayName("정상 유저 정보 조회 성공")
@@ -97,7 +97,7 @@ class UserServiceTest {
                 .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
     }
 
-    // ---------------------- updateUserProfile ----------------------
+    // ====================== 사용자 프로필 수정 테스트 ======================
 
     @Test
     @DisplayName("프로필 수정 성공")

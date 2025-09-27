@@ -54,7 +54,7 @@ class RoomChatApiControllerTest {
                 .willReturn(mockResponse);
 
         // JWT 관련 스텁
-        given(jwtTokenProvider.validateToken("faketoken")).willReturn(true);
+        given(jwtTokenProvider.validateAccessToken("faketoken")).willReturn(true);
 
         CustomUserDetails mockUser = CustomUserDetails.builder()
                 .userId(1L)
