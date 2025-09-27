@@ -13,7 +13,7 @@ import com.back.domain.user.repository.UserRepository;
 import com.back.domain.user.repository.UserTokenRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
-import com.back.global.security.JwtTokenProvider;
+import com.back.global.security.jwt.JwtTokenProvider;
 import com.back.global.util.CookieUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;

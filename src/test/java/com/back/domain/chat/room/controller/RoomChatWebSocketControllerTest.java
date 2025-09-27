@@ -5,7 +5,7 @@ import com.back.domain.chat.room.service.RoomChatService;
 import com.back.domain.studyroom.entity.RoomChatMessage;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
-import com.back.global.security.CustomUserDetails;
+import com.back.global.security.user.CustomUserDetails;
 import com.back.global.websocket.dto.WebSocketErrorResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

@@ -1,7 +1,7 @@
 package com.back.global.websocket.event;
 
 import com.back.global.exception.CustomException;
-import com.back.global.security.CustomUserDetails;
+import com.back.global.security.user.CustomUserDetails;
 import com.back.global.websocket.service.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

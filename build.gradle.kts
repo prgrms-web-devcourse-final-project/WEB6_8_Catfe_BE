@@ -43,6 +43,7 @@ dependencies {
 
     // Security
     implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 
     // Development Tools
     compileOnly("org.projectlombok:lombok")

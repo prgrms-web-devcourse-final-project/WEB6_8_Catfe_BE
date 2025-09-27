@@ -6,7 +6,7 @@ import com.back.domain.study.plan.dto.StudyPlanResponse;
 import com.back.domain.study.plan.entity.ApplyScope;
 import com.back.domain.study.plan.service.StudyPlanService;
 import com.back.global.common.dto.RsData;
-import com.back.global.security.CustomUserDetails;
+import com.back.global.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

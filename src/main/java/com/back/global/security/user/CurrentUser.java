@@ -1,5 +1,6 @@
-package com.back.global.security;
+package com.back.global.security.user;
 
+import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
@@ -8,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-
-import java.util.Optional;
 
 /**
  * SecurityContext에 저장된 인증 정보를 바탕으로
@@ -34,7 +33,7 @@ public class CurrentUser {
 
     public String getUsername() { return getDetails().getUsername(); }
 
-    public String getRole() { return getDetails().getRole(); }
+    public Role getRole() { return getDetails().getRole(); }
 
     public String getEmail() { return getUserFromDb().getEmail(); }
 

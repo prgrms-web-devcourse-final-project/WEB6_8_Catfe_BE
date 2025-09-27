@@ -2,7 +2,7 @@ package com.back.domain.chat.room.controller;
 
 import com.back.domain.studyroom.entity.RoomChatMessage;
 import com.back.domain.chat.room.dto.RoomChatMessageDto;
-import com.back.global.security.CustomUserDetails;
+import com.back.global.security.user.CustomUserDetails;
 import com.back.global.websocket.dto.WebSocketErrorResponse;
 import com.back.domain.chat.room.service.RoomChatService;
 import io.swagger.v3.oas.annotations.tags.Tag;

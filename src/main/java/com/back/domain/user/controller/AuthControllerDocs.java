@@ -15,6 +15,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.Map;
@@ -236,6 +237,123 @@ public interface AuthControllerDocs {
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response
     );
+
+    @Operation(
+            summary = "소셜 로그인",
+            description = "카카오/구글/네이버 등의 소셜 로그인을 수행합니다. " +
+                    "로그인 성공 시 Access Token을 응답 본문에, Refresh Token을 HttpOnly 쿠키에 담아 반환합니다. " +
+                    "요청 경로: /oauth2/authorization/{provider} (예: /oauth2/authorization/kakao)"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "소셜 로그인 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "소셜 로그인에 성공했습니다.",
+                                      "data": {
+                                        "accessToken": "{accessToken}",
+                                        "user": {
+                                          "userId": 1,
+                                          "username": "kakao_1234567890",
+                                          "email": "test@kakao.com",
+                                          "nickname": "홍길동",
+                                          "role": "USER",
+                                          "status": "ACTIVE",
+                                          "createdAt": "2025-09-27T15:00:00"
+                                        }
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "지원하지 않는 Provider",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "AUTH_008",
+                                      "message": "지원하지 않는 소셜 로그인 제공자입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "소셜 계정 정보 부족 / 인증 실패",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "이메일 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_010",
+                                              "message": "소셜 계정에서 이메일 정보를 확인할 수 없습니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "필수 정보 누락", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_009",
+                                              "message": "소셜 계정에서 필요한 사용자 정보를 가져올 수 없습니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "인증 처리 실패", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_011",
+                                              "message": "소셜 로그인 인증에 실패했습니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "DB 사용자 조회 실패",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_001",
+                                      "message": "존재하지 않는 사용자입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    @GetMapping("/docs/oauth2/authorization/{provider}")
+    default ResponseEntity<RsData<LoginResponse>> oauth2LoginDocs() {
+        throw new UnsupportedOperationException("Swagger 문서 전용 엔드포인트입니다.");
+    }
 
     @Operation(
             summary = "로그아웃",

@@ -5,7 +5,7 @@ import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomMember;
 import com.back.domain.studyroom.service.RoomService;
 import com.back.global.common.dto.RsData;
-import com.back.global.security.CurrentUser;
+import com.back.global.security.user.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

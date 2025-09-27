@@ -8,7 +8,7 @@ import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
 import com.back.global.common.dto.RsData;
-import com.back.global.security.CurrentUser;
+import com.back.global.security.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

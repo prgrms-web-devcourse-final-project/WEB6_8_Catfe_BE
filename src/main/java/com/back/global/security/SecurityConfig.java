@@ -1,5 +1,10 @@
 package com.back.global.security;
 
+import com.back.global.security.jwt.JwtAccessDeniedHandler;
+import com.back.global.security.jwt.JwtAuthenticationEntryPoint;
+import com.back.global.security.jwt.JwtAuthenticationFilter;
+import com.back.global.security.oauth.CustomOAuth2UserService;
+import com.back.global.security.oauth.OAuth2LoginSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +26,8 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -28,13 +35,19 @@ public class SecurityConfig {
                 // 인가 규칙 설정
                 .authorizeHttpRequests(
                         auth -> auth
-                                .requestMatchers("/api/auth/**").permitAll()
+                                .requestMatchers("/api/auth/**", "/oauth2/**", "/login/oauth2/**").permitAll()
                                 .requestMatchers("/api/ws/**").permitAll()
                                 .requestMatchers("/api/rooms/*/messages/**").permitAll()  //스터디 룸 내에 잡혀있어 있는 채팅 관련 전체 허용
                                 //.requestMatchers("/api/rooms/RoomChatApiControllerTest").permitAll() // 테스트용 임시 허용
                                 .requestMatchers("/","/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger 허용
                                 .requestMatchers("/h2-console/**").permitAll() // H2 Console 허용
                                 .anyRequest().authenticated()
+                )
+
+                // OAuth2 로그인 설정
+                .oauth2Login(oauth -> oauth
+                        .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                        .successHandler(oAuth2LoginSuccessHandler)
                 )
 
                 // 인증/인가 실패 핸들러

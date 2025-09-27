@@ -21,6 +21,7 @@ import java.util.List;
 
 @Entity
 @Getter
+@Setter
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -39,8 +40,6 @@ public class User extends BaseEntity {
 
     private String providerId;
 
-    // 사용자 상태 변경
-    @Setter
     @Enumerated(EnumType.STRING)
     private UserStatus userStatus;
 
@@ -113,6 +112,14 @@ public class User extends BaseEntity {
     // 관리자 사용자 생성
     public static User createAdmin(String username, String email, String password) {
         return new User(username, email, password, Role.ADMIN, UserStatus.ACTIVE);
+    }
+
+    // OAuth2 사용자 생성
+    public static User createOAuth2User(String username, String email, String provider, String providerId) {
+        User user = new User(username, email, "SOCIAL_LOGIN_PASSWORD", Role.USER, UserStatus.ACTIVE);
+        user.setProvider(provider);
+        user.setProviderId(providerId);
+        return user;
     }
 
     // -------------------- 연관관계 메서드 --------------------
