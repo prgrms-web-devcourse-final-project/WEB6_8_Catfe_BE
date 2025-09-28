@@ -42,4 +42,15 @@ public class UserController implements UserControllerDocs {
                 )
         );
     }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<RsData<Void>> deleteMyAccount(
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        userService.deleteUser(user.getUserId());
+        return ResponseEntity
+                .ok(RsData.success(
+                        "회원 탈퇴가 완료되었습니다."
+                ));
+    }
 }
