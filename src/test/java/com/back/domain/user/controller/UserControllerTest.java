@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -325,6 +327,121 @@ class UserControllerTest {
                         .header("Authorization", "Bearer " + expiredToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_004"))
+                .andExpect(jsonPath("$.message").value("만료된 액세스 토큰입니다."));
+    }
+
+    // ====================== 내 계정 삭제 테스트 ======================
+
+    @Test
+    @DisplayName("회원 탈퇴 성공 → 200 OK")
+    void deleteMyAccount_success() throws Exception {
+        // given: 정상 유저 저장
+        User user = User.createUser("deleteuser", "delete@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", "https://cdn.example.com/1.png", "소개글", LocalDate.of(1990, 1, 1), 100));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(delete("/api/users/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("회원 탈퇴가 완료되었습니다."));
+
+        // DB 반영 확인
+        User deleted = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(deleted.getUserStatus()).isEqualTo(UserStatus.DELETED);
+        assertThat(deleted.getUsername()).startsWith("deleted_");
+        assertThat(deleted.getEmail()).startsWith("deleted_");
+        assertThat(deleted.getProvider()).startsWith("deleted_");
+        assertThat(deleted.getProviderId()).startsWith("deleted_");
+        assertThat(deleted.getUserProfile().getNickname()).isEqualTo("탈퇴한 회원");
+    }
+
+    @Test
+    @DisplayName("이미 탈퇴한 계정 탈퇴 시도 → 410 Gone")
+    void deleteMyAccount_alreadyDeleted() throws Exception {
+        // given: DELETED 상태 유저 저장
+        User user = User.createUser("alreadydeleted", "already@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.DELETED);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(delete("/api/users/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.code").value("USER_009"))
+                .andExpect(jsonPath("$.message").value("탈퇴한 계정입니다."));
+    }
+
+    @Test
+    @DisplayName("정지된 계정 탈퇴 시도 → 403 Forbidden")
+    void deleteMyAccount_suspendedUser() throws Exception {
+        // given: SUSPENDED 상태 유저 저장
+        User user = User.createUser("suspendeddelete", "suspendeddelete@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.SUSPENDED);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(delete("/api/users/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("USER_008"))
+                .andExpect(jsonPath("$.message").value("정지된 계정입니다. 관리자에게 문의하세요."));
+    }
+
+    @Test
+    @DisplayName("AccessToken 없음으로 회원 탈퇴 시도 → 401 Unauthorized")
+    void deleteMyAccount_noAccessToken() throws Exception {
+        mvc.perform(delete("/api/users/me"))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+    }
+
+    @Test
+    @DisplayName("잘못된 AccessToken으로 회원 탈퇴 시도 → 401 Unauthorized (AUTH_002)")
+    void deleteMyAccount_invalidAccessToken() throws Exception {
+        mvc.perform(delete("/api/users/me")
+                        .header("Authorization", "Bearer invalidToken"))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_002"))
+                .andExpect(jsonPath("$.message").value("유효하지 않은 액세스 토큰입니다."));
+    }
+
+    @Test
+    @DisplayName("만료된 AccessToken으로 회원 탈퇴 시도 → 401 Unauthorized (AUTH_004)")
+    void deleteMyAccount_expiredAccessToken() throws Exception {
+        // given
+        User user = User.createUser("expiredDelete", "expireddelete@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String expiredToken = testJwtTokenProvider.createExpiredAccessToken(
+                user.getId(), user.getUsername(), user.getRole().name()
+        );
+
+        // when & then
+        mvc.perform(delete("/api/users/me")
+                        .header("Authorization", "Bearer " + expiredToken))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTH_004"))
