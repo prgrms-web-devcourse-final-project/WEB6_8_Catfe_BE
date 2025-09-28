@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController implements UserControllerDocs {
     private final UserService userService;
 
+    // 내 정보 조회
     @GetMapping("/me")
     public ResponseEntity<RsData<UserDetailResponse>> getMyInfo (
             @AuthenticationPrincipal CustomUserDetails user
@@ -29,6 +30,7 @@ public class UserController implements UserControllerDocs {
                 ));
     }
 
+    // 내 정보 수정
     @PatchMapping("/me")
     public ResponseEntity<RsData<UserDetailResponse>> updateMyProfile(
             @AuthenticationPrincipal CustomUserDetails user,
@@ -43,6 +45,7 @@ public class UserController implements UserControllerDocs {
         );
     }
 
+    // 내 계정 삭제
     @DeleteMapping("/me")
     public ResponseEntity<RsData<Void>> deleteMyAccount(
             @AuthenticationPrincipal CustomUserDetails user
