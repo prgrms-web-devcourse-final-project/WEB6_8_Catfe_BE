@@ -5,8 +5,8 @@ import com.back.domain.chat.room.dto.RoomChatPageResponse;
 import com.back.domain.chat.room.service.RoomChatService;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
-import com.back.global.security.CustomUserDetails;
-import com.back.global.security.JwtTokenProvider;
+import com.back.global.security.jwt.JwtTokenProvider;
+import com.back.global.security.user.CustomUserDetails;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -64,7 +64,7 @@ class RoomChatApiControllerTest {
                 .willReturn(mockResponse);
 
         // JWT 관련 스텁
-        given(jwtTokenProvider.validateToken("faketoken")).willReturn(true);
+        given(jwtTokenProvider.validateAccessToken("faketoken")).willReturn(true);
 
         CustomUserDetails mockUser = CustomUserDetails.builder()
                 .userId(1L)
@@ -124,7 +124,7 @@ class RoomChatApiControllerTest {
     @Test
     @DisplayName("잘못된 JWT 토큰으로 요청 - 401 Unauthorized")
     void t4() throws Exception {
-        given(jwtTokenProvider.validateToken("invalidtoken")).willReturn(false);
+        given(jwtTokenProvider.validateAccessToken("invalidtoken")).willReturn(false);
 
         mockMvc.perform(get("/api/rooms/1/messages")
                         .param("page", "0")
@@ -174,7 +174,7 @@ class RoomChatApiControllerTest {
         given(roomChatService.clearRoomChat(roomId, userId)).willReturn(clearedByInfo);
 
         // JWT 관련 스텁
-        given(jwtTokenProvider.validateToken("faketoken")).willReturn(true);
+        given(jwtTokenProvider.validateAccessToken("faketoken")).willReturn(true);
 
         CustomUserDetails mockUser = CustomUserDetails.builder()
                 .userId(userId)
@@ -228,7 +228,7 @@ class RoomChatApiControllerTest {
         given(roomChatService.clearRoomChat(roomId, userId)).willReturn(clearedByInfo);
 
         // JWT 관련 스텁
-        given(jwtTokenProvider.validateToken("faketoken")).willReturn(true);
+        given(jwtTokenProvider.validateAccessToken("faketoken")).willReturn(true);
 
         CustomUserDetails mockUser = CustomUserDetails.builder()
                 .userId(userId)
@@ -266,7 +266,7 @@ class RoomChatApiControllerTest {
                 .given(roomChatService).clearRoomChat(roomId, userId);
 
         // JWT 관련 스텁
-        given(jwtTokenProvider.validateToken("faketoken")).willReturn(true);
+        given(jwtTokenProvider.validateAccessToken("faketoken")).willReturn(true);
 
         CustomUserDetails mockUser = CustomUserDetails.builder()
                 .userId(userId)
@@ -303,7 +303,7 @@ class RoomChatApiControllerTest {
         willThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
                 .given(roomChatService).clearRoomChat(nonExistentRoomId, userId);
 
-        given(jwtTokenProvider.validateToken("faketoken")).willReturn(true);
+        given(jwtTokenProvider.validateAccessToken("faketoken")).willReturn(true);
 
         CustomUserDetails mockUser = CustomUserDetails.builder()
                 .userId(userId)
@@ -340,7 +340,7 @@ class RoomChatApiControllerTest {
         willThrow(new CustomException(ErrorCode.INVALID_DELETE_CONFIRMATION))
                 .given(roomChatService).clearRoomChat(roomId, userId);
 
-        given(jwtTokenProvider.validateToken("faketoken")).willReturn(true);
+        given(jwtTokenProvider.validateAccessToken("faketoken")).willReturn(true);
 
         CustomUserDetails mockUser = CustomUserDetails.builder()
                 .userId(userId)
@@ -374,7 +374,7 @@ class RoomChatApiControllerTest {
         Long roomId = 1L;
 
         // JWT 관련 스텁
-        given(jwtTokenProvider.validateToken("faketoken")).willReturn(true);
+        given(jwtTokenProvider.validateAccessToken("faketoken")).willReturn(true);
 
         CustomUserDetails mockUser = CustomUserDetails.builder()
                 .userId(1L)
@@ -410,7 +410,7 @@ class RoomChatApiControllerTest {
         willThrow(new CustomException(ErrorCode.NOT_ROOM_MEMBER))
                 .given(roomChatService).clearRoomChat(roomId, userId);
 
-        given(jwtTokenProvider.validateToken("faketoken")).willReturn(true);
+        given(jwtTokenProvider.validateAccessToken("faketoken")).willReturn(true);
 
         CustomUserDetails mockUser = CustomUserDetails.builder()
                 .userId(userId)

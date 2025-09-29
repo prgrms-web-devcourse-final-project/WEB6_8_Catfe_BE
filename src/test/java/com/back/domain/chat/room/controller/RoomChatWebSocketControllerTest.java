@@ -9,7 +9,7 @@ import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
-import com.back.global.security.CustomUserDetails;
+import com.back.global.security.user.CustomUserDetails;
 import com.back.global.websocket.util.WebSocketErrorHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
