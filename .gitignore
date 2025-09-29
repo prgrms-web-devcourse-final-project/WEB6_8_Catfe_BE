@@ -47,3 +47,4 @@ db_dev.trace.db
 /infra/terraform/.terraform.lock.hcl
 /infra/terraform/terraform.tfstate
 /infra/terraform/terraform.tfstate.backup
+/infra/terraform/secrets.tf

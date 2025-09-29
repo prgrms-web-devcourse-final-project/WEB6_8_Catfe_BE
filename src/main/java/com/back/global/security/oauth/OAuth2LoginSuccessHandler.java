@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -71,21 +72,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                     true
             );
 
-            // 응답 데이터 구성
-            LoginResponse loginResponse = new LoginResponse(
-                    accessToken,
-                    UserResponse.from(user)
-            );
-
-            RsData<LoginResponse> rsData = RsData.success(
-                    "소셜 로그인에 성공했습니다.",
-                    loginResponse
-            );
-
-            // JSON 직렬화 후 응답
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType("application/json;charset=UTF-8");
-            objectMapper.writeValue(response.getWriter(), rsData);
+            // 프론트엔드 리다이렉트
+            response.sendRedirect("http://localhost:3000/login/oauth2");
         } catch (CustomException e) {
             handleException(response, e);
         } catch (Exception e) {

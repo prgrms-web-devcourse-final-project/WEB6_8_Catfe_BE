@@ -24,6 +24,10 @@ jobs:
           distribution: 'temurin'   # Eclipse Temurin JDK
           java-version: '21'        # Gradle build.gradle toolchain에 맞춤
 
+      # .env 파일 생성
+      - name: Create .env file
+        run: echo "${{ secrets.DOT_ENV }}" > .env
+
       # Build (테스트 제외)
       - name: Build project
         run: ./gradlew clean build -x test
