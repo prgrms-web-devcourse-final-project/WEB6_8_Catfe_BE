@@ -26,6 +26,10 @@ public enum RoomRole {
     public String getDescription() {
         return description;
     }
+    
+    public String getDisplayName() {
+        return description;
+    }
 
     /*
      방 관리 권한 확인 (방 설정 변경, 공지사항 관리)

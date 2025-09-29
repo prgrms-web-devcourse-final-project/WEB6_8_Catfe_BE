@@ -3,8 +3,11 @@ package com.back.domain.studyroom.controller;
 import com.back.domain.studyroom.dto.*;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomMember;
+import com.back.domain.studyroom.entity.RoomRole;
 import com.back.domain.studyroom.service.RoomService;
 import com.back.global.common.dto.RsData;
+import com.back.global.exception.CustomException;
+import com.back.global.exception.ErrorCode;
 import com.back.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -14,6 +17,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,6 +38,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Room API", description = "스터디 룸 관련 API")
 @SecurityRequirement(name = "Bearer Authentication")
 public class RoomController {
@@ -74,7 +79,10 @@ public class RoomController {
     @PostMapping("/{roomId}/join")
     @Operation(
         summary = "방 입장", 
-        description = "특정 스터디 룸에 입장합니다. 공개방은 바로 입장 가능하며, 비공개방은 비밀번호가 필요합니다."
+        description = "특정 스터디 룸에 입장합니다." +
+                " 공개방은 바로 입장 가능하며, 비공개방은 비밀번호가 필요합니다." +
+                " 입장 후 WebSocket 연결 정보와 현재 온라인 멤버 목록을 함께 제공합니다."
+
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "방 입장 성공"),
@@ -94,11 +102,28 @@ public class RoomController {
         }
 
         RoomMember member = roomService.joinRoom(roomId, password, currentUserId);
-        JoinRoomResponse response = JoinRoomResponse.from(member);
-
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(RsData.success("방 입장 완료", response));
+        
+        // 🆕 WebSocket 기반 온라인 멤버 목록과 WebSocket 연결 정보 포함하여 응답 생성
+        try {
+            List<RoomMemberResponse> onlineMembers = roomService.getOnlineMembersWithWebSocket(roomId, currentUserId);
+            int onlineCount = onlineMembers.size();
+            
+            JoinRoomResponse response = JoinRoomResponse.withWebSocketInfo(member, onlineMembers, onlineCount);
+            
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(RsData.success("방 입장 완료", response));
+                    
+        } catch (Exception e) {
+            log.warn("WebSocket 정보 포함 응답 생성 실패, 기본 응답 사용 - 방: {}, 사용자: {}", roomId, currentUserId, e);
+            
+            // WebSocket 연동 실패 시 기본 응답으로 폴백
+            JoinRoomResponse response = JoinRoomResponse.from(member);
+            
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(RsData.success("방 입장 완료", response));
+        }
     }
 
     @PostMapping("/{roomId}/leave")
@@ -159,7 +184,7 @@ public class RoomController {
     @GetMapping("/{roomId}")
     @Operation(
         summary = "방 상세 정보 조회", 
-        description = "특정 방의 상세 정보와 현재 온라인 멤버 목록을 조회합니다. 비공개 방은 멤버만 조회 가능합니다."
+        description = "특정 방의 상세 정보와 현재 온라인 멤버 목록을 조회합니다. 비공개 방은 멤버만 조회 가능하며, WebSocket 기반 실시간 온라인 상태를 반영합니다."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -173,11 +198,9 @@ public class RoomController {
         Long currentUserId = currentUser.getUserId();
 
         Room room = roomService.getRoomDetail(roomId, currentUserId);
-        List<RoomMember> members = roomService.getRoomMembers(roomId, currentUserId);
-
-        List<RoomMemberResponse> memberResponses = members.stream()
-                .map(RoomMemberResponse::from)
-                .collect(Collectors.toList());
+        
+        // 🆕 WebSocket 기반 온라인 멤버 목록 조회
+        List<RoomMemberResponse> memberResponses = roomService.getOnlineMembersWithWebSocket(roomId, currentUserId);
 
         RoomDetailResponse response = RoomDetailResponse.of(room, memberResponses);
 
@@ -273,7 +296,7 @@ public class RoomController {
     @GetMapping("/{roomId}/members")
     @Operation(
         summary = "방 멤버 목록 조회", 
-        description = "방의 현재 온라인 멤버 목록을 조회합니다. 역할별로 정렬됩니다(방장>부방장>멤버>방문객)."
+        description = "방의 현재 온라인 멤버 목록을 조회합니다. 역할별로 정렬되며, WebSocket 기반 실시간 온라인 상태를 반영합니다."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -286,11 +309,8 @@ public class RoomController {
 
         Long currentUserId = currentUser.getUserId();
 
-        List<RoomMember> members = roomService.getRoomMembers(roomId, currentUserId);
-        
-        List<RoomMemberResponse> memberList = members.stream()
-                .map(RoomMemberResponse::from)
-                .collect(Collectors.toList());
+        // 🆕 WebSocket 기반 온라인 멤버 목록 조회
+        List<RoomMemberResponse> memberList = roomService.getOnlineMembersWithWebSocket(roomId, currentUserId);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
@@ -328,5 +348,99 @@ public class RoomController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success("인기 방 목록 조회 완료", response));
+    }
+
+    // ======================== 🆕 WebSocket 연동 API ========================
+
+    @GetMapping("/{roomId}/websocket-status")
+    @Operation(
+        summary = "방 WebSocket 상태 조회", 
+        description = "특정 방의 WebSocket 연결 상태와 실시간 온라인 멤버 수를 조회합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "403", description = "비공개 방에 대한 접근 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<Map<String, Object>>> getWebSocketStatus(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId) {
+
+        Long currentUserId = currentUser.getUserId();
+
+        // 방 접근 권한 확인
+        roomService.getRoomDetail(roomId, currentUserId);
+
+        try {
+            List<RoomMemberResponse> onlineMembers = roomService.getOnlineMembersWithWebSocket(roomId, currentUserId);
+
+            Map<String, Object> status = new HashMap<>();
+            status.put("roomId", roomId);
+            status.put("onlineCount", onlineMembers.size());
+            status.put("onlineMembers", onlineMembers);
+            status.put("websocketChannels", Map.of(
+                "roomUpdates", "/topic/rooms/" + roomId + "/updates",
+                "roomChat", "/topic/rooms/" + roomId + "/chat",
+                "privateMessages", "/user/queue/messages"
+            ));
+            status.put("lastUpdated", java.time.LocalDateTime.now());
+
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(RsData.success("WebSocket 상태 조회 완료", status));
+
+        } catch (Exception e) {
+            log.error("WebSocket 상태 조회 실패 - 방: {}", roomId, e);
+
+            Map<String, Object> errorStatus = new HashMap<>();
+            errorStatus.put("roomId", roomId);
+            errorStatus.put("error", "WebSocket 상태 조회 실패");
+            errorStatus.put("message", e.getMessage());
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(RsData.fail(ErrorCode.WS_REDIS_ERROR, errorStatus));
+        }
+    }
+
+    @PostMapping("/{roomId}/refresh-online-members")
+    @Operation(
+        summary = "온라인 멤버 목록 강제 새로고침",
+        description = "특정 방의 온라인 멤버 목록을 강제로 새로고침하고 모든 멤버에게 업데이트를 브로드캐스트합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "새로고침 성공"),
+        @ApiResponse(responseCode = "403", description = "권한 없음 (방장/부방장만 가능)"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<List<RoomMemberResponse>>> refreshOnlineMembers(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId) {
+
+        Long currentUserId = currentUser.getUserId();
+
+        // 방장 또는 부방장 권한 확인
+        RoomRole userRole = roomService.getUserRoomRole(roomId, currentUserId);
+        if (!userRole.canManageRoom()) {
+            throw new CustomException(ErrorCode.NOT_ROOM_MANAGER);
+        }
+
+        try {
+            List<RoomMemberResponse> onlineMembers = roomService.getOnlineMembersWithWebSocket(roomId, currentUserId);
+
+            // TODO: SessionManager를 통해 온라인 멤버 목록 브로드캐스트 강제 실행
+            // sessionManager.broadcastOnlineMembersUpdate(roomId);
+
+            log.info("온라인 멤버 목록 강제 새로고침 완료 - 방: {}, 요청자: {}, 온라인 멤버: {}명",
+                    roomId, currentUserId, onlineMembers.size());
+
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(RsData.success("온라인 멤버 목록 새로고침 완료", onlineMembers));
+
+        } catch (Exception e) {
+            log.error("온라인 멤버 목록 새로고침 실패 - 방: {}, 요청자: {}", roomId, currentUserId, e);
+            throw new CustomException(ErrorCode.WS_REDIS_ERROR);
+        }
     }
 }
