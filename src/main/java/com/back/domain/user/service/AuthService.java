@@ -33,6 +33,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserTokenRepository userTokenRepository;
+    private final EmailService emailService;
     private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -72,15 +73,12 @@ public class AuthService {
         // 연관관계 설정
         user.setUserProfile(profile);
 
-        // TODO: 임시 로직 - 이메일 인증 기능 개발 전까지는 바로 ACTIVE 처리
-        user.setUserStatus(UserStatus.ACTIVE);
-
         // 저장 (cascade로 Profile도 함께 저장됨)
         User saved = userRepository.save(user);
 
-        // TODO: 이메일 인증 로직 추가 예정
+        // 이메일 인증 토큰 생성 및 이메일 발송
          String emailToken = tokenService.createEmailVerificationToken(saved.getId());
-        // emailService.sendVerificationEmail(saved.getEmail(), emailToken);
+         emailService.sendVerificationEmail(saved.getEmail(), emailToken);
 
         // UserResponse 변환 및 반환
         return UserResponse.from(saved);
