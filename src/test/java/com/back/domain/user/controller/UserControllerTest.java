@@ -1,5 +1,6 @@
 package com.back.domain.user.controller;
 
+import com.back.domain.user.dto.ChangePasswordRequest;
 import com.back.domain.user.dto.UpdateUserProfileRequest;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
@@ -324,6 +325,188 @@ class UserControllerTest {
 
         // when & then
         mvc.perform(patch("/api/users/me")
+                        .header("Authorization", "Bearer " + expiredToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_004"))
+                .andExpect(jsonPath("$.message").value("만료된 액세스 토큰입니다."));
+    }
+
+    // ====================== 내 비밀번호 변경 테스트 ======================
+
+    @Test
+    @DisplayName("비밀번호 변경 성공 → 200 OK")
+    void changePassword_success() throws Exception {
+        // given
+        User user = User.createUser("changepw", "changepw@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        ChangePasswordRequest request = new ChangePasswordRequest("P@ssw0rd!", "NewP@ssw0rd!");
+
+        // when & then
+        mvc.perform(patch("/api/users/me/password")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("비밀번호가 변경되었습니다."));
+
+        // DB 값 검증
+        User updated = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(passwordEncoder.matches("NewP@ssw0rd!", updated.getPassword())).isTrue();
+    }
+
+    @Test
+    @DisplayName("현재 비밀번호 불일치 → 401 Unauthorized (USER_006)")
+    void changePassword_invalidCurrentPassword() throws Exception {
+        // given
+        User user = User.createUser("wrongpw", "wrongpw@example.com", passwordEncoder.encode("Correct1!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        ChangePasswordRequest request = new ChangePasswordRequest("Wrong1!", "NewP@ssw0rd!");
+
+        // when & then
+        mvc.perform(patch("/api/users/me/password")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("USER_006"))
+                .andExpect(jsonPath("$.message").value("아이디 또는 비밀번호가 올바르지 않습니다."));
+    }
+
+    @Test
+    @DisplayName("새 비밀번호 정책 위반 → 400 Bad Request (USER_005)")
+    void changePassword_invalidNewPassword() throws Exception {
+        // given
+        User user = User.createUser("invalidpw", "invalidpw@example.com", passwordEncoder.encode("Valid1!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        ChangePasswordRequest request = new ChangePasswordRequest("Valid1!", "short");
+
+        // when & then
+        mvc.perform(patch("/api/users/me/password")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("USER_005"))
+                .andExpect(jsonPath("$.message").value("비밀번호는 최소 8자 이상, 숫자/특수문자를 포함해야 합니다."));
+    }
+
+    @Test
+    @DisplayName("탈퇴 계정 비밀번호 변경 시도 → 410 Gone (USER_009)")
+    void changePassword_deletedUser() throws Exception {
+        // given
+        User user = User.createUser("deletedpw", "deletedpw@example.com", passwordEncoder.encode("Valid1!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.DELETED);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        ChangePasswordRequest request = new ChangePasswordRequest("Valid1!", "NewP@ssw0rd!");
+
+        // when & then
+        mvc.perform(patch("/api/users/me/password")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.code").value("USER_009"))
+                .andExpect(jsonPath("$.message").value("탈퇴한 계정입니다."));
+    }
+
+    @Test
+    @DisplayName("정지 계정 비밀번호 변경 시도 → 403 Forbidden (USER_008)")
+    void changePassword_suspendedUser() throws Exception {
+        // given
+        User user = User.createUser("suspendedpw", "suspendedpw@example.com", passwordEncoder.encode("Valid1!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.SUSPENDED);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        ChangePasswordRequest request = new ChangePasswordRequest("Valid1!", "NewP@ssw0rd!");
+
+        // when & then
+        mvc.perform(patch("/api/users/me/password")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("USER_008"))
+                .andExpect(jsonPath("$.message").value("정지된 계정입니다. 관리자에게 문의하세요."));
+    }
+
+    @Test
+    @DisplayName("AccessToken 없음으로 비밀번호 변경 시도 → 401 Unauthorized (AUTH_001)")
+    void changePassword_noAccessToken() throws Exception {
+        ChangePasswordRequest request = new ChangePasswordRequest("P@ssw0rd!", "NewP@ssw0rd!");
+
+        mvc.perform(patch("/api/users/me/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+    }
+
+    @Test
+    @DisplayName("잘못된 AccessToken으로 비밀번호 변경 시도 → 401 Unauthorized (AUTH_002)")
+    void changePassword_invalidAccessToken() throws Exception {
+        ChangePasswordRequest request = new ChangePasswordRequest("P@ssw0rd!", "NewP@ssw0rd!");
+
+        mvc.perform(patch("/api/users/me/password")
+                        .header("Authorization", "Bearer invalidToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_002"))
+                .andExpect(jsonPath("$.message").value("유효하지 않은 액세스 토큰입니다."));
+    }
+
+    @Test
+    @DisplayName("만료된 AccessToken으로 비밀번호 변경 시도 → 401 Unauthorized (AUTH_004)")
+    void changePassword_expiredAccessToken() throws Exception {
+        // given
+        User user = User.createUser("expiredpw", "expiredpw@example.com", passwordEncoder.encode("Valid1!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String expiredToken = testJwtTokenProvider.createExpiredAccessToken(
+                user.getId(), user.getUsername(), user.getRole().name()
+        );
+
+        ChangePasswordRequest request = new ChangePasswordRequest("Valid1!", "NewP@ssw0rd!");
+
+        // when & then
+        mvc.perform(patch("/api/users/me/password")
                         .header("Authorization", "Bearer " + expiredToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

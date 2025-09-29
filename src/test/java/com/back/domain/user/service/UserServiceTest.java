@@ -1,5 +1,6 @@
 package com.back.domain.user.service;
 
+import com.back.domain.user.dto.ChangePasswordRequest;
 import com.back.domain.user.dto.UpdateUserProfileRequest;
 import com.back.domain.user.dto.UserDetailResponse;
 import com.back.domain.user.entity.User;
@@ -177,6 +178,106 @@ class UserServiceTest {
         assertThatThrownBy(() -> userService.updateUserProfile(user.getId(), request))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
+    }
+
+    // ====================== 비밀번호 변경 테스트 ======================
+
+    @Test
+    @DisplayName("비밀번호 변경 성공")
+    void changePassword_success() {
+        // given: 정상 유저 저장
+        User user = User.createUser("changepw", "changepw@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        ChangePasswordRequest request = new ChangePasswordRequest("P@ssw0rd!", "NewP@ssw0rd!");
+
+        // when
+        userService.changePassword(user.getId(), request);
+
+        // then: DB의 비밀번호가 변경되었는지 확인
+        User updated = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(passwordEncoder.matches("NewP@ssw0rd!", updated.getPassword())).isTrue();
+    }
+
+    @Test
+    @DisplayName("현재 비밀번호 불일치 → INVALID_CREDENTIALS 예외")
+    void changePassword_invalidCurrentPassword() {
+        // given
+        User user = User.createUser("wrongpw", "wrongpw@example.com", passwordEncoder.encode("Correct1!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        ChangePasswordRequest request = new ChangePasswordRequest("Wrong1!", "NewP@ssw0rd!");
+
+        // when & then
+        assertThatThrownBy(() -> userService.changePassword(user.getId(), request))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.INVALID_CREDENTIALS.getMessage());
+    }
+
+    @Test
+    @DisplayName("새 비밀번호 정책 위반 → INVALID_PASSWORD 예외")
+    void changePassword_invalidNewPassword() {
+        // given
+        User user = User.createUser("invalidpw", "invalidpw@example.com", passwordEncoder.encode("Valid1!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        // 숫자/특수문자 없는 비밀번호
+        ChangePasswordRequest request = new ChangePasswordRequest("Valid1!", "short");
+
+        // when & then
+        assertThatThrownBy(() -> userService.changePassword(user.getId(), request))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.INVALID_PASSWORD.getMessage());
+    }
+
+    @Test
+    @DisplayName("탈퇴한 유저 비밀번호 변경 → USER_DELETED 예외")
+    void changePassword_deletedUser() {
+        // given
+        User user = User.createUser("deletedpw", "deletedpw@example.com", passwordEncoder.encode("Valid1!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.DELETED);
+        userRepository.save(user);
+
+        ChangePasswordRequest request = new ChangePasswordRequest("Valid1!", "NewP@ssw0rd!");
+
+        // when & then
+        assertThatThrownBy(() -> userService.changePassword(user.getId(), request))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_DELETED.getMessage());
+    }
+
+    @Test
+    @DisplayName("정지된 유저 비밀번호 변경 → USER_SUSPENDED 예외")
+    void changePassword_suspendedUser() {
+        // given
+        User user = User.createUser("suspendedpw", "suspendedpw@example.com", passwordEncoder.encode("Valid1!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.SUSPENDED);
+        userRepository.save(user);
+
+        ChangePasswordRequest request = new ChangePasswordRequest("Valid1!", "NewP@ssw0rd!");
+
+        // when & then
+        assertThatThrownBy(() -> userService.changePassword(user.getId(), request))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 유저 비밀번호 변경 → USER_NOT_FOUND 예외")
+    void changePassword_userNotFound() {
+        // when & then
+        ChangePasswordRequest request = new ChangePasswordRequest("dummy", "NewP@ssw0rd!");
+        assertThatThrownBy(() -> userService.changePassword(999L, request))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
     }
 
     // ====================== 사용자 탈퇴 테스트 ======================
