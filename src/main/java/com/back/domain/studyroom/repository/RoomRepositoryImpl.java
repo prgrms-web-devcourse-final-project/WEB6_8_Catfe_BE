@@ -75,12 +75,10 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
     }
 
     /**
-     * 사용자가 참여 중인 방 조회
-     *  조회 조건:
-     * - 특정 사용자가 멤버로 등록된 방
-     * - 현재 온라인 상태인 방만
+     * 사용자가 참여 중인 방 조회(모든 방)
+     온라인/오프라인 상태는 Redis에서 관리하므로, 여기서는 멤버십만 확인
      * @param userId 사용자 ID
-     * @return 참여 중인 방 목록
+     * @return 참여 중인 방 목록 (멤버로 등록된 모든 방)
      */
     @Override
     public List<Room> findRoomsByUserId(Long userId) {
@@ -89,8 +87,7 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .leftJoin(room.createdBy, user).fetchJoin()  // N+1 방지
                 .join(room.roomMembers, roomMember)          // 멤버 조인
                 .where(
-                        roomMember.user.id.eq(userId),
-                        roomMember.isOnline.eq(true)
+                        roomMember.user.id.eq(userId)
                 )
                 .fetch();
     }

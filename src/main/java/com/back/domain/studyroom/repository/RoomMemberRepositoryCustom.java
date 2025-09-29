@@ -5,7 +5,14 @@ import com.back.domain.studyroom.entity.RoomRole;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
+/**
+ 멤버십 정보 조회 (영구 데이터)
+ 역할 기반 쿼리
+ 실시간 온라인 상태 (WebSocketSessionManager 사용)
+ 온라인 상태는 Redis(WebSocketSessionManager)에서 관리
+ */
 public interface RoomMemberRepositoryCustom {
 
     /**
@@ -19,19 +26,13 @@ public interface RoomMemberRepositoryCustom {
     List<RoomMember> findByRoomIdOrderByRole(Long roomId);
 
     /**
-     * 방의 온라인 멤버 조회
+     * 방의 멤버 중 특정 사용자 ID 목록에 해당하는 멤버만 조회
+     WebSocket에서 온라인 사용자 ID 목록을 받아와서 해당 멤버들의 상세 정보 조회
+     * @param roomId 방 ID
+     * @param userIds 조회할 사용자 ID 목록
+     * @return 해당하는 멤버 목록
      */
-    List<RoomMember> findOnlineMembersByRoomId(Long roomId);
-
-    /**
-     * 방의 활성 멤버 수 조회
-     */
-    int countActiveMembersByRoomId(Long roomId);
-
-    /**
-     * 사용자가 참여 중인 모든 방의 멤버십 조회
-     */
-    List<RoomMember> findActiveByUserId(Long userId);
+    List<RoomMember> findByRoomIdAndUserIdIn(Long roomId, Set<Long> userIds);
 
     /**
      * 특정 역할의 멤버 조회
@@ -62,14 +63,4 @@ public interface RoomMemberRepositoryCustom {
      * 특정 역할의 멤버 수 조회
      */
     int countByRoomIdAndRole(Long roomId, RoomRole role);
-
-    /**
-     * 방 퇴장 처리 (벌크 업데이트)
-     */
-    void leaveRoom(Long roomId, Long userId);
-
-    /**
-     * 방의 모든 멤버를 오프라인 처리 (방 종료 시)
-     */
-    void disconnectAllMembers(Long roomId);
 }

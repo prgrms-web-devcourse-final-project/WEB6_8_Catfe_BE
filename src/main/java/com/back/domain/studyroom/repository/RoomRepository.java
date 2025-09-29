@@ -38,10 +38,6 @@ public interface RoomRepository extends JpaRepository<Room, Long>, RoomRepositor
     @Query("SELECT r FROM Room r WHERE r.id = :roomId AND r.isPrivate = true AND r.password = :password")
     Optional<Room> findByIdAndPassword(@Param("roomId") Long roomId, @Param("password") String password);
 
-    // 참가자 수 업데이트
-    @Modifying
-    @Query("UPDATE Room r SET r.currentParticipants = " +
-           "(SELECT COUNT(rm) FROM RoomMember rm WHERE rm.room.id = r.id AND rm.isOnline = true) " +
-           "WHERE r.id = :roomId")
-    void updateCurrentParticipants(@Param("roomId") Long roomId);
+    // 참가자 수는 Room.incrementParticipant/decrementParticipant로 관리 (다음 커밋때 제거 예정)
+    // 온라인 상태는 Redis(WebSocketSessionManager)에서 관리하므로 이 쿼리는 제거 (다음 커밋때 제거 예정)
 }

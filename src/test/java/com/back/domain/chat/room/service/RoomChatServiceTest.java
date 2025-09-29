@@ -444,8 +444,9 @@ class RoomChatServiceTest {
         Long userId = 1L;
         int deletedCount = 8;
 
-        // RoomMember 생성 (부방장)
-        RoomMember subHostMember = RoomMember.create(testRoom, testUser, RoomRole.SUB_HOST);
+        // RoomMember 생성 (부방장) - createMember로 생성 후 역할 변경
+        RoomMember subHostMember = RoomMember.createMember(testRoom, testUser);
+        subHostMember.updateRole(RoomRole.SUB_HOST);
 
         // Mock 설정
         given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));

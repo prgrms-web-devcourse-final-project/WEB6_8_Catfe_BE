@@ -155,34 +155,34 @@ public class RoomService {
         RoomMember member;
         boolean isReturningMember = false;
 
+        // 기존 멤버십 확인
         Optional<RoomMember> existingMember = roomMemberRepository.findByRoomIdAndUserId(roomId, userId);
+        
         if (existingMember.isPresent()) {
+            // 이미 멤버인 경우 (재입장)
             member = existingMember.get();
-            if (member.isOnline()) {
-                throw new CustomException(ErrorCode.ALREADY_JOINED_ROOM);
+            
+            // Redis에서 이미 온라인인지 확인
+            if (sessionManager.isUserConnected(userId)) {
+                Long currentRoomId = sessionManager.getUserCurrentRoomId(userId);
+                if (currentRoomId != null && currentRoomId.equals(roomId)) {
+                    throw new CustomException(ErrorCode.ALREADY_JOINED_ROOM);
+                }
             }
-            member.updateOnlineStatus(true);
+            
+            // 마지막 활동 시간 업데이트
+            member.updateLastActivity();
             room.incrementParticipant();
             isReturningMember = true;
+            
         } else {
+            // 신규 멤버 생성
             member = RoomMember.createVisitor(room, user);
             member = roomMemberRepository.save(member);
             room.incrementParticipant();
         }
 
-        // 🆕 WebSocket 세션 연동
-        try {
-            syncWebSocketSession(userId, roomId, member);
-
-            // 🆕 실시간 입장 알림 브로드캐스트
-            broadcastMemberJoined(roomId, member, isReturningMember);
-
-        } catch (Exception e) {
-            log.warn("WebSocket 연동 실패하지만 입장은 계속 진행 - 사용자: {}, 방: {}, 오류: {}",
-                    userId, roomId, e.getMessage());
-        }
-
-        log.info("방 입장 완료 - RoomId: {}, UserId: {}, Role: {}, 재입장: {}",
+        log.info("방 입장 완료 (DB 처리) - RoomId: {}, UserId: {}, Role: {}, 재입장: {}",
                 roomId, userId, member.getRole(), isReturningMember);
 
         return member;
@@ -192,14 +192,14 @@ public class RoomService {
      * 방 나가기 메서드
      * <p>
      * 🚪 퇴장 처리:
-     * - 일반 멤버: 단순 오프라인 처리 및 참가자 수 감소
+     * - 일반 멤버: 참가자 수 감소
      * - 방장: 특별 처리 로직 실행 (handleHostLeaving)
      * <p>
      * 🔄 방장 퇴장 시 처리:
      * - 다른 멤버가 없으면 → 방 자동 종료
      * - 다른 멤버가 있으면 → 새 방장 자동 위임
      * <p>
-     * 🆕 WebSocket 연동: 퇴장 후 실시간 알림 및 세션 정리
+     * 📝 참고: 실제 온라인 상태는 Redis에서 관리
      */
     @Transactional
     public void leaveRoom(Long roomId, Long userId) {
@@ -210,7 +210,13 @@ public class RoomService {
         RoomMember member = roomMemberRepository.findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
 
-        if (!member.isOnline()) {
+        // Redis에서 온라인 상태 확인
+        boolean isCurrentlyOnline = sessionManager.isUserConnected(userId);
+        Long currentRoomId = sessionManager.getUserCurrentRoomId(userId);
+        
+        // 이 방에 있지 않으면 퇴장 처리 불필요
+        if (!isCurrentlyOnline || currentRoomId == null || !currentRoomId.equals(roomId)) {
+            log.debug("이미 오프라인 상태이거나 다른 방에 있음 - UserId: {}, CurrentRoomId: {}", userId, currentRoomId);
             return;
         }
 
@@ -221,46 +227,43 @@ public class RoomService {
         if (member.isHost()) {
             handleHostLeaving(room, member);
         } else {
-            member.leave();
+            // 일반 멤버 퇴장 처리
             room.decrementParticipant();
+            member.updateLastActivity();
         }
 
-        // 🆕 WebSocket 세션 정리
-        try {
-            cleanupWebSocketSession(userId, roomId);
-
-            // 🆕 실시간 퇴장 알림 브로드캐스트 (방이 종료되지 않은 경우에만)
-            if (room.getStatus() != RoomStatus.TERMINATED) {
-                broadcastMemberLeft(roomId, memberName, wasHost);
-            }
-
-        } catch (Exception e) {
-            log.warn("WebSocket 세션 정리 실패하지만 퇴장은 계속 진행 - 사용자: {}, 방: {}, 오류: {}",
-                    userId, roomId, e.getMessage());
-        }
-
-        log.info("방 퇴장 완료 - RoomId: {}, UserId: {}, 방장여부: {}", roomId, userId, wasHost);
+        log.info("방 퇴장 완료 (DB 처리) - RoomId: {}, UserId: {}, 방장여부: {}", roomId, userId, wasHost);
     }
 
     private void handleHostLeaving(Room room, RoomMember hostMember) {
-        List<RoomMember> onlineMembers = roomMemberRepository.findOnlineMembersByRoomId(room.getId());
+        // Redis에서 실제 온라인 사용자 조회
+        Set<Long> onlineUserIds = sessionManager.getOnlineUsersInRoom(room.getId());
+        
+        // 온라인 사용자 중 방장 제외
+        Set<Long> otherOnlineUserIds = onlineUserIds.stream()
+                .filter(id -> !id.equals(hostMember.getUser().getId()))
+                .collect(Collectors.toSet());
 
-        List<RoomMember> otherOnlineMembers = onlineMembers.stream()
-                .filter(m -> !m.getId().equals(hostMember.getId()))
-                .toList();
-
-        if (otherOnlineMembers.isEmpty()) {
+        if (otherOnlineUserIds.isEmpty()) {
+            // 다른 온라인 멤버가 없으면 방 종료
             room.terminate();
-            hostMember.leave();
             room.decrementParticipant();
 
-            // 🆕 방 종료 알림 브로드캐스트
+            log.info("방 자동 종료 (온라인 멤버 없음) - RoomId: {}", room.getId());
+
+            // 방 종료 알림 브로드캐스트
             try {
                 broadcastService.broadcastToRoom(room.getId(), RoomBroadcastMessage.roomTerminated(room.getId()));
             } catch (Exception e) {
                 log.warn("방 종료 브로드캐스트 실패 - 방: {}", room.getId(), e);
             }
+            
         } else {
+            // 다른 온라인 멤버가 있으면 새 방장 선정
+            List<RoomMember> otherOnlineMembers = roomMemberRepository
+                    .findByRoomIdAndUserIdIn(room.getId(), otherOnlineUserIds);
+
+            // 우선순위: 부방장 > 가장 먼저 가입한 멤버
             RoomMember newHost = otherOnlineMembers.stream()
                     .filter(m -> m.getRole() == RoomRole.SUB_HOST)
                     .findFirst()
@@ -270,15 +273,15 @@ public class RoomService {
 
             if (newHost != null) {
                 newHost.updateRole(RoomRole.HOST);
-                hostMember.leave();
                 room.decrementParticipant();
 
                 log.info("새 방장 지정 - RoomId: {}, NewHostId: {}",
                         room.getId(), newHost.getUser().getId());
 
-                // 🆕 새 방장 지정 알림 브로드캐스트
+                // 새 방장 지정 알림 브로드캐스트
                 try {
-                    broadcastService.broadcastToRoom(room.getId(), RoomBroadcastMessage.hostChanged(room.getId(), newHost));
+                    broadcastService.broadcastToRoom(room.getId(), 
+                            RoomBroadcastMessage.hostChanged(room.getId(), newHost));
                 } catch (Exception e) {
                     log.warn("새 방장 지정 브로드캐스트 실패 - 방: {}", room.getId(), e);
                 }
@@ -350,13 +353,22 @@ public class RoomService {
         }
 
         room.terminate();
-        roomMemberRepository.disconnectAllMembers(roomId);
 
-        // 🆕 방 종료 알림 브로드캐스트
+        // 방 종료 알림 브로드캐스트 (WebSocket 세션 정리 전에 알림 전송)
         try {
             broadcastService.broadcastToRoom(roomId, RoomBroadcastMessage.roomTerminated(roomId));
         } catch (Exception e) {
             log.warn("방 종료 브로드캐스트 실패 - 방: {}", roomId, e);
+        }
+
+        // Redis에서 모든 세션 정리 (자동으로 방에서 퇴장 처리됨)
+        Set<Long> onlineUserIds = sessionManager.getOnlineUsersInRoom(roomId);
+        for (Long onlineUserId : onlineUserIds) {
+            try {
+                sessionManager.leaveRoom(onlineUserId, roomId);
+            } catch (Exception e) {
+                log.warn("방 종료 시 세션 정리 실패 - 방: {}, 사용자: {}", roomId, onlineUserId, e);
+            }
         }
 
         log.info("방 종료 완료 - RoomId: {}, UserId: {}", roomId, userId);
@@ -394,12 +406,20 @@ public class RoomService {
 
     /**
      * WebSocket 기반 온라인 멤버 목록 조회
-     * DB의 멤버 목록과 WebSocket 세션 상태를 결합하여 온라인 상태 제공
-     * WebSocket 연동 실패 시 DB 정보만으로 폴백하여 서비스 중단 방지
-
+     * 
+     * <h2>동작 방식:</h2>
+     * <ol>
+     *   <li>Redis에서 온라인 사용자 ID 목록 조회 (실시간 상태)</li>
+     *   <li>DB에서 해당 ID들의 멤버 상세 정보 조회</li>
+     *   <li>두 정보를 결합하여 RoomMemberResponse DTO 반환</li>
+     * </ol>
+     * 
+     * <h2>Redis가 Single Source of Truth:</h2>
+     * <p>온라인 상태는 Redis만 신뢰하며, DB는 멤버십 정보만 제공</p>
+     * 
      * @param roomId 조회할 방의 ID
      * @param userId 요청한 사용자의 ID (권한 체크용)
-     * @return WebSocket 기반 실시간 온라인 멤버 목록 (RoomMemberResponse DTO)
+     * @return 실시간 온라인 멤버 목록
      * @throws CustomException ROOM_NOT_FOUND - 방이 존재하지 않음
      * @throws CustomException ROOM_FORBIDDEN - 비공개 방에 대한 접근 권한 없음
      */
@@ -416,34 +436,36 @@ public class RoomService {
         }
 
         try {
-            // DB에서 모든 온라인 멤버 조회
-            List<RoomMember> allMembers = roomMemberRepository.findOnlineMembersByRoomId(roomId);
+            // 1단계: Redis에서 온라인 사용자 ID 목록 조회 (실시간)
+            Set<Long> onlineUserIds = sessionManager.getOnlineUsersInRoom(roomId);
 
-            // WebSocket에서 실제 온라인 상태 조회
-            Set<Long> webSocketOnlineUsers = sessionManager.getOnlineUsersInRoom(roomId);
+            if (onlineUserIds.isEmpty()) {
+                log.debug("온라인 멤버 없음 - 방: {}", roomId);
+                return List.of();
+            }
 
-            // 두 정보를 결합하여 정확한 온라인 상태 반영
-            List<RoomMemberResponse> onlineMembers = allMembers.stream()
-                    .filter(member -> webSocketOnlineUsers.contains(member.getUser().getId()))
+            // 2단계: DB에서 해당 사용자들의 멤버 상세 정보 조회
+            List<RoomMember> onlineMembers = roomMemberRepository
+                    .findByRoomIdAndUserIdIn(roomId, onlineUserIds);
+
+            // 3단계: DTO 변환
+            List<RoomMemberResponse> response = onlineMembers.stream()
                     .map(RoomMemberResponse::from)
                     .collect(Collectors.toList());
 
-            log.debug("WebSocket 기반 온라인 멤버 조회 성공 - 방: {}, DB: {}명, WebSocket: {}명, 실제 온라인: {}명",
-                    roomId, allMembers.size(), webSocketOnlineUsers.size(), onlineMembers.size());
+            log.debug("온라인 멤버 조회 성공 - 방: {}, Redis: {}명, DB 매칭: {}명",
+                    roomId, onlineUserIds.size(), onlineMembers.size());
 
-            return onlineMembers;
+            return response;
 
         } catch (CustomException e) {
             // CustomException은 다시 던져서 상위에서 처리
             throw e;
             
         } catch (Exception e) {
-            log.warn("WebSocket 연동 실패하여 DB 정보만 사용 - 방: {}, 오류: {}", roomId, e.getMessage());
-            
-            // WebSocket 연동 실패 시 기존 방식으로 폴백 (DB 정보만 사용)
-            return roomMemberRepository.findOnlineMembersByRoomId(roomId).stream()
-                    .map(RoomMemberResponse::from)
-                    .collect(Collectors.toList());
+            log.error("온라인 멤버 조회 실패 - 방: {}, 오류: {}", roomId, e.getMessage(), e);
+            // 실패 시 빈 목록 반환 (서비스 중단 방지)
+            return List.of();
         }
     }
 
@@ -483,17 +505,17 @@ public class RoomService {
         // 추방 전 멤버 정보 백업 (브로드캐스트용)
         String memberName = targetMember.getUser().getNickname();
 
-        targetMember.leave();
-
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        
+        // 참가자 수 감소
         room.decrementParticipant();
 
-        // 🆕 WebSocket 세션 정리
+        // WebSocket 세션 정리 (강제 퇴장)
         try {
-            cleanupWebSocketSession(targetUserId, roomId);
-
-            // 🆕 멤버 추방 알림 브로드캐스트
+            sessionManager.leaveRoom(targetUserId, roomId);
+            
+            // 멤버 추방 알림 브로드캐스트
             broadcastService.broadcastToRoom(roomId, RoomBroadcastMessage.memberKicked(roomId, memberName));
 
         } catch (Exception e) {
@@ -504,83 +526,7 @@ public class RoomService {
                 roomId, targetUserId, requesterId);
     }
 
-    // ======================== WebSocket 연동 헬퍼 메서드 ========================
-
-    /**
-     * WebSocket 세션과 RoomMember 상태 동기화
-     */
-    private void syncWebSocketSession(Long userId, Long roomId, RoomMember member) {
-        try {
-            // WebSocket 세션 매니저에 방 입장 등록
-            sessionManager.joinRoom(userId, roomId);
-
-            // RoomMember의 연결 상태 업데이트
-            member.heartbeat(); // 마지막 활동 시간 갱신
-
-            log.debug("WebSocket 세션 동기화 완료 - 사용자: {}, 방: {}", userId, roomId);
-
-        } catch (Exception e) {
-            log.error("WebSocket 세션 동기화 실패 - 사용자: {}, 방: {}", userId, roomId, e);
-            throw new CustomException(ErrorCode.WS_ROOM_JOIN_FAILED);
-        }
-    }
-
-    /**
-     * WebSocket 세션 정리
-     */
-    private void cleanupWebSocketSession(Long userId, Long roomId) {
-        try {
-            // WebSocket 세션 매니저에서 방 퇴장 처리
-            sessionManager.leaveRoom(userId, roomId);
-
-            log.debug("WebSocket 세션 정리 완료 - 사용자: {}, 방: {}", userId, roomId);
-
-        } catch (Exception e) {
-            log.error("WebSocket 세션 정리 실패 - 사용자: {}, 방: {}", userId, roomId, e);
-            throw new CustomException(ErrorCode.WS_ROOM_LEAVE_FAILED);
-        }
-    }
-
-    /**
-     * 멤버 입장 실시간 브로드캐스트
-     */
-    private void broadcastMemberJoined(Long roomId, RoomMember member, boolean isReturning) {
-        try {
-            RoomBroadcastMessage message = RoomBroadcastMessage.memberJoined(roomId, member);
-            broadcastService.broadcastToRoom(roomId, message);
-
-            // 온라인 멤버 목록도 함께 업데이트
-            broadcastService.broadcastOnlineMembersUpdate(roomId);
-
-            log.debug("멤버 입장 브로드캐스트 완료 - 방: {}, 사용자: {}, 재입장: {}",
-                    roomId, member.getUser().getId(), isReturning);
-
-        } catch (Exception e) {
-            log.error("멤버 입장 브로드캐스트 실패 - 방: {}, 사용자: {}", roomId, member.getUser().getId(), e);
-        }
-    }
-
-    /**
-     * 멤버 퇴장 실시간 브로드캐스트
-     */
-    private void broadcastMemberLeft(Long roomId, String memberName, boolean wasHost) {
-        try {
-            // 퇴장 알림 생성 (방장인 경우 특별 메시지)
-            String message = wasHost ?
-                    String.format("방장 %s님이 방을 나갔습니다.", memberName) :
-                    String.format("%s님이 방을 나갔습니다.", memberName);
-
-            RoomBroadcastMessage broadcastMessage = RoomBroadcastMessage.roomUpdated(roomId, message);
-            broadcastService.broadcastToRoom(roomId, broadcastMessage);
-
-            // 온라인 멤버 목록도 함께 업데이트
-            broadcastService.broadcastOnlineMembersUpdate(roomId);
-
-            log.debug("멤버 퇴장 브로드캐스트 완료 - 방: {}, 멤버: {}, 방장여부: {}",
-                    roomId, memberName, wasHost);
-
-        } catch (Exception e) {
-            log.error("멤버 퇴장 브로드캐스트 실패 - 방: {}, 멤버: {}", roomId, memberName, e);
-        }
-    }
+    // ======================== 삭제 예정: WebSocket 헬퍼 메서드 ========================
+    // 이 메서드들은 Phase 2에서 이벤트 기반으로 재구성될 예정입니다.
+    // 현재는 RoomService에서 직접 sessionManager와 broadcastService를 호출합니다.
 }

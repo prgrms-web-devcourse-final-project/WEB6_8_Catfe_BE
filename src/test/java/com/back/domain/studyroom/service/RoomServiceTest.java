@@ -46,6 +46,12 @@ class RoomServiceTest {
 
     @Mock
     private StudyRoomProperties properties;
+    
+    @Mock
+    private com.back.global.websocket.service.WebSocketSessionManager sessionManager;
+    
+    @Mock
+    private com.back.global.websocket.service.WebSocketBroadcastService broadcastService;
 
     @InjectMocks
     private RoomService roomService;
@@ -185,9 +191,9 @@ class RoomServiceTest {
     @DisplayName("방 나가기 - 성공")
     void leaveRoom_Success() {
         // given
-        testMember.updateOnlineStatus(true);
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(testMember));
+        // Redis Mock은 별도로 설정하지 않음 (단위 테스트에서는 DB 로직만 검증)
 
         // when
         roomService.leaveRoom(1L, 1L);
@@ -303,7 +309,7 @@ class RoomServiceTest {
     void terminateRoom_Success() {
         // given
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
-        willDoNothing().given(roomMemberRepository).disconnectAllMembers(1L);
+        // disconnectAllMembers는 제거되었으므로 stub 제거
 
         // when
         roomService.terminateRoom(1L, 1L);
@@ -311,7 +317,7 @@ class RoomServiceTest {
         // then
         assertThat(testRoom.getStatus()).isEqualTo(RoomStatus.TERMINATED);
         assertThat(testRoom.isActive()).isFalse();
-        verify(roomMemberRepository, times(1)).disconnectAllMembers(1L);
+        // WebSocket 관련 검증은 통합 테스트에서 수행
     }
 
     @Test
