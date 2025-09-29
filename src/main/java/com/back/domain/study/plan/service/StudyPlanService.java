@@ -69,13 +69,13 @@ public class StudyPlanService {
 
         // byDay 설정 (WEEKLY 인 경우에만)
         if (request.getFrequency() == Frequency.WEEKLY) {
-            // 💡 1. byDay가 없으면 시작일 요일을 자동으로 설정 (현재 구현 의도 반영)
+            // 1. byDay가 없으면 시작일 요일을 자동으로 설정 (현재 구현 의도 반영)
             if(request.getByDay() == null || request.getByDay().isEmpty()) {
                 String startDayOfWeek = studyPlan.getStartDate().getDayOfWeek().name().substring(0, 3);
                 // *가정: RepeatRule.byDay는 List<String> 타입으로 가정
                 repeatRule.setByDay(List.of(startDayOfWeek));
             } else {
-                // 💡 2. byDay가 있다면 요청 값을 사용 (List<String> to List<String> 매핑 확인)
+                // 2. byDay가 있다면 요청 값을 사용 (List<String> to List<String> 매핑 확인)
                 repeatRule.setByDay(request.getByDay());
             }
         }
@@ -524,6 +524,8 @@ public class StudyPlanService {
                     LocalDate newUntilDate = selectedDate.minusDays(1);
                     repeatRule.setUntilDate(newUntilDate);
                     studyPlanRepository.save(studyPlan);
+                    // 변경된 untilDate 이후의 모든 예외 기록 삭제
+                    studyPlanExceptionRepository.deleteByStudyPlanIdAndExceptionDateAfter(studyPlan.getId(), newUntilDate);
                 }
                 break;
 

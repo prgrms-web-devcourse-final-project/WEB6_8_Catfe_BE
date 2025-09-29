@@ -200,7 +200,7 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.data.endDate").value("2025-09-26T11:46:00"))
                 .andExpect(jsonPath("$.data.repeatRule.frequency").value("DAILY"))
                 .andExpect(jsonPath("$.data.repeatRule.repeatInterval").value(1))
-                .andExpect(jsonPath("$.data.repeatRule.byDay").doesNotExist())
+                .andExpect(jsonPath("$.data.repeatRule.byDay", Matchers.hasSize(0)))
                 .andExpect(jsonPath("$.data.repeatRule.untilDate").value("2025-12-31"));
 
     }
@@ -221,7 +221,7 @@ class StudyPlanControllerTest {
                         "repeatRule": {
                             "frequency": "WEEKLY",
                             "repeatInterval": 1,
-                            "byDay": "FRI",
+                            "byDay": ["FRI"],
                             "untilDate": "2025-12-31"
                         }
                     }
@@ -254,7 +254,7 @@ class StudyPlanControllerTest {
                         "repeatRule": {
                             "frequency": "WEEKLY",
                             "repeatInterval": 1,
-                            "byDay": "FRI",
+                            "byDay": ["FRI"],
                             "untilDate": "2025-09-25"
                         }
                     }
