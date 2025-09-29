@@ -8,6 +8,8 @@ import com.back.global.security.oauth.OAuth2LoginSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -35,6 +37,7 @@ public class SecurityConfig {
                 // 인가 규칙 설정
                 .authorizeHttpRequests(
                         auth -> auth
+                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // CORS Preflight 요청 허용
                                 .requestMatchers("/api/auth/**", "/oauth2/**", "/login/oauth2/**").permitAll()
                                 .requestMatchers("api/ws/**", "/ws/**").permitAll()
                                 .requestMatchers("/api/rooms/*/messages/**").permitAll()  //스터디 룸 내에 잡혀있어 있는 채팅 관련 전체 허용
@@ -59,7 +62,6 @@ public class SecurityConfig {
                 // JWT 필터 추가
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // 기타 설정
                 .headers(
                         headers -> headers
                                 .frameOptions(
@@ -68,6 +70,9 @@ public class SecurityConfig {
                 )
                 .csrf(
                         AbstractHttpConfigurer::disable
+                )
+                .cors(
+                        Customizer.withDefaults()
                 );
 
         return http.build();
@@ -82,7 +87,7 @@ public class SecurityConfig {
                         .allowedOrigins(
                                 "http://localhost:3000" // Next.js 개발 서버
                         )
-                        .allowedMethods("GET", "POST", "PUT", "DELETE")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);
             }
