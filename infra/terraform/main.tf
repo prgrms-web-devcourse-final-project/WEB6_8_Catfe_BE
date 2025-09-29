@@ -19,7 +19,9 @@ resource "aws_vpc" "vpc_1" {
   enable_dns_hostnames = true
 
   tags = {
-    Name = "team5-vpc-1"
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "vpc-1"
   }
 }
 
@@ -31,7 +33,9 @@ resource "aws_subnet" "subnet_1" {
   map_public_ip_on_launch = true # 퍼블릭 IP 자동 할당
 
   tags = {
-    Name = "team5-subnet-1-public"
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "subnet-1-public"
   }
 }
 
@@ -42,7 +46,9 @@ resource "aws_subnet" "subnet_2" {
   availability_zone = "ap-northeast-2a"
 
   tags = {
-    Name = "team5-subnet-2-private"
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "subnet-2-private"
   }
 }
 
@@ -53,7 +59,9 @@ resource "aws_subnet" "subnet_3" {
   availability_zone = "ap-northeast-2b"
 
   tags = {
-    Name = "team5-subnet-3-private"
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "subnet-3-private"
   }
 }
 
@@ -62,7 +70,9 @@ resource "aws_internet_gateway" "igw_1" {
   vpc_id = aws_vpc.vpc_1.id
 
   tags = {
-    Name = "team5-igw-1"
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "igw-1"
   }
 }
 
@@ -77,7 +87,9 @@ resource "aws_route_table" "rt_1" {
   }
 
   tags = {
-    Name = "team5-rt-1"
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "rt-1"
   }
 }
 
@@ -104,8 +116,14 @@ resource "aws_route_table_association" "association_3" {
 }
 
 resource "aws_security_group" "sg_1" {
-  name        = "team5-sg-1"
+  name = "team5-sg-1"
   vpc_id      = aws_vpc.vpc_1.id
+
+  tags = {
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "sg-1"
+  }
 
   ingress {
     from_port   = 0
@@ -124,7 +142,11 @@ resource "aws_security_group" "sg_1" {
 
 # EC2 역할 생성
 resource "aws_iam_role" "ec2_role_1" {
-  name = "team5-ec2-role-1"
+  tags = {
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "ec2-role-1"
+  }
 
   # 이 역할에 대한 신뢰 정책 설정. EC2 서비스가 이 역할을 가정할 수 있도록 설정
   assume_role_policy = <<EOF
@@ -152,7 +174,12 @@ resource "aws_iam_role_policy_attachment" "ec2_ssm" {
 
 # IAM 인스턴스 프로파일 생성
 resource "aws_iam_instance_profile" "instance_profile_1" {
-  name = "team5-instance-profile-1"
+  tags = {
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "instance-profile-1"
+  }
+
   role = aws_iam_role.ec2_role_1.name
 }
 
@@ -172,6 +199,7 @@ sudo mkswap /swapfile
 sudo swapon /swapfile
 sudo sh -c 'echo "/swapfile swap swap defaults 0 0" >> /etc/fstab'
 
+
 END_OF_FILE
 }
 
@@ -189,7 +217,9 @@ resource "aws_instance" "ec2_1" {
   iam_instance_profile = aws_iam_instance_profile.instance_profile_1.name
 
   tags = {
-    Name = "team5-ec2-1"
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "ec2-1"
   }
 
   # 루트 불륨 설정
@@ -206,7 +236,7 @@ EOF
 
 # RDS용 Security Group
 resource "aws_security_group" "rds_sg_1" {
-  name        = "team5-rds-sg-1"
+  name       = "team5-rds-sg-1"
   description = "Allow All"
   vpc_id      = aws_vpc.vpc_1.id
 
@@ -225,7 +255,9 @@ resource "aws_security_group" "rds_sg_1" {
   }
 
   tags = {
-    Name = "team5-rds-sg-1"
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "rds-sg-1"
   }
 }
 
@@ -235,7 +267,9 @@ resource "aws_db_subnet_group" "db_subnet_group" {
   subnet_ids = [aws_subnet.subnet_2.id, aws_subnet.subnet_3.id]
 
   tags = {
-    Name = "team5-db-subnet-group"
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "db-subnet-group"
   }
 }
 
@@ -264,6 +298,8 @@ resource "aws_db_instance" "mysql" {
   skip_final_snapshot = true
 
   tags = {
-    Name = "team5-rds-mysql"
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "mysql"
   }
 }
