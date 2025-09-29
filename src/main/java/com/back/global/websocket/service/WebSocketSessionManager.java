@@ -3,12 +3,16 @@ package com.back.global.websocket.service;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.back.global.websocket.dto.WebSocketSessionInfo;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -24,7 +28,7 @@ public class WebSocketSessionManager {
     private static final String SESSION_USER_KEY = "ws:session:{}";
     private static final String ROOM_USERS_KEY = "ws:room:{}:users";
 
-    // TTL 설정 (10분) - Heartbeat와 함께 사용하여 정확한 상태 관리
+    // TTL 설정 (10분)
     private static final int SESSION_TTL_MINUTES = 10;
 
     // 사용자 세션 추가 (연결 시 호출)
@@ -70,7 +74,22 @@ public class WebSocketSessionManager {
     public WebSocketSessionInfo getSessionInfo(Long userId) {
         try {
             String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
-            return (WebSocketSessionInfo) redisTemplate.opsForValue().get(userKey);
+            Object value = redisTemplate.opsForValue().get(userKey);
+
+            if (value == null) {
+                return null;
+            }
+
+            // LinkedHashMap으로 역직렬화된 경우 또는 타입이 맞지 않는 경우 변환
+            if (value instanceof LinkedHashMap || !(value instanceof WebSocketSessionInfo)) {
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.registerModule(new JavaTimeModule());
+                mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+                return mapper.convertValue(value, WebSocketSessionInfo.class);
+            }
+
+            return (WebSocketSessionInfo) value;
+
         } catch (Exception e) {
             log.error("세션 정보 조회 실패 - 사용자: {}", userId, e);
             throw new CustomException(ErrorCode.WS_REDIS_ERROR);
@@ -106,7 +125,6 @@ public class WebSocketSessionManager {
                 log.warn("세션 정보가 없어 활동 시간 업데이트 실패 - 사용자: {}", userId);
             }
         } catch (CustomException e) {
-            // 이미 처리된 CustomException은 다시 던짐
             throw e;
         } catch (Exception e) {
             log.error("사용자 활동 시간 업데이트 실패 - 사용자: {}", userId, e);
@@ -192,7 +210,7 @@ public class WebSocketSessionManager {
 
             if (userIds != null) {
                 return userIds.stream()
-                        .map(obj -> (Long) obj)
+                        .map(this::convertToLong)  // 안전한 변환
                         .collect(Collectors.toSet());
             }
             return Set.of();
@@ -220,16 +238,17 @@ public class WebSocketSessionManager {
             return sessionInfo != null ? sessionInfo.currentRoomId() : null;
         } catch (CustomException e) {
             log.error("사용자 현재 방 조회 실패 - 사용자: {}", userId, e);
-            return null; // 조회용이므로 예외 대신 null 반환
+            return null;
         }
     }
 
     // 내부적으로 세션 제거 처리
     private void removeSessionInternal(String sessionId) {
         String sessionKey = SESSION_USER_KEY.replace("{}", sessionId);
-        Long userId = (Long) redisTemplate.opsForValue().get(sessionKey);
+        Object userIdObj = redisTemplate.opsForValue().get(sessionKey);
 
-        if (userId != null) {
+        if (userIdObj != null) {
+            Long userId = convertToLong(userIdObj);  // 안전한 변환
             WebSocketSessionInfo sessionInfo = getSessionInfo(userId);
 
             // 방에서 퇴장 처리
@@ -241,6 +260,17 @@ public class WebSocketSessionManager {
             String userKey = USER_SESSION_KEY.replace("{}", userId.toString());
             redisTemplate.delete(userKey);
             redisTemplate.delete(sessionKey);
+        }
+    }
+
+    // Object를 Long으로 안전하게 변환하는 헬퍼 메서드
+    private Long convertToLong(Object obj) {
+        if (obj instanceof Long) {
+            return (Long) obj;
+        } else if (obj instanceof Number) {
+            return ((Number) obj).longValue();
+        } else {
+            throw new IllegalArgumentException("Cannot convert " + obj.getClass() + " to Long");
         }
     }
 }
