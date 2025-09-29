@@ -33,6 +33,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserTokenRepository userTokenRepository;
+    private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -78,9 +79,50 @@ public class AuthService {
         User saved = userRepository.save(user);
 
         // TODO: 이메일 인증 로직 추가 예정
+         String emailToken = tokenService.createEmailVerificationToken(saved.getId());
+        // emailService.sendVerificationEmail(saved.getEmail(), emailToken);
 
         // UserResponse 변환 및 반환
         return UserResponse.from(saved);
+    }
+
+    /**
+     * 이메일 인증 서비스
+     * 1. 토큰 존재 여부 확인
+     * 2. 사용자 조회 및 활성화 (PENDING -> ACTIVE)
+     * 5. 토큰 삭제
+     * 6. UserResponse 반환
+     */
+    public UserResponse verifyEmail(String token) {
+
+        // 토큰 존재 여부 확인
+        if (token == null || token.isEmpty()) {
+            throw new CustomException(ErrorCode.BAD_REQUEST);
+        }
+
+        // 토큰으로 사용자 ID 조회
+        Long userId = tokenService.getUserIdByEmailVerificationToken(token);
+        if (userId == null) {
+            throw new CustomException(ErrorCode.INVALID_EMAIL_TOKEN);
+        }
+
+        // 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 사용자 상태 검증
+        if (user.getUserStatus() == UserStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.ALREADY_VERIFIED);
+        }
+
+        // 사용자 상태를 ACTIVE로 변경
+        user.setUserStatus(UserStatus.ACTIVE);
+
+        // 토큰 삭제 (재사용 방지)
+        tokenService.deleteEmailVerificationToken(token);
+
+        // UserResponse 반환
+        return UserResponse.from(user);
     }
 
     /**

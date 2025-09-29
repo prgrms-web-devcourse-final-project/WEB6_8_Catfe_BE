@@ -37,6 +37,19 @@ public class AuthController implements AuthControllerDocs {
                 ));
     }
 
+    // 이메일 인증
+    @GetMapping("/verify")
+    public ResponseEntity<RsData<UserResponse>> verifyEmail(
+            @RequestParam("token") String token
+    ) {
+        UserResponse userResponse = authService.verifyEmail(token);
+        return ResponseEntity
+                .ok(RsData.success(
+                        "이메일 인증이 완료되었습니다.",
+                        userResponse
+                ));
+    }
+
     // 로그인
     @PostMapping("/login")
     public ResponseEntity<RsData<LoginResponse>> login(
