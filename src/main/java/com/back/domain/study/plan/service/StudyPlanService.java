@@ -219,7 +219,7 @@ public class StudyPlanService {
                 .findByStudyPlanIdAndApplyScopeAndExceptionDateBefore(
                         planId,
                         ApplyScope.FROM_THIS_DATE,
-                        targetDate.atStartOfDay()
+                        targetDate
                 );
 
         return scopeExceptions.stream()

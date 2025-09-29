@@ -22,7 +22,7 @@ public interface StudyPlanExceptionRepository extends JpaRepository<StudyPlanExc
     List<StudyPlanException> findByStudyPlanIdAndApplyScopeAndExceptionDateBefore(
             @Param("planId") Long planId,
             @Param("applyScope") ApplyScope applyScope,
-            @Param("targetDate") LocalDateTime targetDate);
+            @Param("targetDate") LocalDate targetDate);
 // 특정 계획의 특정 기간 동안(start~end)의 예외를 조회
     @Query("SELECT spe FROM StudyPlanException spe WHERE spe.studyPlan.id = :planId " +
             "AND spe.exceptionDate BETWEEN :startDate AND :endDate " +
