@@ -2,6 +2,7 @@ package com.back.global.config;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import redis.embedded.RedisServer;
@@ -17,6 +18,7 @@ import java.net.ServerSocket;
  */
 @Configuration
 @Profile({"dev", "test"})
+@Log4j2
 public class EmbeddedRedisConfig {
 
     private RedisServer redisServer;
@@ -26,10 +28,12 @@ public class EmbeddedRedisConfig {
     public void startRedis() {
         try {
             String osName = System.getProperty("os.name").toLowerCase();
+            String activeProfile = System.getProperty("spring.profiles.active", "dev");
+            log.info("현재환경: " + activeProfile);
 
-            // Mac 환경이면 embedded-redis 건너뛰고 docker-compose Redis 사용
-            if (osName.contains("mac")) {
-                System.out.println("Mac 환경 감지 → embedded-redis 비활성화, docker-compose Redis 사용");
+            // 운영환경/Mac 환경이라면 embedded-redis 비활성화
+            if (osName.contains("mac") || "prod".equalsIgnoreCase(activeProfile)) {
+                log.info("운영환경/Mac 환경 감지 → embedded-redis 비활성화, 일반 Redis 사용");
                 System.setProperty("spring.data.redis.port", "6379"); // docker-compose 기본 포트
                 return;
             }
