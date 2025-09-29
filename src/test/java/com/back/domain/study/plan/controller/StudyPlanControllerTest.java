@@ -36,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -148,9 +149,8 @@ class StudyPlanControllerTest {
                         "endDate": "2025-09-26T11:46:00",
                         "color": "BLUE",
                         "repeatRule": {
-                            "frequency": "WEEKLY",
+                            "frequency": "DAILY",
                             "repeatInterval": 1,
-                            "byDay": "FRI",
                             "untilDate": "2025-12-31"
                         }
                     }
@@ -167,9 +167,9 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.data.color").value("BLUE"))
                 .andExpect(jsonPath("$.data.startDate").value("2025-09-26T10:46:00"))
                 .andExpect(jsonPath("$.data.endDate").value("2025-09-26T11:46:00"))
-                .andExpect(jsonPath("$.data.repeatRule.frequency").value("WEEKLY"))
+                .andExpect(jsonPath("$.data.repeatRule.frequency").value("DAILY"))
                 .andExpect(jsonPath("$.data.repeatRule.repeatInterval").value(1))
-                .andExpect(jsonPath("$.data.repeatRule.byDay").value("FRI"))
+                .andExpect(jsonPath("$.data.repeatRule.byDay").doesNotExist())
                 .andExpect(jsonPath("$.data.repeatRule.untilDate").value("2025-12-31"));
 
     }
@@ -236,4 +236,58 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("REPEAT_001"));
         }
+
+        @Test
+        @DisplayName("계획 조회 - 특정 날짜")
+        void t5() throws Exception {
+            // 테스트용 계획 저장
+            StudyPlan planToSave = new StudyPlan();
+            planToSave.setUser(testUser);
+            planToSave.setSubject("Java 공부");
+            planToSave.setStartDate(LocalDateTime.of(2025, 1, 15, 9, 0, 0));
+            planToSave.setEndDate(LocalDateTime.of(2025, 1, 15, 11, 0, 0));
+            planToSave.setColor(Color.BLUE);
+
+            studyPlanRepository.save(planToSave);
+            studyPlanRepository.flush();
+
+            ResultActions resultActions = mvc.perform(get("/api/plans/date/2025-01-15")
+                            .header("Authorization", "Bearer faketoken")
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andDo(print());
+
+            resultActions
+                    .andExpect(status().isOk()) // 200 OK인지 확인
+                    .andExpect(handler().handlerType(StudyPlanController.class))
+                    .andExpect(handler().methodName("getStudyPlansForDate"))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("해당 날짜의 계획을 조회했습니다."))
+                    .andExpect(jsonPath("$.data.date").value("2025-01-15"))
+                    .andExpect(jsonPath("$.data.totalCount").value(1))
+                    .andExpect(jsonPath("$.data.plans", Matchers.hasSize(1)))
+                    .andExpect(jsonPath("$.data.plans[0].subject").value("Java 공부"))
+                    .andExpect(jsonPath("$.data.plans[0].color").value("BLUE"))
+                    .andExpect(jsonPath("$.data.plans[0].startDate").value("2025-01-15T09:00:00"))
+                    .andExpect(jsonPath("$.data.plans[0].endDate").value("2025-01-15T11:00:00"))
+                    .andExpect(jsonPath("$.data.plans[0].repeatRule").doesNotExist());
+        }
+    @Test
+    @DisplayName("계획 조회 - 특정 날짜 (계획 없음) ")
+    void t6() throws Exception {
+
+        ResultActions resultActions = mvc.perform(get("/api/plans/date/2025-02-01")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+        resultActions
+                .andExpect(status().isOk()) // 200 OK인지 확인
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(handler().methodName("getStudyPlansForDate"))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("해당 날짜의 계획을 조회했습니다."))
+                .andExpect(jsonPath("$.data.date").value("2025-02-01"))
+                .andExpect(jsonPath("$.data.totalCount").value(0))
+                .andExpect(jsonPath("$.data.plans", Matchers.hasSize(0)));
+    }
+
 }
