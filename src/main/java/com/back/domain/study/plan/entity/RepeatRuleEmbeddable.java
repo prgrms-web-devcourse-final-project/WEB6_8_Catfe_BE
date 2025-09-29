@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Embeddable
 @Getter
@@ -20,6 +22,6 @@ public class RepeatRuleEmbeddable {
     private Frequency frequency;
 
     private Integer intervalValue;
-    private String byDay;
+    private List<String> byDay = new ArrayList<>();
     private LocalDate untilDate; // LocalDateTime → LocalDate 변경
 }

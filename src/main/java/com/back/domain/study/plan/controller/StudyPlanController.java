@@ -93,7 +93,7 @@ public class StudyPlanController {
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long planId,
             @RequestBody StudyPlanRequest request,
-            @RequestParam(name = "applyScope", required = false, defaultValue = "THIS_ONLY") ApplyScope applyScope) {
+            @RequestParam(name = "applyScope", required = true) ApplyScope applyScope) {
         Long userId = user.getUserId();
 
         StudyPlanResponse response = studyPlanService.updateStudyPlan(userId, planId, request, applyScope);
@@ -115,7 +115,7 @@ public class StudyPlanController {
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long planId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate selectedDate,
-            @RequestParam(required = false) ApplyScope applyScope) {
+            @RequestParam(name = "applyScope", required = true) ApplyScope applyScope) {
         Long userId = user.getUserId();
 
         studyPlanService.deleteStudyPlan(userId, planId, selectedDate, applyScope);

@@ -381,7 +381,7 @@ class StudyPlanControllerTest {
         StudyPlan originalPlan = createSinglePlan();
         Long planId = originalPlan.getId();
 
-        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}", planId)
+        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}?applyScope=THIS_ONLY", planId)
                         .header("Authorization", "Bearer faketoken")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -408,13 +408,43 @@ class StudyPlanControllerTest {
     }
 
     @Test
+    @DisplayName("계획 수정 - 단발성 (반복 규칙 추가 시도)")
+    void t9_1() throws Exception {
+        StudyPlan originalPlan = createSinglePlan();
+        Long planId = originalPlan.getId();
+
+        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}?applyScope=THIS_ONLY", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                        {
+                            "subject": "수정된 최종 계획 (PUT)",
+                            "startDate": "2025-10-01T10:00:00",
+                            "endDate": "2025-10-01T12:00:00",
+                            "color": "RED",
+                            "repeatRule": {
+                                "frequency": "DAILY",
+                                "repeatInterval": 1,
+                                "untilDate": "2025-12-31"
+                            }
+                        }
+                        """))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk()) // 400 Bad Request
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     @DisplayName("계획 수정 - 반복성 단일 수정")
     void t10() throws Exception {
         StudyPlan originalPlan = createDailyPlan();
         Long planId = originalPlan.getId();
         // 반복 주기 제외 수정
         // 반복 주기의 변경사항이 없다면 RepeatRule은 안보내도 된다.
-        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}", planId)
+        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}?applyScope=THIS_ONLY", planId)
                         .header("Authorization", "Bearer faketoken")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -447,7 +477,7 @@ class StudyPlanControllerTest {
     }
 
     @Test
-    @DisplayName("계획 수정 - 반복성 일괄 수정")
+    @DisplayName("계획 수정 - 반복성 일괄 수정, 반복 규칙 그대로")
     void t11() throws Exception {
         StudyPlan originalPlan = createDailyPlan();
         Long planId = originalPlan.getId();
@@ -460,12 +490,7 @@ class StudyPlanControllerTest {
                             "subject": "수정된 반복 계획 (PUT)",
                             "startDate": "2025-10-10T14:00:00",
                             "endDate": "2025-10-10T16:00:00",
-                            "color": "BLUE",
-                            "repeatRule": {
-                                "frequency": "DAILY",
-                                "repeatInterval": 1,
-                                "untilDate": "2025-12-31"
-                            }
+                            "color": "BLUE"
                         }
                         """))
                 .andDo(print());
@@ -482,6 +507,29 @@ class StudyPlanControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(jsonPath("$.data.plans[0].subject").value("매일 반복 계획"));
+    }
+
+    @Test
+    @DisplayName("계획 삭제 - 단발성 단독 삭제")
+    void t12() throws Exception {
+        StudyPlan originalPlan = createSinglePlan();
+        Long planId = originalPlan.getId();
+
+        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.delete("/api/plans/{planId}?applyScope=THIS_ONLY", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk()) // 200 OK
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다.")); // 예상 응답 메시지
+
+        // DB에서 실제로 삭제되었는지 확인
+        boolean exists = studyPlanRepository.existsById(planId);
+        assertThat(exists).isFalse();
+
     }
 
 
