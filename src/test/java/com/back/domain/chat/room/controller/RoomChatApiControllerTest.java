@@ -2,8 +2,8 @@ package com.back.domain.chat.room.controller;
 
 import com.back.domain.chat.room.dto.RoomChatPageResponse;
 import com.back.domain.chat.room.service.RoomChatService;
-import com.back.global.security.CustomUserDetails;
-import com.back.global.security.JwtTokenProvider;
+import com.back.global.security.user.CustomUserDetails;
+import com.back.global.security.jwt.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

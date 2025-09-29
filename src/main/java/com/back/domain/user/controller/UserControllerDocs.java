@@ -3,7 +3,7 @@ package com.back.domain.user.controller;
 import com.back.domain.user.dto.UpdateUserProfileRequest;
 import com.back.domain.user.dto.UserDetailResponse;
 import com.back.global.common.dto.RsData;
-import com.back.global.security.CustomUserDetails;
+import com.back.global.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;

@@ -1,7 +1,6 @@
-package com.back.global.security;
+package com.back.global.security.jwt;
 
 import com.back.global.common.dto.RsData;
-import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;

@@ -1,7 +1,9 @@
-package com.back.global.security;
+package com.back.global.security.jwt;
 
+import com.back.domain.user.entity.Role;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import com.back.global.security.user.CustomUserDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -98,7 +100,7 @@ public class JwtTokenProvider {
         String role = claims.get("role", String.class);
 
         SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
-        CustomUserDetails principal = new CustomUserDetails(userId, username, role);
+        CustomUserDetails principal = new CustomUserDetails(userId, username, Role.valueOf(role));
 
         return new UsernamePasswordAuthenticationToken(principal, token, List.of(authority));
     }
