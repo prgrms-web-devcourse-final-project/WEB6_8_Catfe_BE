@@ -19,9 +19,9 @@ resource "aws_vpc" "vpc_1" {
   enable_dns_hostnames = true
 
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "vpc-1"
+    Name  = "team5-vpc-1"
   }
 }
 
@@ -33,9 +33,9 @@ resource "aws_subnet" "subnet_1" {
   map_public_ip_on_launch = true # 퍼블릭 IP 자동 할당
 
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "subnet-1-public"
+    Name  = "team5-subnet-1-public"
   }
 }
 
@@ -46,9 +46,9 @@ resource "aws_subnet" "subnet_2" {
   availability_zone = "ap-northeast-2a"
 
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "subnet-2-private"
+    Name  = "team5-subnet-2-private"
   }
 }
 
@@ -59,9 +59,9 @@ resource "aws_subnet" "subnet_3" {
   availability_zone = "ap-northeast-2b"
 
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "subnet-3-private"
+    Name  = "team5-subnet-3-private"
   }
 }
 
@@ -70,9 +70,9 @@ resource "aws_internet_gateway" "igw_1" {
   vpc_id = aws_vpc.vpc_1.id
 
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "igw-1"
+    Name  = "team5-igw-1"
   }
 }
 
@@ -87,9 +87,9 @@ resource "aws_route_table" "rt_1" {
   }
 
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "rt-1"
+    Name  = "team5-rt-1"
   }
 }
 
@@ -116,13 +116,13 @@ resource "aws_route_table_association" "association_3" {
 }
 
 resource "aws_security_group" "sg_1" {
-  name = "team5-sg-1"
-  vpc_id      = aws_vpc.vpc_1.id
+  name   = "team5-sg-1"
+  vpc_id = aws_vpc.vpc_1.id
 
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "sg-1"
+    Name  = "team5-sg-1"
   }
 
   ingress {
@@ -143,9 +143,9 @@ resource "aws_security_group" "sg_1" {
 # EC2 역할 생성
 resource "aws_iam_role" "ec2_role_1" {
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "ec2-role-1"
+    Name  = "team5-ec2-role-1"
   }
 
   # 이 역할에 대한 신뢰 정책 설정. EC2 서비스가 이 역할을 가정할 수 있도록 설정
@@ -175,9 +175,9 @@ resource "aws_iam_role_policy_attachment" "ec2_ssm" {
 # IAM 인스턴스 프로파일 생성
 resource "aws_iam_instance_profile" "instance_profile_1" {
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "instance-profile-1"
+    Name  = "team5-instance-profile-1"
   }
 
   role = aws_iam_role.ec2_role_1.name
@@ -187,17 +187,47 @@ resource "aws_iam_instance_profile" "instance_profile_1" {
 locals {
   ec2_user_data_base = <<-END_OF_FILE
 #!/bin/bash
-yum install docker -y
-systemctl enable docker
-systemctl start docker
-
-yum install git -y
-
+# 가상 메모리 4GB 설정
 sudo dd if=/dev/zero of=/swapfile bs=128M count=32
 sudo chmod 600 /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
 sudo sh -c 'echo "/swapfile swap swap defaults 0 0" >> /etc/fstab'
+
+# git 설치
+yum install git -y
+
+#도커 설치 및 실행/활성화
+yum install docker -y
+systemctl enable docker
+systemctl start docker
+
+# 도커 네트워크 생성
+docker network create common
+
+# redis 설치
+docker run -d \
+  --name redis_1 \
+  --network common \
+  -p 6379:6379 \
+  -e TZ=Asia/Seoul \
+  -v /dockerProjects/redis_1/volumes/data:/data \
+  redis --requirepass ${var.password_1}
+
+# NginX 설치
+docker run -d \
+  --name npm_1 \
+  --restart unless-stopped \
+  --network common \
+  -p 80:80 \
+  -p 443:443 \
+  -p 81:81 \
+  -e TZ=Asia/Seoul \
+  -e INITIAL_ADMIN_EMAIL=admin@npm.com \
+  -e INITIAL_ADMIN_PASSWORD=${var.password_1} \
+  -v /dockerProjects/npm_1/volumes/data:/data \
+  -v /dockerProjects/npm_1/volumes/etc/letsencrypt:/etc/letsencrypt \
+  jc21/nginx-proxy-manager:latest
 
 
 END_OF_FILE
@@ -217,9 +247,9 @@ resource "aws_instance" "ec2_1" {
   iam_instance_profile = aws_iam_instance_profile.instance_profile_1.name
 
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "ec2-1"
+    Name  = "team5-ec2-1"
   }
 
   # 루트 불륨 설정
@@ -236,14 +266,14 @@ EOF
 
 # RDS용 Security Group
 resource "aws_security_group" "rds_sg_1" {
-  name       = "team5-rds-sg-1"
+  name        = "team5-rds-sg-1"
   description = "Allow All"
   vpc_id      = aws_vpc.vpc_1.id
 
   ingress {
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -255,9 +285,9 @@ resource "aws_security_group" "rds_sg_1" {
   }
 
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "rds-sg-1"
+    Name  = "team5-rds-sg-1"
   }
 }
 
@@ -267,9 +297,9 @@ resource "aws_db_subnet_group" "db_subnet_group" {
   subnet_ids = [aws_subnet.subnet_2.id, aws_subnet.subnet_3.id]
 
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "db-subnet-group"
+    Name  = "team5-db-subnet-group"
   }
 }
 
@@ -294,12 +324,12 @@ resource "aws_db_instance" "mysql" {
   # 자동 백업 보관 기간
   backup_retention_period = 1
 
-  # 삭제 시 최종 스냅샷 생성 여부 (개발용은 true, 운영은 false 권장)
+  # 삭제 시 최종 스냅샷 생성 여부
   skip_final_snapshot = true
 
   tags = {
-    Key = "TEAM"
+    Key   = "TEAM"
     Value = "devcos-team05"
-    Name = "mysql"
+    Name  = "team5-mysql"
   }
 }
