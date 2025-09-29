@@ -13,8 +13,9 @@ import com.back.domain.user.repository.UserRepository;
 import com.back.domain.user.repository.UserTokenRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
-import com.back.global.security.JwtTokenProvider;
+import com.back.global.security.jwt.JwtTokenProvider;
 import com.back.global.util.CookieUtil;
+import com.back.global.util.PasswordValidator;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -48,7 +49,7 @@ public class AuthService {
         validateDuplicate(request);
 
         // 비밀번호 정책 검증
-        validatePasswordPolicy(request.password());
+        PasswordValidator.validate(request.password());
 
         // User 엔티티 생성 (기본 Role.USER, Status.PENDING)
         User user = User.createUser(
@@ -213,18 +214,6 @@ public class AuthService {
         }
         if (userProfileRepository.existsByNickname(request.nickname())) {
             throw new CustomException(ErrorCode.NICKNAME_DUPLICATED);
-        }
-    }
-
-    /**
-     * 비밀번호 정책 검증
-     * - 최소 8자 이상
-     * - 숫자 및 특수문자 반드시 포함
-     */
-    private void validatePasswordPolicy(String password) {
-        String regex = "^(?=.*[0-9])(?=.*[!@#$%^&*]).{8,}$";
-        if (!password.matches(regex)) {
-            throw new CustomException(ErrorCode.INVALID_PASSWORD);
         }
     }
 

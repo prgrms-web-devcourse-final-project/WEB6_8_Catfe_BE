@@ -1,12 +1,16 @@
 package com.back.domain.chat.room.controller;
 
+import com.back.domain.chat.room.dto.ChatClearRequest;
+import com.back.domain.chat.room.dto.ChatClearedNotification;
 import com.back.domain.chat.room.dto.RoomChatMessageDto;
 import com.back.domain.chat.room.service.RoomChatService;
 import com.back.domain.studyroom.entity.RoomChatMessage;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
-import com.back.global.security.CustomUserDetails;
-import com.back.global.websocket.dto.WebSocketErrorResponse;
+import com.back.global.exception.CustomException;
+import com.back.global.exception.ErrorCode;
+import com.back.global.security.user.CustomUserDetails;
+import com.back.global.websocket.util.WebSocketErrorHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +31,6 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("RoomChatWebSocketController 테스트")
 class RoomChatWebSocketControllerTest {
 
     @Mock
@@ -38,6 +41,9 @@ class RoomChatWebSocketControllerTest {
 
     @Mock
     private SimpMessageHeaderAccessor headerAccessor;
+
+    @Mock
+    private WebSocketErrorHelper errorHelper;
 
     @InjectMocks
     private RoomChatWebSocketController roomChatWebSocketController;
@@ -109,7 +115,7 @@ class RoomChatWebSocketControllerTest {
     }
 
     @Test
-    @DisplayName("정상적인 채팅 메시지 처리")
+    @DisplayName("WebSocket 채팅 전체 조회 성공")
     void t1() {
         // Given
         Long roomId = 1L;
@@ -150,7 +156,7 @@ class RoomChatWebSocketControllerTest {
     }
 
     @Test
-    @DisplayName("인증되지 않은 사용자의 메시지 처리 - 에러 전송")
+    @DisplayName("WebSocket 채팅 전체 조회 실패 - 인증되지 않은 사용자의 메시지 처리")
     void t2() {
         Long roomId = 1L;
 
@@ -172,18 +178,11 @@ class RoomChatWebSocketControllerTest {
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 
         // 에러 메시지가 해당 사용자에게만 전송되는지 확인
-        verify(messagingTemplate).convertAndSendToUser(
-                eq("test-session-123"),
-                eq("/queue/errors"),
-                argThat((WebSocketErrorResponse errorResponse) ->
-                        errorResponse.error().code().equals("WS_UNAUTHORIZED") &&
-                                errorResponse.error().message().equals("인증이 필요합니다")
-                )
-        );
+        verify(errorHelper).sendUnauthorizedError("test-session-123");
     }
 
     @Test
-    @DisplayName("서비스 계층 예외 발생 시 에러 처리")
+    @DisplayName("WebSocket 채팅 전체 조회 실패 - 서비스 계층 예외 발생 시 에러 처리")
     void t3() {
         Long roomId = 1L;
 
@@ -202,18 +201,15 @@ class RoomChatWebSocketControllerTest {
         // Then
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 
-        verify(messagingTemplate).convertAndSendToUser(
+        verify(errorHelper).sendGenericErrorToUser(
                 eq("test-session-123"),
-                eq("/queue/errors"),
-                argThat((WebSocketErrorResponse errorResponse) ->
-                        errorResponse.error().code().equals("WS_ROOM_NOT_FOUND") &&
-                                errorResponse.error().message().equals("존재하지 않는 방입니다")
-                )
+                any(RuntimeException.class),
+                eq("메시지 전송 중 오류가 발생했습니다")
         );
     }
 
     @Test
-    @DisplayName("잘못된 Principal 타입 처리")
+    @DisplayName("WebSocket 채팅 전체 조회 실패 - 잘못된 Principal 타입 처리")
     void t4() {
         Long roomId = 1L;
 
@@ -234,15 +230,12 @@ class RoomChatWebSocketControllerTest {
         verify(roomChatService, never()).saveRoomChatMessage(any());
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 
-        verify(messagingTemplate).convertAndSendToUser(
-                eq("test-session-123"),
-                eq("/queue/errors"),
-                any(WebSocketErrorResponse.class)
-        );
+        // 실제 호출되는 sendUnauthorizedError 검증
+        verify(errorHelper).sendUnauthorizedError("test-session-123");
     }
 
     @Test
-    @DisplayName("CustomUserDetails가 아닌 Principal 객체 처리")
+    @DisplayName("WebSocket 채팅 전체 조회 실패 - CustomUserDetails가 아닌 Principal 객체 처리")
     void t5() {
         Long roomId = 1L;
 
@@ -264,10 +257,200 @@ class RoomChatWebSocketControllerTest {
         verify(roomChatService, never()).saveRoomChatMessage(any());
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
 
-        verify(messagingTemplate).convertAndSendToUser(
+        verify(errorHelper).sendUnauthorizedError("test-session-123");
+    }
+
+    @Test
+    @DisplayName("WebSocket 채팅 전체 삭제 성공 - 방장 권한")
+    void t6() {
+        Long roomId = 1L;
+        int messageCount = 25;
+        ChatClearRequest request = new ChatClearRequest("모든 채팅을 삭제하겠습니다");
+
+        ChatClearedNotification.ClearedByDto clearedByInfo =
+                new ChatClearedNotification.ClearedByDto(1L, "방장", "https://example.com/host.jpg", "HOST");
+
+        given(roomChatService.getRoomChatCount(roomId)).willReturn(messageCount);
+        given(roomChatService.clearRoomChat(roomId, 1L)).willReturn(clearedByInfo);
+
+        roomChatWebSocketController.clearRoomChat(roomId, request, headerAccessor, testPrincipal);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/room/" + roomId + "/chat-cleared"),
+                argThat((ChatClearedNotification notification) ->
+                        notification.roomId().equals(roomId) &&
+                                notification.deletedCount().equals(messageCount) &&
+                                notification.clearedBy().userId().equals(1L) &&
+                                notification.clearedBy().nickname().equals("방장") &&
+                                notification.clearedBy().role().equals("HOST")
+                ));
+    }
+
+    @Test
+    @DisplayName("WebSocket 채팅 전체 삭제 성공 - 부방장 권한")
+    void t7() {
+        Long roomId = 2L;
+        int messageCount = 10;
+
+        ChatClearRequest request = new ChatClearRequest("모든 채팅을 삭제하겠습니다");
+
+        ChatClearedNotification.ClearedByDto clearedByInfo = new ChatClearedNotification.ClearedByDto(
+                1L, "부방장", "https://example.com/subhost.jpg", "SUB_HOST"
+        );
+
+        // Mock 설정
+        given(roomChatService.getRoomChatCount(roomId)).willReturn(messageCount);
+        given(roomChatService.clearRoomChat(roomId, 1L)).willReturn(clearedByInfo);
+
+        // When
+        roomChatWebSocketController.clearRoomChat(roomId, request, headerAccessor, testPrincipal);
+
+        // Then
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/room/" + roomId + "/chat-cleared"),
+                argThat((ChatClearedNotification notification) ->
+                        notification.clearedBy().role().equals("SUB_HOST") &&
+                                notification.clearedBy().nickname().equals("부방장")
+                )
+        );
+    }
+
+    @Test
+    @DisplayName("WebSocket 채팅 전체 삭제 실패 - 인증되지 않은 사용자")
+    void t8() {
+        Long roomId = 1L;
+        ChatClearRequest request = new ChatClearRequest("모든 채팅을 삭제하겠습니다");
+        Principal invalidPrincipal = null;
+
+        given(headerAccessor.getSessionId()).willReturn("test-session-123");
+
+        // When
+        roomChatWebSocketController.clearRoomChat(roomId, request, headerAccessor, invalidPrincipal);
+
+        // Then
+        verify(roomChatService, never()).getRoomChatCount(any());
+        verify(roomChatService, never()).clearRoomChat(any(), any());
+        verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
+
+        verify(errorHelper).sendUnauthorizedError("test-session-123");
+    }
+
+    @Test
+    @DisplayName("WebSocket 채팅 전체 삭제 실패 - 잘못된 확인 메시지")
+    void t9() {
+        Long roomId = 1L;
+        ChatClearRequest invalidRequest = new ChatClearRequest("잘못된 확인 메시지");
+
+        given(headerAccessor.getSessionId()).willReturn("test-session-123");
+
+        // When
+        roomChatWebSocketController.clearRoomChat(roomId, invalidRequest, headerAccessor, testPrincipal);
+
+        // Then
+        verify(roomChatService, never()).getRoomChatCount(any());
+        verify(roomChatService, never()).clearRoomChat(any(), any());
+        verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
+
+        verify(errorHelper).sendErrorToUser(
                 eq("test-session-123"),
-                eq("/queue/errors"),
-                any(WebSocketErrorResponse.class)
+                eq("WS_011"),
+                eq("삭제 확인 메시지가 일치하지 않습니다")
+        );
+    }
+
+    @Test
+    @DisplayName("WebSocket 채팅 전체 삭제 실패 - 권한 없음 (일반 멤버)")
+    void t10() {
+        Long roomId = 1L;
+        ChatClearRequest request = new ChatClearRequest("모든 채팅을 삭제하겠습니다");
+
+        given(headerAccessor.getSessionId()).willReturn("test-session-123");
+        given(roomChatService.getRoomChatCount(roomId)).willReturn(5);
+        given(roomChatService.clearRoomChat(roomId, 1L))
+                .willThrow(new SecurityException("채팅 삭제 권한이 없습니다"));
+
+        // When
+        roomChatWebSocketController.clearRoomChat(roomId, request, headerAccessor, testPrincipal);
+
+        // Then
+        verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
+        verify(errorHelper).sendGenericErrorToUser(
+                eq("test-session-123"),
+                any(SecurityException.class),
+                eq("채팅 삭제 중 오류가 발생했습니다")
+        );
+    }
+
+    @Test
+    @DisplayName("WebSocket 채팅 전체 삭제 실패 - 방 멤버가 아님")
+    void t11() {
+        Long roomId = 1L;
+        ChatClearRequest request = new ChatClearRequest("모든 채팅을 삭제하겠습니다");
+
+        given(headerAccessor.getSessionId()).willReturn("test-session-123");
+        given(roomChatService.getRoomChatCount(roomId)).willReturn(5);
+        given(roomChatService.clearRoomChat(roomId, 1L))
+                .willThrow(new CustomException(ErrorCode.NOT_ROOM_MEMBER));
+
+        // When
+        roomChatWebSocketController.clearRoomChat(roomId, request, headerAccessor, testPrincipal);
+
+        // Then
+        verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
+        verify(errorHelper).sendCustomExceptionToUser(
+                eq("test-session-123"),
+                any(CustomException.class)
+        );
+    }
+
+    @Test
+    @DisplayName("WebSocket 채팅 전체 삭제 실패 - 존재하지 않는 방")
+    void t12() {
+        Long roomId = 999L;
+        ChatClearRequest request = new ChatClearRequest("모든 채팅을 삭제하겠습니다");
+
+        given(headerAccessor.getSessionId()).willReturn("test-session-123");
+        given(roomChatService.getRoomChatCount(roomId)).willReturn(0);
+        given(roomChatService.clearRoomChat(roomId, 1L))
+                .willThrow(new IllegalArgumentException("존재하지 않는 방입니다"));
+
+        // When
+        roomChatWebSocketController.clearRoomChat(roomId, request, headerAccessor, testPrincipal);
+
+        // Then
+        verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
+        verify(errorHelper).sendGenericErrorToUser(
+                eq("test-session-123"),
+                any(IllegalArgumentException.class),
+                eq("채팅 삭제 중 오류가 발생했습니다")
+        );
+    }
+
+    @Test
+    @DisplayName("WebSocket 채팅 전체 삭제 - 메시지 수가 0인 경우")
+    void t13() {
+        Long roomId = 3L;
+        int messageCount = 0; // 메시지가 없는 경우
+
+        ChatClearRequest request = new ChatClearRequest("모든 채팅을 삭제하겠습니다");
+
+        ChatClearedNotification.ClearedByDto clearedByInfo = new ChatClearedNotification.ClearedByDto(
+                1L, "방장", "https://example.com/host.jpg", "HOST"
+        );
+
+        // Mock 설정
+        given(roomChatService.getRoomChatCount(roomId)).willReturn(messageCount);
+        given(roomChatService.clearRoomChat(roomId, 1L)).willReturn(clearedByInfo);
+
+        // When
+        roomChatWebSocketController.clearRoomChat(roomId, request, headerAccessor, testPrincipal);
+
+        // Then
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/room/" + roomId + "/chat-cleared"),
+                argThat((ChatClearedNotification notification) ->
+                        notification.deletedCount().equals(0) &&
+                                notification.message().contains("방장님이 모든 채팅을 삭제했습니다.")
+                )
         );
     }
 }
