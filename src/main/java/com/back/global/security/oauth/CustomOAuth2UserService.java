@@ -45,13 +45,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 case "kakao" -> new KakaoOAuth2UserInfo(attributes);
                 case "naver" -> new NaverOAuth2UserInfo(attributes);
                 case "google" -> new GoogleOAuth2UserInfo(attributes);
+                case "github" -> new GithubOAuth2UserInfo(attributes);
                 default -> throw new CustomException(ErrorCode.UNSUPPORTED_OAUTH_PROVIDER);
             };
 
             // 필수 정보 검증
-            if (userInfo.getEmail() == null || userInfo.getEmail().isBlank()) {
-                throw new CustomException(ErrorCode.OAUTH2_EMAIL_NOT_FOUND);
-            }
             if (userInfo.getProviderId() == null) {
                 throw new CustomException(ErrorCode.OAUTH2_ATTRIBUTE_MISSING);
             }

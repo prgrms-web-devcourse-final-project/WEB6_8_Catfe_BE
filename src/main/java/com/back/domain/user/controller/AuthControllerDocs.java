@@ -292,14 +292,6 @@ public interface AuthControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = {
-                                    @ExampleObject(name = "이메일 없음", value = """
-                                            {
-                                              "success": false,
-                                              "code": "AUTH_010",
-                                              "message": "소셜 계정에서 이메일 정보를 확인할 수 없습니다.",
-                                              "data": null
-                                            }
-                                            """),
                                     @ExampleObject(name = "필수 정보 누락", value = """
                                             {
                                               "success": false,
@@ -311,7 +303,7 @@ public interface AuthControllerDocs {
                                     @ExampleObject(name = "인증 처리 실패", value = """
                                             {
                                               "success": false,
-                                              "code": "AUTH_011",
+                                              "code": "AUTH_010",
                                               "message": "소셜 로그인 인증에 실패했습니다.",
                                               "data": null
                                             }
