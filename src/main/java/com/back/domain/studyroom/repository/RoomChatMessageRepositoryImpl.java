@@ -80,4 +80,12 @@ public class RoomChatMessageRepositoryImpl implements RoomChatMessageRepositoryC
         return new PageImpl<>(messages, pageable, totalCount != null ? totalCount : 0);
     }
 
+    @Override
+    public int deleteAllMessagesByRoomId(Long roomId) {
+        return Math.toIntExact(queryFactory
+                .delete(message)
+                .where(message.room.id.eq(roomId))
+                .execute());
+    }
+
 }
