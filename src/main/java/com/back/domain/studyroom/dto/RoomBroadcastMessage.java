@@ -8,40 +8,37 @@ import java.util.List;
 
 /**
  * 방 관련 실시간 브로드캐스트 메시지 DTO
- * 
- * 역할:
  * - WebSocket을 통해 방 내 모든 멤버에게 전송되는 메시지의 표준 형식 정의
- * - 8가지 브로드캐스트 타입을 지원하여 다양한 방 이벤트를 실시간으로 알림
- * - 클라이언트에서 메시지 타입에 따라 적절한 UI 업데이트를 수행할 수 있도록 구조화
- * 
+ - 다양한 방 이벤트를 실시간으로 알림
+
  * 사용 패턴:
- * 1. 서버에서 방 이벤트 발생 시 해당하는 정적 메서드 호출
- * 2. 생성된 메시지를 WebSocketSessionManager.broadcastToRoom()으로 전송
- * 3. 클라이언트에서 /topic/rooms/{roomId}/updates 채널을 구독하여 수신
+ 1. 서버에서 방 이벤트 발생 시 해당하는 정적 메서드 호출
+ 2. 생성된 메시지를 WebSocketSessionManager.broadcastToRoom()으로 전송
+ 3. 클라이언트에서 /topic/rooms/{roomId}/updates 채널을 구독하여 수신
  */
 @Getter
 public class RoomBroadcastMessage {
-    
+
     // 브로드캐스트 메시지의 종류 (어떤 이벤트인지 구분)
     private final BroadcastType type;
-    
+
     // 메시지가 발생한 방의 ID (클라이언트에서 어느 방의 이벤트인지 확인용)
     private final Long roomId;
-    
+
     // 메시지 생성 시각 (클라이언트에서 시간순 정렬이나 만료 체크용)
     private final LocalDateTime timestamp;
-    
+
     // 이벤트와 관련된 실제 데이터 (멤버 정보, 온라인 목록 등)
     // Object 타입으로 다양한 데이터 구조를 담을 수 있도록 설계
     private final Object data;
-    
-    // 사용자에게 표시할 사람이 읽기 쉬운 메시지 (UI 알림용)
+
+    // 사용자에게 표시할 사람이 읽기 쉬운 메시지 (UI에서 사용될 수 있는 부분)
     private final String message;
 
     /**
      * 브로드캐스트 메시지 생성자 (private)
-     * - 외부에서 직접 생성하지 않고 정적 팩토리 메서드를 통해서만 생성
-     * - 이렇게 하면 메시지 타입별로 적절한 데이터와 메시지가 확실히 설정됨
+     - 외부에서 직접 생성하지 않고 정적 팩토리 메서드를 통해서만 생성
+     - 이렇게 하면 메시지 타입별로 적절한 데이터와 메시지가 확실히 설정됨
      */
     private RoomBroadcastMessage(BroadcastType type, Long roomId, Object data, String message) {
         this.type = type;
@@ -53,9 +50,7 @@ public class RoomBroadcastMessage {
 
     /**
      * 멤버 입장 알림 메시지 생성
-     * 
-     * 사용 시점: RoomService.joinRoom() 메서드에서 멤버가 성공적으로 입장했을 때
-     * 
+     RoomService.joinRoom() 메서드에서 멤버가 성공적으로 입장했을 때
      * @param roomId 입장한 방의 ID
      * @param member 입장한 멤버 정보 (RoomMember 엔티티)
      * @return 입장 알림 브로드캐스트 메시지
@@ -72,9 +67,7 @@ public class RoomBroadcastMessage {
 
     /**
      * 멤버 퇴장 알림 메시지 생성
-     * 
-     * 사용 시점: RoomService.leaveRoom() 메서드에서 멤버가 퇴장했을 때
-     * 
+     RoomService.leaveRoom() 메서드에서 멤버가 퇴장했을 때 (명시적 퇴장 또는 강제 퇴장)
      * @param roomId 퇴장한 방의 ID
      * @param member 퇴장한 멤버 정보 (퇴장 처리 전에 미리 정보 백업 필요)
      * @return 퇴장 알림 브로드캐스트 메시지
@@ -91,11 +84,8 @@ public class RoomBroadcastMessage {
 
     /**
      * 온라인 멤버 목록 업데이트 알림
-     * 
-     * 사용 시점: 
-     * - 멤버 입장/퇴장 후 온라인 목록이 변경되었을 때
-     * - 관리자가 강제로 온라인 목록 새로고침을 요청했을 때
-     * 
+     - 멤버 입장/퇴장 후 온라인 목록이 변경되었을 때
+     - 관리자가 강제로 온라인 목록 새로고침을 요청했을 때
      * @param roomId 업데이트된 방의 ID
      * @param onlineUserIds 현재 온라인 상태인 사용자 ID 목록
      * @return 온라인 멤버 목록 업데이트 알림 메시지
@@ -110,9 +100,7 @@ public class RoomBroadcastMessage {
 
     /**
      * 방 설정 변경 알림 메시지
-     * 
-     * 사용 시점: RoomService.updateRoomSettings() 메서드에서 방 설정이 변경되었을 때
-     * 
+     RoomService.updateRoomSettings() 메서드에서 방 설정이 변경되었을 때
      * @param roomId 설정이 변경된 방의 ID
      * @param updateMessage 변경 내용을 설명하는 메시지
      * @return 방 설정 변경 알림 메시지
@@ -124,11 +112,8 @@ public class RoomBroadcastMessage {
 
     /**
      * 방장 변경 알림 메시지
-     * 
-     * 사용 시점: 
-     * - 기존 방장이 퇴장하여 새 방장이 자동 선정되었을 때
-     * - 방장이 다른 멤버에게 방장 권한을 이양했을 때
-     * 
+     - 기존 방장이 퇴장하여 새 방장이 자동 선정되었을 때 (로직 확인 예정)
+     - 방장이 다른 멤버에게 방장 권한을 이양했을 때
      * @param roomId 방장이 변경된 방의 ID
      * @param newHost 새로운 방장이 된 멤버 정보
      * @return 방장 변경 알림 메시지
@@ -145,9 +130,7 @@ public class RoomBroadcastMessage {
 
     /**
      * 멤버 역할 변경 알림 메시지
-     * 
-     * 사용 시점: RoomService.changeUserRole() 메서드에서 멤버의 역할이 변경되었을 때
-     * 
+     RoomService.changeUserRole() 메서드에서 멤버의 역할이 변경되었을 때
      * @param roomId 역할이 변경된 방의 ID
      * @param member 역할이 변경된 멤버 정보 (변경 후 정보)
      * @return 멤버 역할 변경 알림 메시지
@@ -165,9 +148,7 @@ public class RoomBroadcastMessage {
 
     /**
      * 멤버 추방 알림 메시지
-     * 
-     * 사용 시점: RoomService.kickMember() 메서드에서 멤버가 추방되었을 때
-     * 
+     RoomService.kickMember() 메서드에서 멤버가 추방되었을 때
      * @param roomId 추방이 발생한 방의 ID
      * @param memberName 추방된 멤버의 닉네임 (추방 후에는 멤버 정보 조회 불가능하므로 미리 백업)
      * @return 멤버 추방 알림 메시지
@@ -182,11 +163,8 @@ public class RoomBroadcastMessage {
 
     /**
      * 방 종료 알림 메시지
-     * 
-     * 사용 시점: 
-     * - 방장이 수동으로 방을 종료했을 때
-     * - 모든 멤버가 퇴장하여 방이 자동 종료되었을 때
-     * 
+     - 방장이 수동으로 방을 종료했을 때
+     - 모든 멤버가 퇴장하여 방이 자동 종료되었을 때
      * @param roomId 종료된 방의 ID
      * @return 방 종료 알림 메시지
      */
@@ -198,12 +176,7 @@ public class RoomBroadcastMessage {
         return new RoomBroadcastMessage(BroadcastType.ROOM_TERMINATED, roomId, null, message);
     }
 
-    /**
-     * 브로드캐스트 메시지 타입 열거형
-     * 
-     * 클라이언트에서 이 타입을 보고 어떤 종류의 이벤트인지 판단하여
-     * 적절한 UI 업데이트나 사용자 알림을 수행할 수 있음
-     */
+    // 브로드캐스트 메시지 타입
     public enum BroadcastType {
         // 멤버 관련 이벤트
         MEMBER_JOINED("멤버 입장"),           // 새 멤버가 방에 입장했을 때

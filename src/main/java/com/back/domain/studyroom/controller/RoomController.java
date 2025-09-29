@@ -350,8 +350,8 @@ public class RoomController {
                 .body(RsData.success("인기 방 목록 조회 완료", response));
     }
 
-    // ======================== 🆕 WebSocket 연동 API ========================
 
+    // ======================== WebSocket 연동 API ========================
     @GetMapping("/{roomId}/websocket-status")
     @Operation(
         summary = "방 WebSocket 상태 조회", 
