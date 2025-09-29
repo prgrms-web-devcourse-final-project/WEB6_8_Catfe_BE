@@ -24,17 +24,39 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * - 방 생성, 입장, 퇴장 로직 처리
- * - 멤버 권한 관리 (승격, 강등, 추방)
- * - 방 상태 관리 (활성화, 일시정지, 종료)
- * - 방장 위임 로직 (방장이 나갈 때 자동 위임)
- * - 실시간 참가자 수 동기화
- * <p>
- * - 모든 권한 검증을 서비스 레이어에서 처리
- * - 비공개 방 접근 권한 체크
- * - 방장/부방장 권한이 필요한 작업들의 권한 검증
- * <p>
- * 설정값 주입을 StudyRoomProperties를 통해 외부 설정 관리
+ * 스터디룸 서비스 - 방 생성, 입장, 퇴장 및 실시간 상태 관리
+ * 
+ * <h2>주요 기능:</h2>
+ * <ul>
+ *   <li>방 생성, 입장, 퇴장 로직 처리</li>
+ *   <li>멤버 권한 관리 (승격, 강등, 추방)</li>
+ *   <li>방 상태 관리 (활성화, 일시정지, 종료)</li>
+ *   <li>방장 위임 로직 (방장이 나갈 때 자동 위임)</li>
+ *   <li>🆕 WebSocket 기반 실시간 참가자 수 및 온라인 상태 동기화</li>
+ * </ul>
+ * 
+ * <h2>권한 검증:</h2>
+ * <ul>
+ *   <li>모든 권한 검증을 서비스 레이어에서 처리</li>
+ *   <li>비공개 방 접근 권한 체크</li>
+ *   <li>방장/부방장 권한이 필요한 작업들의 권한 검증</li>
+ * </ul>
+ * 
+ * <h2>🆕 WebSocket 연동 (PR #2):</h2>
+ * <ul>
+ *   <li><b>권장 메서드:</b> {@link #getOnlineMembersWithWebSocket(Long, Long)} - WebSocket + DB 통합 조회</li>
+ *   <li><b>Deprecated:</b> {@link #getRoomMembers(Long, Long)} - DB만 조회 (하위 호환용으로만 유지)</li>
+ * </ul>
+ * 
+ * <p><b>중요:</b> 온라인 멤버 목록 조회 시 반드시 {@code getOnlineMembersWithWebSocket()}를 사용하세요.
+ * 이 메서드는 실시간 WebSocket 연결 상태와 DB 정보를 결합하여 정확한 온라인 상태를 제공합니다.</p>
+ * 
+ * <h2>설정값 관리:</h2>
+ * <p>StudyRoomProperties를 통해 외부 설정 관리 (application.yml)</p>
+ * 
+ * @since 1.0
+ * @see WebSocketSessionManager WebSocket 세션 관리
+ * @see WebSocketBroadcastService 실시간 브로드캐스트
  */
 @Service
 @RequiredArgsConstructor
@@ -370,24 +392,16 @@ public class RoomService {
                 roomId, targetUserId, newRole, requesterId);
     }
 
-    public List<RoomMember> getRoomMembers(Long roomId, Long userId) {
-
-        Room room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-
-        if (room.isPrivate()) {
-            boolean isMember = roomMemberRepository.existsByRoomIdAndUserId(roomId, userId);
-            if (!isMember) {
-                throw new CustomException(ErrorCode.ROOM_FORBIDDEN);
-            }
-        }
-
-        return roomMemberRepository.findOnlineMembersByRoomId(roomId);
-    }
-
     /**
-     * 🆕 WebSocket 기반 온라인 멤버 목록 조회
-     * DB의 멤버 목록과 WebSocket 세션 상태를 결합하여 정확한 온라인 상태 제공
+     * WebSocket 기반 온라인 멤버 목록 조회
+     * DB의 멤버 목록과 WebSocket 세션 상태를 결합하여 온라인 상태 제공
+     * WebSocket 연동 실패 시 DB 정보만으로 폴백하여 서비스 중단 방지
+
+     * @param roomId 조회할 방의 ID
+     * @param userId 요청한 사용자의 ID (권한 체크용)
+     * @return WebSocket 기반 실시간 온라인 멤버 목록 (RoomMemberResponse DTO)
+     * @throws CustomException ROOM_NOT_FOUND - 방이 존재하지 않음
+     * @throws CustomException ROOM_FORBIDDEN - 비공개 방에 대한 접근 권한 없음
      */
     public List<RoomMemberResponse> getOnlineMembersWithWebSocket(Long roomId, Long userId) {
 
@@ -402,21 +416,31 @@ public class RoomService {
         }
 
         try {
-            // DB에서 모든 멤버 조회
+            // DB에서 모든 온라인 멤버 조회
             List<RoomMember> allMembers = roomMemberRepository.findOnlineMembersByRoomId(roomId);
 
             // WebSocket에서 실제 온라인 상태 조회
             Set<Long> webSocketOnlineUsers = sessionManager.getOnlineUsersInRoom(roomId);
 
             // 두 정보를 결합하여 정확한 온라인 상태 반영
-            return allMembers.stream()
+            List<RoomMemberResponse> onlineMembers = allMembers.stream()
                     .filter(member -> webSocketOnlineUsers.contains(member.getUser().getId()))
                     .map(RoomMemberResponse::from)
                     .collect(Collectors.toList());
 
+            log.debug("WebSocket 기반 온라인 멤버 조회 성공 - 방: {}, DB: {}명, WebSocket: {}명, 실제 온라인: {}명",
+                    roomId, allMembers.size(), webSocketOnlineUsers.size(), onlineMembers.size());
+
+            return onlineMembers;
+
+        } catch (CustomException e) {
+            // CustomException은 다시 던져서 상위에서 처리
+            throw e;
+            
         } catch (Exception e) {
-            log.warn("WebSocket 기반 멤버 목록 조회 실패, DB 정보만 사용 - 방: {}", roomId, e);
-            // WebSocket 연동 실패 시 기존 방식으로 폴백
+            log.warn("WebSocket 연동 실패하여 DB 정보만 사용 - 방: {}, 오류: {}", roomId, e.getMessage());
+            
+            // WebSocket 연동 실패 시 기존 방식으로 폴백 (DB 정보만 사용)
             return roomMemberRepository.findOnlineMembersByRoomId(roomId).stream()
                     .map(RoomMemberResponse::from)
                     .collect(Collectors.toList());

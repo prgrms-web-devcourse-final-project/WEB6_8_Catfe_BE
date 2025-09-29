@@ -194,7 +194,10 @@ class RoomControllerTest {
         given(currentUser.getUserId()).willReturn(1L);
         
         given(roomService.getRoomDetail(eq(1L), eq(1L))).willReturn(testRoom);
-        given(roomService.getRoomMembers(eq(1L), eq(1L))).willReturn(Arrays.asList(testMember));
+        
+        // 🆕 변경: getRoomMembers() → getOnlineMembersWithWebSocket()
+        List<RoomMemberResponse> memberResponses = Arrays.asList(RoomMemberResponse.from(testMember));
+        given(roomService.getOnlineMembersWithWebSocket(eq(1L), eq(1L))).willReturn(memberResponses);
 
         // when
         ResponseEntity<RsData<RoomDetailResponse>> response = roomController.getRoomDetail(1L);
@@ -207,7 +210,7 @@ class RoomControllerTest {
 
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).getRoomDetail(eq(1L), eq(1L));
-        verify(roomService, times(1)).getRoomMembers(eq(1L), eq(1L));
+        verify(roomService, times(1)).getOnlineMembersWithWebSocket(eq(1L), eq(1L));
     }
 
     @Test
@@ -302,7 +305,9 @@ class RoomControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(1L);
         
-        given(roomService.getRoomMembers(eq(1L), eq(1L))).willReturn(Arrays.asList(testMember));
+        // 🆕 변경: getRoomMembers() → getOnlineMembersWithWebSocket()
+        List<RoomMemberResponse> memberResponses = Arrays.asList(RoomMemberResponse.from(testMember));
+        given(roomService.getOnlineMembersWithWebSocket(eq(1L), eq(1L))).willReturn(memberResponses);
 
         // when
         ResponseEntity<RsData<List<RoomMemberResponse>>> response = roomController.getRoomMembers(1L);
@@ -315,7 +320,7 @@ class RoomControllerTest {
         assertThat(response.getBody().getData().get(0).getNickname()).isEqualTo("테스트유저");
 
         verify(currentUser, times(1)).getUserId();
-        verify(roomService, times(1)).getRoomMembers(eq(1L), eq(1L));
+        verify(roomService, times(1)).getOnlineMembersWithWebSocket(eq(1L), eq(1L));
     }
 
     @Test
