@@ -1,7 +1,9 @@
-package com.back.global.security;
+package com.back.global.security.jwt;
 
+import com.back.domain.user.entity.Role;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import com.back.global.security.user.CustomUserDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -98,18 +100,20 @@ public class JwtTokenProvider {
         String role = claims.get("role", String.class);
 
         SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
-        CustomUserDetails principal = new CustomUserDetails(userId, username, role);
+        CustomUserDetails principal = new CustomUserDetails(userId, username, Role.valueOf(role));
 
         return new UsernamePasswordAuthenticationToken(principal, token, List.of(authority));
     }
 
     /**
-     * JWT 토큰 검증
+     * JWT 토큰 검증 (만료 시점에 따른 구분)
      *
-     * @param token JWT Access Token
-     * @return 유효한 토큰이면 true, 그렇지 않으면 false
+     * @param token       JWT 토큰
+     * @param expiredCode 만료된 토큰일 때 사용할 에러 코드
+     * @return 유효한 토큰이면 true
+     * @throws CustomException 토큰이 만료되었거나 유효하지 않은 경우
      */
-    public boolean validateToken(String token) {
+    private boolean validateToken(String token, ErrorCode expiredCode, ErrorCode invalidCode) {
         try {
             Jwts.parser()
                     .verifyWith(key)
@@ -117,10 +121,24 @@ public class JwtTokenProvider {
                     .parseSignedClaims(token);
             return true;
         } catch (ExpiredJwtException e) {
-            throw new CustomException(ErrorCode.EXPIRED_REFRESH_TOKEN);
+            throw new CustomException(expiredCode);
         } catch (JwtException | IllegalArgumentException e) {
-            throw new CustomException(ErrorCode.INVALID_TOKEN);
+            throw new CustomException(invalidCode);
         }
+    }
+
+    // Access Token 검증
+    public boolean validateAccessToken(String token) {
+        return validateToken(token,
+                ErrorCode.EXPIRED_ACCESS_TOKEN,
+                ErrorCode.INVALID_ACCESS_TOKEN);
+    }
+
+    // Refresh Token 검증
+    public boolean validateRefreshToken(String token) {
+        return validateToken(token,
+                ErrorCode.EXPIRED_REFRESH_TOKEN,
+                ErrorCode.INVALID_REFRESH_TOKEN);
     }
 
     /**
@@ -140,7 +158,7 @@ public class JwtTokenProvider {
         } catch (ExpiredJwtException e) {
             return e.getClaims();
         } catch (JwtException e) {
-            throw new CustomException(ErrorCode.INVALID_TOKEN);
+            throw new CustomException(ErrorCode.INVALID_ACCESS_TOKEN);
         }
     }
 }

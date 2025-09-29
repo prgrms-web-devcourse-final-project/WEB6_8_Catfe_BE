@@ -1,4 +1,4 @@
-package com.back.global.security;
+package com.back.global.security.jwt;
 
 import com.back.global.common.dto.RsData;
 import com.back.global.exception.ErrorCode;

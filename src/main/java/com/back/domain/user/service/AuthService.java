@@ -13,7 +13,7 @@ import com.back.domain.user.repository.UserRepository;
 import com.back.domain.user.repository.UserTokenRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
-import com.back.global.security.JwtTokenProvider;
+import com.back.global.security.jwt.JwtTokenProvider;
 import com.back.global.util.CookieUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -125,8 +125,10 @@ public class AuthService {
                 "refreshToken",
                 refreshToken,
                 (int) jwtTokenProvider.getRefreshTokenExpirationInSeconds(),
-                "/api/auth"
+                "/",
+                true
         );
+
 
         // LoginResponse 반환
         return new LoginResponse(
@@ -150,15 +152,18 @@ public class AuthService {
         }
 
         // Refresh Token 검증
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new CustomException(ErrorCode.INVALID_TOKEN);
-        }
+        jwtTokenProvider.validateRefreshToken(refreshToken);
 
         // DB에서 Refresh Token 삭제
         userTokenRepository.deleteByRefreshToken(refreshToken);
 
         // 쿠키 삭제
-        CookieUtil.clearCookie(response, "refreshToken", "/api/auth");
+        CookieUtil.clearCookie(
+                response,
+                "refreshToken",
+                "/",
+                true
+        );
     }
 
     /**
@@ -178,13 +183,11 @@ public class AuthService {
         }
 
         // Refresh Token 검증
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new CustomException(ErrorCode.INVALID_TOKEN);
-        }
+        jwtTokenProvider.validateRefreshToken(refreshToken);
 
         // DB에서 Refresh Token 조회
         UserToken userToken = userTokenRepository.findByRefreshToken(refreshToken)
-                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_TOKEN));
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_REFRESH_TOKEN));
 
         // 사용자 정보 조회
         User user = userToken.getUser();

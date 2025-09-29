@@ -72,12 +72,16 @@ public enum ErrorCode {
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_500", "서버 내부 오류가 발생했습니다."),
 
     // ======================== 인증/인가 에러 ========================
-    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH_401", "인증이 필요합니다."),
-    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_401", "유효하지 않은 토큰입니다."),
-    EXPIRED_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_401", "만료된 액세스 토큰입니다."),
-    EXPIRED_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_401", "만료된 리프레시 토큰입니다."),
-    REFRESH_TOKEN_REUSE(HttpStatus.FORBIDDEN, "AUTH_403", "재사용된 리프레시 토큰입니다."),
-    ACCESS_DENIED(HttpStatus.FORBIDDEN, "AUTH_403", "권한이 없습니다.");
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH_001", "인증이 필요합니다."),
+    INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_002", "유효하지 않은 액세스 토큰입니다."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_003", "유효하지 않은 리프레시 토큰입니다."),
+    EXPIRED_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_004", "만료된 액세스 토큰입니다."),
+    EXPIRED_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_005", "만료된 리프레시 토큰입니다."),
+    REFRESH_TOKEN_REUSE(HttpStatus.FORBIDDEN, "AUTH_006", "재사용된 리프레시 토큰입니다."),
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "AUTH_007", "권한이 없습니다."),
+    UNSUPPORTED_OAUTH_PROVIDER(HttpStatus.BAD_REQUEST, "AUTH_008", "지원하지 않는 소셜 로그인 제공자입니다."),
+    OAUTH2_ATTRIBUTE_MISSING(HttpStatus.UNAUTHORIZED, "AUTH_009", "소셜 계정에서 필요한 사용자 정보를 가져올 수 없습니다."),
+    OAUTH2_AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "AUTH_010", "소셜 로그인 인증에 실패했습니다.");
 
     private final HttpStatus status;
     private final String code;

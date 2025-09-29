@@ -14,7 +14,7 @@ import com.back.domain.chat.room.dto.RoomChatMessageDto;
 import com.back.domain.chat.room.dto.RoomChatPageResponse;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
-import com.back.global.security.CurrentUser;
+import com.back.global.security.user.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
