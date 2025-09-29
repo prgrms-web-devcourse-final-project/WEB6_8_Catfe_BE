@@ -389,7 +389,7 @@ public class StudyPlanService {
                     LocalDate untilDate = LocalDate.parse(request.getRepeatRule().getUntilDate());
                     embeddable.setUntilDate(untilDate);
                 } catch (Exception e) {
-                    throw new CustomException(ErrorCode.PLAN_INVALID_DATE_FORMAT);
+                    throw new CustomException(ErrorCode.INVALID_DATE_FORMAT);
                 }
             }
 
@@ -430,7 +430,7 @@ public class StudyPlanService {
                     LocalDate untilDate = LocalDate.parse(request.getRepeatRule().getUntilDate());
                     embeddable.setUntilDate(untilDate);
                 } catch (Exception e) {
-                    throw new CustomException(ErrorCode.PLAN_INVALID_DATE_FORMAT);
+                    throw new CustomException(ErrorCode.INVALID_DATE_FORMAT);
                 }
             }
 
@@ -453,7 +453,7 @@ public class StudyPlanService {
                 LocalDate untilDate = LocalDate.parse(request.getUntilDate());
                 repeatRule.setUntilDate(untilDate);
             } catch (Exception e) {
-                throw new CustomException(ErrorCode.PLAN_INVALID_DATE_FORMAT);
+                throw new CustomException(ErrorCode.INVALID_DATE_FORMAT);
             }
         }
     }

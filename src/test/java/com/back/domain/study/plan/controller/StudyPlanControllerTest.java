@@ -29,6 +29,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -101,6 +102,34 @@ class StudyPlanControllerTest {
                 .willReturn(new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities()
                 ));
+    }
+
+    private StudyPlan createSinglePlan() {
+        StudyPlan plan = new StudyPlan();
+        plan.setUser(testUser);
+        plan.setSubject("단발성 계획");
+        plan.setStartDate(LocalDateTime.of(2025, 10, 1, 10, 0));
+        plan.setEndDate(LocalDateTime.of(2025, 10, 1, 12, 0));
+        plan.setColor(Color.RED);
+        return studyPlanRepository.save(plan);
+    }
+    private StudyPlan createDailyPlan() {
+        StudyPlan plan = new StudyPlan();
+        plan.setUser(testUser);
+        plan.setSubject("매일 반복 계획");
+        plan.setStartDate(LocalDateTime.of(2025, 10, 1, 12, 0));
+        plan.setEndDate(LocalDateTime.of(2025, 10, 1, 13, 0));
+        plan.setColor(Color.BLUE);
+
+        RepeatRule repeatRule = new RepeatRule();
+        repeatRule.setFrequency(Frequency.DAILY);
+        repeatRule.setRepeatInterval(1);
+        repeatRule.setUntilDate(LocalDateTime.of(2025, 12, 31, 0, 0).toLocalDate());
+        repeatRule.setStudyPlan(plan);
+        plan.setRepeatRule(repeatRule);
+
+        return studyPlanRepository.save(plan);
+
     }
 
     @Test
@@ -239,10 +268,10 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.code").value("REPEAT_001"));
         }
 
-        @Test
-        @DisplayName("계획 조회 - 특정 날짜")
-        void t5() throws Exception {
-            // 테스트용 계획 저장
+    @Test
+    @DisplayName("계획 조회 - 특정 날짜")
+     void t5() throws Exception {
+        // 테스트용 계획 저장
             StudyPlan planToSave = new StudyPlan();
             planToSave.setUser(testUser);
             planToSave.setSubject("Java 공부");
@@ -330,5 +359,130 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.message").value("기간별 계획을 조회했습니다."))
                 .andExpect(jsonPath("$.data", Matchers.hasSize(7)));
     }
+
+    @Test
+    @DisplayName("계획 조회 - 날짜 형식 에러")
+    void t8() throws Exception {
+        ResultActions resultActions = mvc.perform(get("/api/plans/date/2025-9-29")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("PLAN_005")) // 날짜 형식 오류에 해당하는 커스텀 코드
+                .andExpect(jsonPath("$.message").value("날짜 형식이 올바르지 않습니다. (YYYY-MM-DD 형식을 사용해주세요)"));
+    }
+
+    @Test
+    @DisplayName("계획 수정 - 단발성")
+    void t9() throws Exception {
+        StudyPlan originalPlan = createSinglePlan();
+        Long planId = originalPlan.getId();
+
+        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                        {
+                            "subject": "수정된 최종 계획 (PUT)",
+                            "startDate": "2025-10-10T14:00:00",
+                            "endDate": "2025-10-10T16:00:00",
+                            "color": "RED"
+                        }
+                        """))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk()) // 200 OK
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 수정되었습니다.")) // 예상 응답 메시지
+                .andExpect(jsonPath("$.data.id").value(planId))
+                .andExpect(jsonPath("$.data.subject").value("수정된 최종 계획 (PUT)"))
+                .andExpect(jsonPath("$.data.color").value("RED"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-10-10T14:00:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-10-10T16:00:00"));
+
+    }
+
+    @Test
+    @DisplayName("계획 수정 - 반복성 단일 수정")
+    void t10() throws Exception {
+        StudyPlan originalPlan = createDailyPlan();
+        Long planId = originalPlan.getId();
+        // 반복 주기 제외 수정
+        // 반복 주기의 변경사항이 없다면 RepeatRule은 안보내도 된다.
+        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                        {
+                            "subject": "수정된 반복 계획 (PUT)",
+                            "startDate": "2025-10-10T14:00:00",
+                            "endDate": "2025-10-10T16:00:00",
+                            "color": "BLUE"
+                        }
+                        """))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk()) // 200 OK
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 수정되었습니다.")) // 예상 응답 메시지
+                .andExpect(jsonPath("$.data.id").value(planId))
+                .andExpect(jsonPath("$.data.subject").value("수정된 반복 계획 (PUT)"))
+                .andExpect(jsonPath("$.data.color").value("BLUE"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-10-10T14:00:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-10-10T16:00:00"));
+
+        //조회가 잘 되는지도 검증
+        mvc.perform(get("/api/plans/date/2025-10-10")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(jsonPath("$.data.plans[0].subject").value("수정된 반복 계획 (PUT)"));
+    }
+
+    @Test
+    @DisplayName("계획 수정 - 반복성 일괄 수정")
+    void t11() throws Exception {
+        StudyPlan originalPlan = createDailyPlan();
+        Long planId = originalPlan.getId();
+
+        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}?applyScope=FROM_THIS_DATE", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                        {
+                            "subject": "수정된 반복 계획 (PUT)",
+                            "startDate": "2025-10-10T14:00:00",
+                            "endDate": "2025-10-10T16:00:00",
+                            "color": "BLUE",
+                            "repeatRule": {
+                                "frequency": "DAILY",
+                                "repeatInterval": 1,
+                                "untilDate": "2025-12-31"
+                            }
+                        }
+                        """))
+                .andDo(print());
+
+        // 10일 날짜 전후를 검색하여 수정이 잘 되었는지 검증
+        mvc.perform(get("/api/plans/date/2025-10-12")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(jsonPath("$.data.plans[0].subject").value("수정된 반복 계획 (PUT)"));
+
+        mvc.perform(get("/api/plans/date/2025-10-09")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(jsonPath("$.data.plans[0].subject").value("매일 반복 계획"));
+    }
+
 
 }

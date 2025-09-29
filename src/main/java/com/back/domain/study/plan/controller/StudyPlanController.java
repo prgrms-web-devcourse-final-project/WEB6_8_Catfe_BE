@@ -93,7 +93,7 @@ public class StudyPlanController {
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long planId,
             @RequestBody StudyPlanRequest request,
-            @RequestParam(required = false, defaultValue = "THIS_ONLY") ApplyScope applyScope) {
+            @RequestParam(name = "applyScope", required = false, defaultValue = "THIS_ONLY") ApplyScope applyScope) {
         Long userId = user.getUserId();
 
         StudyPlanResponse response = studyPlanService.updateStudyPlan(userId, planId, request, applyScope);
