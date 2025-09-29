@@ -60,7 +60,22 @@ spring:
             user-info-uri: https://api.github.com/user
             user-name-attribute: id
 
+  mail:
+    host: smtp.test.com
+    port: 1025
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
 jwt:
   secret: test-jwt-secret-key-12345678901234567890
   access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:1800}  # 30분 (초 단위)
   refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800}  # 7일 (초 단위)
+
+frontend:
+  base-url: http://localhost:3000
