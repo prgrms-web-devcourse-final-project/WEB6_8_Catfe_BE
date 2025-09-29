@@ -25,4 +25,8 @@ public interface RoomChatMessageRepositoryCustom {
      */
     Page<RoomChatMessage> findMessagesByRoomIdBefore(Long roomId, LocalDateTime before, Pageable pageable);
 
+    /**
+     * 특정 방의 모든 채팅 메시지 삭제
+     */
+    int deleteAllMessagesByRoomId(Long roomId);
 }
