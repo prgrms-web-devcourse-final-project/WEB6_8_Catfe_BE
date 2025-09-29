@@ -1,5 +1,6 @@
 package com.back.domain.user.controller;
 
+import com.back.domain.user.dto.ChangePasswordRequest;
 import com.back.domain.user.dto.UpdateUserProfileRequest;
 import com.back.domain.user.dto.UserDetailResponse;
 import com.back.domain.user.service.UserService;
@@ -41,8 +42,20 @@ public class UserController implements UserControllerDocs {
                 .ok(RsData.success(
                         "회원 정보를 수정했습니다.",
                         updated
-                )
-        );
+                ));
+    }
+
+    // 내 비밀번호 변경
+    @PatchMapping("/me/password")
+    public ResponseEntity<RsData<Void>> changeMyPassword(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        userService.changePassword(user.getUserId(), request);
+        return ResponseEntity
+                .ok(RsData.success(
+                        "비밀번호가 변경되었습니다."
+                ));
     }
 
     // 내 계정 삭제

@@ -1,5 +1,6 @@
 package com.back.domain.user.service;
 
+import com.back.domain.user.dto.ChangePasswordRequest;
 import com.back.domain.user.dto.UpdateUserProfileRequest;
 import com.back.domain.user.dto.UserDetailResponse;
 import com.back.domain.user.entity.User;
@@ -9,7 +10,9 @@ import com.back.domain.user.repository.UserProfileRepository;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import com.back.global.util.PasswordValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * 사용자 정보 조회 서비스
@@ -60,6 +64,30 @@ public class UserService {
 
         // UserDetailResponse로 변환하여 반환
         return UserDetailResponse.from(user);
+    }
+
+    /**
+     * 비밀번호 변경 서비스
+     * 1. 사용자 조회 및 상태 검증
+     * 2. 현재 비밀번호 검증
+     * 3. 새 비밀번호 정책 검증
+     * 4. 비밀번호 변경
+     */
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+
+        // 사용자 조회 및 상태 검증
+        User user = getValidUser(userId);
+
+        // 현재 비밀번호 검증
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        // 새 비밀번호 정책 검증
+        PasswordValidator.validate(request.newPassword());
+
+        // 비밀번호 변경
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
     }
 
     /**
