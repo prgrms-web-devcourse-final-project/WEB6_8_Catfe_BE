@@ -9,6 +9,7 @@ import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import com.back.global.websocket.service.WebSocketBroadcastService;
 import com.back.global.websocket.service.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,16 +24,16 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- - 방 생성, 입장, 퇴장 로직 처리
- - 멤버 권한 관리 (승격, 강등, 추방)
- - 방 상태 관리 (활성화, 일시정지, 종료)
- - 방장 위임 로직 (방장이 나갈 때 자동 위임)
- - 실시간 참가자 수 동기화
-
- - 모든 권한 검증을 서비스 레이어에서 처리
- - 비공개 방 접근 권한 체크
- - 방장/부방장 권한이 필요한 작업들의 권한 검증
-
+ * - 방 생성, 입장, 퇴장 로직 처리
+ * - 멤버 권한 관리 (승격, 강등, 추방)
+ * - 방 상태 관리 (활성화, 일시정지, 종료)
+ * - 방장 위임 로직 (방장이 나갈 때 자동 위임)
+ * - 실시간 참가자 수 동기화
+ * <p>
+ * - 모든 권한 검증을 서비스 레이어에서 처리
+ * - 비공개 방 접근 권한 체크
+ * - 방장/부방장 권한이 필요한 작업들의 권한 검증
+ * <p>
  * 설정값 주입을 StudyRoomProperties를 통해 외부 설정 관리
  */
 @Service
@@ -46,6 +47,7 @@ public class RoomService {
     private final UserRepository userRepository;
     private final StudyRoomProperties properties;
     private final WebSocketSessionManager sessionManager;
+    private final WebSocketBroadcastService broadcastService;
 
     /**
      * 방 생성 메서드
@@ -54,16 +56,16 @@ public class RoomService {
      * 2. Room 엔티티 생성 (외부 설정값 적용)
      * 3. 방장을 RoomMember로 등록
      * 4. 참가자 수 1로 설정
-
+     * <p>
      * 기본 설정:
-     - 상태: WAITING (대기 중)
-     - 카메라/오디오/화면공유: application.yml의 설정값 사용
-     - 참가자 수: 0명에서 시작 후 방장 추가로 1명
+     * - 상태: WAITING (대기 중)
+     * - 카메라/오디오/화면공유: application.yml의 설정값 사용
+     * - 참가자 수: 0명에서 시작 후 방장 추가로 1명
      */
     @Transactional
-    public Room createRoom(String title, String description, boolean isPrivate, 
-                          String password, int maxParticipants, Long creatorId) {
-        
+    public Room createRoom(String title, String description, boolean isPrivate,
+                           String password, int maxParticipants, Long creatorId) {
+
         User creator = userRepository.findById(creatorId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -74,34 +76,34 @@ public class RoomService {
         roomMemberRepository.save(hostMember);
 
         savedRoom.incrementParticipant();
-        
-        log.info("방 생성 완료 - RoomId: {}, Title: {}, CreatorId: {}", 
+
+        log.info("방 생성 완료 - RoomId: {}, Title: {}, CreatorId: {}",
                 savedRoom.getId(), title, creatorId);
-        
+
         return savedRoom;
     }
 
     /**
      * 방 입장 메서드
-     * 
+     * <p>
      * 입장 검증 과정:
      * 1. 방 존재 및 활성 상태 확인 (비관적 락으로 동시성 제어)
      * 2. 방 상태가 입장 가능한지 확인 (WAITING, ACTIVE)
      * 3. 정원 초과 여부 확인
      * 4. 비공개 방인 경우 비밀번호 확인
      * 5. 이미 참여 중인지 확인 (재입장 처리)
-
+     * <p>
      * 멤버 등록: (현재는 visitor로 등록이지만 추후 역할 부여가 안된 인원을 visitor로 띄우는 식으로 저장 데이터 줄일 예정)
      * - 신규 사용자: VISITOR 역할로 등록
      * - 기존 사용자: 온라인 상태로 변경
-     * 
+     * <p>
      * 동시성 제어: 비관적 락(PESSIMISTIC_WRITE)으로 정원 초과 방지
-     * 
+     * <p>
      * 🆕 WebSocket 연동: 입장 후 실시간 알림 및 세션 관리
      */
     @Transactional
     public RoomMember joinRoom(Long roomId, String password, Long userId) {
-        
+
         // 비관적 락으로 방 조회 - 동시 입장 시 정원 초과 방지
         Room room = roomRepository.findByIdWithLock(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
@@ -149,37 +151,37 @@ public class RoomService {
         // 🆕 WebSocket 세션 연동
         try {
             syncWebSocketSession(userId, roomId, member);
-            
+
             // 🆕 실시간 입장 알림 브로드캐스트
             broadcastMemberJoined(roomId, member, isReturningMember);
-            
+
         } catch (Exception e) {
-            log.warn("WebSocket 연동 실패하지만 입장은 계속 진행 - 사용자: {}, 방: {}, 오류: {}", 
+            log.warn("WebSocket 연동 실패하지만 입장은 계속 진행 - 사용자: {}, 방: {}, 오류: {}",
                     userId, roomId, e.getMessage());
         }
-        
-        log.info("방 입장 완료 - RoomId: {}, UserId: {}, Role: {}, 재입장: {}", 
+
+        log.info("방 입장 완료 - RoomId: {}, UserId: {}, Role: {}, 재입장: {}",
                 roomId, userId, member.getRole(), isReturningMember);
-        
+
         return member;
     }
 
     /**
      * 방 나가기 메서드
-     * 
+     * <p>
      * 🚪 퇴장 처리:
      * - 일반 멤버: 단순 오프라인 처리 및 참가자 수 감소
      * - 방장: 특별 처리 로직 실행 (handleHostLeaving)
-     * 
+     * <p>
      * 🔄 방장 퇴장 시 처리:
      * - 다른 멤버가 없으면 → 방 자동 종료
      * - 다른 멤버가 있으면 → 새 방장 자동 위임
-     * 
+     * <p>
      * 🆕 WebSocket 연동: 퇴장 후 실시간 알림 및 세션 정리
      */
     @Transactional
     public void leaveRoom(Long roomId, Long userId) {
-        
+
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
@@ -204,14 +206,14 @@ public class RoomService {
         // 🆕 WebSocket 세션 정리
         try {
             cleanupWebSocketSession(userId, roomId);
-            
+
             // 🆕 실시간 퇴장 알림 브로드캐스트 (방이 종료되지 않은 경우에만)
             if (room.getStatus() != RoomStatus.TERMINATED) {
                 broadcastMemberLeft(roomId, memberName, wasHost);
             }
-            
+
         } catch (Exception e) {
-            log.warn("WebSocket 세션 정리 실패하지만 퇴장은 계속 진행 - 사용자: {}, 방: {}, 오류: {}", 
+            log.warn("WebSocket 세션 정리 실패하지만 퇴장은 계속 진행 - 사용자: {}, 방: {}, 오류: {}",
                     userId, roomId, e.getMessage());
         }
 
@@ -220,7 +222,7 @@ public class RoomService {
 
     private void handleHostLeaving(Room room, RoomMember hostMember) {
         List<RoomMember> onlineMembers = roomMemberRepository.findOnlineMembersByRoomId(room.getId());
-        
+
         List<RoomMember> otherOnlineMembers = onlineMembers.stream()
                 .filter(m -> !m.getId().equals(hostMember.getId()))
                 .toList();
@@ -229,10 +231,10 @@ public class RoomService {
             room.terminate();
             hostMember.leave();
             room.decrementParticipant();
-            
+
             // 🆕 방 종료 알림 브로드캐스트
             try {
-                sessionManager.broadcastToRoom(room.getId(), RoomBroadcastMessage.roomTerminated(room.getId()));
+                broadcastService.broadcastToRoom(room.getId(), RoomBroadcastMessage.roomTerminated(room.getId()));
             } catch (Exception e) {
                 log.warn("방 종료 브로드캐스트 실패 - 방: {}", room.getId(), e);
             }
@@ -248,13 +250,13 @@ public class RoomService {
                 newHost.updateRole(RoomRole.HOST);
                 hostMember.leave();
                 room.decrementParticipant();
-                
-                log.info("새 방장 지정 - RoomId: {}, NewHostId: {}", 
+
+                log.info("새 방장 지정 - RoomId: {}, NewHostId: {}",
                         room.getId(), newHost.getUser().getId());
-                
+
                 // 🆕 새 방장 지정 알림 브로드캐스트
                 try {
-                    sessionManager.broadcastToRoom(room.getId(), RoomBroadcastMessage.hostChanged(room.getId(), newHost));
+                    broadcastService.broadcastToRoom(room.getId(), RoomBroadcastMessage.hostChanged(room.getId(), newHost));
                 } catch (Exception e) {
                     log.warn("새 방장 지정 브로드캐스트 실패 - 방: {}", room.getId(), e);
                 }
@@ -285,10 +287,10 @@ public class RoomService {
     }
 
     @Transactional
-    public void updateRoomSettings(Long roomId, String title, String description, 
-                                  int maxParticipants, boolean allowCamera, 
-                                  boolean allowAudio, boolean allowScreenShare, Long userId) {
-        
+    public void updateRoomSettings(Long roomId, String title, String description,
+                                   int maxParticipants, boolean allowCamera,
+                                   boolean allowAudio, boolean allowScreenShare, Long userId) {
+
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
@@ -300,24 +302,24 @@ public class RoomService {
             throw new CustomException(ErrorCode.BAD_REQUEST);
         }
 
-        room.updateSettings(title, description, maxParticipants, 
-                           allowCamera, allowAudio, allowScreenShare);
-        
+        room.updateSettings(title, description, maxParticipants,
+                allowCamera, allowAudio, allowScreenShare);
+
         // 🆕 방 설정 변경 알림 브로드캐스트
         try {
-            String updateMessage = String.format("방 설정이 변경되었습니다. (제목: %s, 최대인원: %d명)", 
+            String updateMessage = String.format("방 설정이 변경되었습니다. (제목: %s, 최대인원: %d명)",
                     title, maxParticipants);
-            sessionManager.broadcastRoomUpdate(roomId, updateMessage);
+            broadcastService.broadcastRoomUpdate(roomId, updateMessage);
         } catch (Exception e) {
             log.warn("방 설정 변경 브로드캐스트 실패 - 방: {}", roomId, e);
         }
-        
+
         log.info("방 설정 변경 완료 - RoomId: {}, UserId: {}", roomId, userId);
     }
 
     @Transactional
     public void terminateRoom(Long roomId, Long userId) {
-        
+
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
@@ -327,20 +329,20 @@ public class RoomService {
 
         room.terminate();
         roomMemberRepository.disconnectAllMembers(roomId);
-        
+
         // 🆕 방 종료 알림 브로드캐스트
         try {
-            sessionManager.broadcastToRoom(roomId, RoomBroadcastMessage.roomTerminated(roomId));
+            broadcastService.broadcastToRoom(roomId, RoomBroadcastMessage.roomTerminated(roomId));
         } catch (Exception e) {
             log.warn("방 종료 브로드캐스트 실패 - 방: {}", roomId, e);
         }
-        
+
         log.info("방 종료 완료 - RoomId: {}, UserId: {}", roomId, userId);
     }
 
     @Transactional
     public void changeUserRole(Long roomId, Long targetUserId, RoomRole newRole, Long requesterId) {
-        
+
         RoomMember requester = roomMemberRepository.findByRoomIdAndUserId(roomId, requesterId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
 
@@ -356,20 +358,20 @@ public class RoomService {
         }
 
         targetMember.updateRole(newRole);
-        
+
         // 🆕 멤버 역할 변경 알림 브로드캐스트
         try {
-            sessionManager.broadcastToRoom(roomId, RoomBroadcastMessage.memberRoleChanged(roomId, targetMember));
+            broadcastService.broadcastToRoom(roomId, RoomBroadcastMessage.memberRoleChanged(roomId, targetMember));
         } catch (Exception e) {
             log.warn("멤버 역할 변경 브로드캐스트 실패 - 방: {}", roomId, e);
         }
-        
-        log.info("멤버 권한 변경 완료 - RoomId: {}, TargetUserId: {}, NewRole: {}, RequesterId: {}", 
+
+        log.info("멤버 권한 변경 완료 - RoomId: {}, TargetUserId: {}, NewRole: {}, RequesterId: {}",
                 roomId, targetUserId, newRole, requesterId);
     }
 
     public List<RoomMember> getRoomMembers(Long roomId, Long userId) {
-        
+
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
@@ -388,7 +390,7 @@ public class RoomService {
      * DB의 멤버 목록과 WebSocket 세션 상태를 결합하여 정확한 온라인 상태 제공
      */
     public List<RoomMemberResponse> getOnlineMembersWithWebSocket(Long roomId, Long userId) {
-        
+
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
@@ -402,16 +404,16 @@ public class RoomService {
         try {
             // DB에서 모든 멤버 조회
             List<RoomMember> allMembers = roomMemberRepository.findOnlineMembersByRoomId(roomId);
-            
+
             // WebSocket에서 실제 온라인 상태 조회
             Set<Long> webSocketOnlineUsers = sessionManager.getOnlineUsersInRoom(roomId);
-            
+
             // 두 정보를 결합하여 정확한 온라인 상태 반영
             return allMembers.stream()
                     .filter(member -> webSocketOnlineUsers.contains(member.getUser().getId()))
                     .map(RoomMemberResponse::from)
                     .collect(Collectors.toList());
-                    
+
         } catch (Exception e) {
             log.warn("WebSocket 기반 멤버 목록 조회 실패, DB 정보만 사용 - 방: {}", roomId, e);
             // WebSocket 연동 실패 시 기존 방식으로 폴백
@@ -439,7 +441,7 @@ public class RoomService {
      */
     @Transactional
     public void kickMember(Long roomId, Long targetUserId, Long requesterId) {
-        
+
         RoomMember requester = roomMemberRepository.findByRoomIdAndUserId(roomId, requesterId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
 
@@ -458,23 +460,23 @@ public class RoomService {
         String memberName = targetMember.getUser().getNickname();
 
         targetMember.leave();
-        
+
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         room.decrementParticipant();
-        
+
         // 🆕 WebSocket 세션 정리
         try {
             cleanupWebSocketSession(targetUserId, roomId);
-            
+
             // 🆕 멤버 추방 알림 브로드캐스트
-            sessionManager.broadcastToRoom(roomId, RoomBroadcastMessage.memberKicked(roomId, memberName));
-            
+            broadcastService.broadcastToRoom(roomId, RoomBroadcastMessage.memberKicked(roomId, memberName));
+
         } catch (Exception e) {
             log.warn("추방 처리 중 WebSocket 연동 실패 - 방: {}, 대상: {}", roomId, targetUserId, e);
         }
-        
-        log.info("멤버 추방 완료 - RoomId: {}, TargetUserId: {}, RequesterId: {}", 
+
+        log.info("멤버 추방 완료 - RoomId: {}, TargetUserId: {}, RequesterId: {}",
                 roomId, targetUserId, requesterId);
     }
 
@@ -487,12 +489,12 @@ public class RoomService {
         try {
             // WebSocket 세션 매니저에 방 입장 등록
             sessionManager.joinRoom(userId, roomId);
-            
+
             // RoomMember의 연결 상태 업데이트
             member.heartbeat(); // 마지막 활동 시간 갱신
-            
+
             log.debug("WebSocket 세션 동기화 완료 - 사용자: {}, 방: {}", userId, roomId);
-            
+
         } catch (Exception e) {
             log.error("WebSocket 세션 동기화 실패 - 사용자: {}, 방: {}", userId, roomId, e);
             throw new CustomException(ErrorCode.WS_ROOM_JOIN_FAILED);
@@ -506,9 +508,9 @@ public class RoomService {
         try {
             // WebSocket 세션 매니저에서 방 퇴장 처리
             sessionManager.leaveRoom(userId, roomId);
-            
+
             log.debug("WebSocket 세션 정리 완료 - 사용자: {}, 방: {}", userId, roomId);
-            
+
         } catch (Exception e) {
             log.error("WebSocket 세션 정리 실패 - 사용자: {}, 방: {}", userId, roomId, e);
             throw new CustomException(ErrorCode.WS_ROOM_LEAVE_FAILED);
@@ -521,14 +523,14 @@ public class RoomService {
     private void broadcastMemberJoined(Long roomId, RoomMember member, boolean isReturning) {
         try {
             RoomBroadcastMessage message = RoomBroadcastMessage.memberJoined(roomId, member);
-            sessionManager.broadcastToRoom(roomId, message);
-            
+            broadcastService.broadcastToRoom(roomId, message);
+
             // 온라인 멤버 목록도 함께 업데이트
-            sessionManager.broadcastOnlineMembersUpdate(roomId);
-            
-            log.debug("멤버 입장 브로드캐스트 완료 - 방: {}, 사용자: {}, 재입장: {}", 
+            broadcastService.broadcastOnlineMembersUpdate(roomId);
+
+            log.debug("멤버 입장 브로드캐스트 완료 - 방: {}, 사용자: {}, 재입장: {}",
                     roomId, member.getUser().getId(), isReturning);
-                    
+
         } catch (Exception e) {
             log.error("멤버 입장 브로드캐스트 실패 - 방: {}, 사용자: {}", roomId, member.getUser().getId(), e);
         }
@@ -540,19 +542,19 @@ public class RoomService {
     private void broadcastMemberLeft(Long roomId, String memberName, boolean wasHost) {
         try {
             // 퇴장 알림 생성 (방장인 경우 특별 메시지)
-            String message = wasHost ? 
-                String.format("방장 %s님이 방을 나갔습니다.", memberName) :
-                String.format("%s님이 방을 나갔습니다.", memberName);
-                
+            String message = wasHost ?
+                    String.format("방장 %s님이 방을 나갔습니다.", memberName) :
+                    String.format("%s님이 방을 나갔습니다.", memberName);
+
             RoomBroadcastMessage broadcastMessage = RoomBroadcastMessage.roomUpdated(roomId, message);
-            sessionManager.broadcastToRoom(roomId, broadcastMessage);
-            
+            broadcastService.broadcastToRoom(roomId, broadcastMessage);
+
             // 온라인 멤버 목록도 함께 업데이트
-            sessionManager.broadcastOnlineMembersUpdate(roomId);
-            
-            log.debug("멤버 퇴장 브로드캐스트 완료 - 방: {}, 멤버: {}, 방장여부: {}", 
+            broadcastService.broadcastOnlineMembersUpdate(roomId);
+
+            log.debug("멤버 퇴장 브로드캐스트 완료 - 방: {}, 멤버: {}, 방장여부: {}",
                     roomId, memberName, wasHost);
-                    
+
         } catch (Exception e) {
             log.error("멤버 퇴장 브로드캐스트 실패 - 방: {}, 멤버: {}", roomId, memberName, e);
         }
