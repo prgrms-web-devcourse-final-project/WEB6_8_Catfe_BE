@@ -60,10 +60,6 @@ public class StudyPlanResponse {
             }
         }
 
-        /**
-         * 💡 수정됨: byDay 필드가 List<String>이므로, 문자열 분리(split) 대신
-         * List<String>의 각 요소를 DayOfWeek enum으로 매핑합니다.
-         */
         public List<DayOfWeek> getByDaysList() {
             if (byDay == null || byDay.isEmpty()) {
                 return List.of();

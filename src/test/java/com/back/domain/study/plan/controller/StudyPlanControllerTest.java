@@ -515,7 +515,7 @@ class StudyPlanControllerTest {
         StudyPlan originalPlan = createSinglePlan();
         Long planId = originalPlan.getId();
 
-        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.delete("/api/plans/{planId}?applyScope=THIS_ONLY", planId)
+        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.delete("/api/plans/{planId}?selectedDate=2025-10-01&applyScope=THIS_ONLY", planId)
                         .header("Authorization", "Bearer faketoken")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print());
@@ -524,12 +524,100 @@ class StudyPlanControllerTest {
                 .andExpect(status().isOk()) // 200 OK
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다.")); // 예상 응답 메시지
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
 
         // DB에서 실제로 삭제되었는지 확인
         boolean exists = studyPlanRepository.existsById(planId);
         assertThat(exists).isFalse();
+    }
 
+    @Test
+    @DisplayName("계획 삭제 - 반복성 단일 삭제")
+    void t13() throws Exception {
+        StudyPlan originalPlan = createDailyPlan();
+        Long planId = originalPlan.getId();
+
+        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.delete("/api/plans/{planId}?selectedDate=2025-10-01&applyScope=THIS_ONLY", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk()) // 200 OK
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
+        // 10월 1일에 해당하는 계획은 없어야함
+        mvc.perform(get("/api/plans/date/2025-10-01")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(jsonPath("$.data.totalCount").value(0));
+
+        // 10월 10일에 해당하는 계획은 있어야함
+        mvc.perform(get("/api/plans/date/2025-10-10")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(jsonPath("$.data.totalCount").value(1));
+    }
+
+    @Test
+    @DisplayName("계획 삭제 - 반복성 원본 일괄 삭제")
+    void t14() throws Exception {
+        StudyPlan originalPlan = createDailyPlan();
+        Long planId = originalPlan.getId();
+
+        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.delete("/api/plans/{planId}?selectedDate=2025-10-01&applyScope=FROM_THIS_DATE", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk()) // 200 OK
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
+
+        // 10월 10일에 해당하는 계획도 없어야함
+        mvc.perform(get("/api/plans/date/2025-10-10")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(jsonPath("$.data.totalCount").value(0));
+    }
+
+    @Test
+    @DisplayName("계획 삭제 - 반복성 가상 일괄삭제")
+    void t15() throws Exception {
+        StudyPlan originalPlan = createDailyPlan();
+        Long planId = originalPlan.getId();
+
+        ResultActions resultActions = mvc.perform(MockMvcRequestBuilders.delete("/api/plans/{planId}?selectedDate=2025-10-10&applyScope=FROM_THIS_DATE", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk()) // 200 OK
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
+
+        // 10월 1일에 해당하는 계획은 있어야함
+        mvc.perform(get("/api/plans/date/2025-10-01")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(jsonPath("$.data.totalCount").value(1));
+
+    // 10.10 이후에 해당하는 계획은 없어야함
+        mvc.perform(get("/api/plans?start=2025-10-10&end=2025-10-15")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                //검색 결과가 없다면 빈 배열
+                .andExpect(jsonPath("$.data", Matchers.hasSize(0)));
     }
 
 
