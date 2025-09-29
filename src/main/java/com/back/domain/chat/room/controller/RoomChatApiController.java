@@ -70,7 +70,6 @@ public class RoomChatApiController {
                 messageCount,
                 clearedByInfo.userId(),
                 clearedByInfo.nickname(),
-                clearedByInfo.profileImageUrl(),
                 clearedByInfo.role()
         );
 

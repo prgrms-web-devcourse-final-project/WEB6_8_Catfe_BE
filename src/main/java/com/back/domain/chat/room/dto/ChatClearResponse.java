@@ -10,19 +10,17 @@ public record ChatClearResponse(
     public record ClearedByDto(
             Long userId,
             String nickname,
-            String profileImageUrl,
             String role
     ) {}
 
     // 성공 응답 생성 헬퍼
     public static ChatClearResponse create(Long roomId, int deletedCount,
-                                           Long userId, String nickname,
-                                           String profileImageUrl, String role) {
+                                           Long userId, String nickname, String role) {
         return new ChatClearResponse(
                 roomId,
                 deletedCount,
                 java.time.LocalDateTime.now(),
-                new ClearedByDto(userId, nickname, profileImageUrl, role)
+                new ClearedByDto(userId, nickname, role)
         );
     }
 }
