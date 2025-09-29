@@ -237,6 +237,23 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("소셜 로그인 회원 비밀번호 변경 시도 → SOCIAL_PASSWORD_CHANGE_FORBIDDEN 예외")
+    void changePassword_socialUser() {
+        // given
+        User user = User.createUser("socialuser", "social@example.com", null);
+        user.setProvider("kakao"); // 소셜 로그인 회원
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        ChangePasswordRequest request = new ChangePasswordRequest("dummy", "NewP@ssw0rd!");
+
+        // when & then
+        assertThatThrownBy(() -> userService.changePassword(user.getId(), request))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.SOCIAL_PASSWORD_CHANGE_FORBIDDEN.getMessage());
+    }
+
+    @Test
     @DisplayName("탈퇴한 유저 비밀번호 변경 → USER_DELETED 예외")
     void changePassword_deletedUser() {
         // given

@@ -414,6 +414,28 @@ class UserControllerTest {
     }
 
     @Test
+    @DisplayName("소셜 로그인 회원 비밀번호 변경 시도 → 403 Forbidden (USER_010)")
+    void changePassword_socialUser() throws Exception {
+        User user = User.createUser("socialuser", "social@example.com", null);
+        user.setProvider("kakao");
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        ChangePasswordRequest request = new ChangePasswordRequest("dummy", "NewP@ssw0rd!");
+
+        mvc.perform(patch("/api/users/me/password")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("USER_010"))
+                .andExpect(jsonPath("$.message").value("소셜 로그인 회원은 비밀번호를 변경할 수 없습니다."));
+    }
+
+    @Test
     @DisplayName("탈퇴 계정 비밀번호 변경 시도 → 410 Gone (USER_009)")
     void changePassword_deletedUser() throws Exception {
         // given

@@ -18,6 +18,7 @@ public enum ErrorCode {
     USER_EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "USER_007", "이메일 인증 후 로그인할 수 있습니다."),
     USER_SUSPENDED(HttpStatus.FORBIDDEN, "USER_008", "정지된 계정입니다. 관리자에게 문의하세요."),
     USER_DELETED(HttpStatus.GONE, "USER_009", "탈퇴한 계정입니다."),
+    SOCIAL_PASSWORD_CHANGE_FORBIDDEN(HttpStatus.FORBIDDEN, "USER_010", "소셜 로그인 회원은 비밀번호를 변경할 수 없습니다."),
 
     // ======================== 스터디룸 관련 ========================
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_001", "존재하지 않는 방입니다."),

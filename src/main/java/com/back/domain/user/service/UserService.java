@@ -78,6 +78,11 @@ public class UserService {
         // 사용자 조회 및 상태 검증
         User user = getValidUser(userId);
 
+        // 소셜 로그인 사용자는 비밀번호 변경 불가
+        if (user.getProvider() != null) {
+            throw new CustomException(ErrorCode.SOCIAL_PASSWORD_CHANGE_FORBIDDEN);
+        }
+
         // 현재 비밀번호 검증
         if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);

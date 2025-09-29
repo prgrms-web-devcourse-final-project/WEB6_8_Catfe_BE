@@ -343,6 +343,21 @@ public interface UserControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "403",
+                    description = "소셜 로그인 회원 비밀번호 변경 불가",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                {
+                  "success": false,
+                  "code": "USER_010",
+                  "message": "소셜 로그인 회원은 비밀번호를 변경할 수 없습니다.",
+                  "data": null
+                }
+                """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
                     description = "정지된 계정",
                     content = @Content(
                             mediaType = "application/json",
