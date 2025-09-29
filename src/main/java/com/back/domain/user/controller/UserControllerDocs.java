@@ -87,7 +87,7 @@ public interface UserControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "401",
-                    description = "인증 실패 (Access Token 문제)",
+                    description = "인증 실패 (토큰 없음/잘못됨/만료)",
                     content = @Content(
                             mediaType = "application/json",
                             examples = {
@@ -99,7 +99,7 @@ public interface UserControllerDocs {
                                               "data": null
                                             }
                                             """),
-                                    @ExampleObject(name = "유효하지 않은 토큰", value = """
+                                    @ExampleObject(name = "잘못된 토큰", value = """
                                             {
                                               "success": false,
                                               "code": "AUTH_002",
@@ -302,5 +302,124 @@ public interface UserControllerDocs {
     ResponseEntity<RsData<UserDetailResponse>> updateMyProfile(
             @AuthenticationPrincipal CustomUserDetails user,
             @Valid @RequestBody UpdateUserProfileRequest request
+    );
+
+    @Operation(
+            summary = "내 계정 삭제",
+            description = "로그인한 사용자의 계정을 탈퇴 처리합니다. " +
+                    "탈퇴 시 사용자 상태는 DELETED로 변경되며, 프로필 정보는 마스킹 처리됩니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "회원 탈퇴 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "회원 탈퇴가 완료되었습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "정지된 계정",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_008",
+                                      "message": "정지된 계정입니다. 관리자에게 문의하세요.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "410",
+                    description = "탈퇴한 계정",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_009",
+                                      "message": "탈퇴한 계정입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패 (토큰 없음/잘못됨/만료)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "토큰 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_001",
+                                              "message": "인증이 필요합니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "잘못된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_002",
+                                              "message": "유효하지 않은 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "만료된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_004",
+                                              "message": "만료된 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_001",
+                                      "message": "존재하지 않는 사용자입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ResponseEntity<RsData<Void>> deleteMyAccount(
+            @AuthenticationPrincipal CustomUserDetails user
     );
 }

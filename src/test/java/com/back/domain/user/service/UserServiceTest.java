@@ -178,4 +178,73 @@ class UserServiceTest {
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
     }
+
+    // ====================== 사용자 탈퇴 테스트 ======================
+
+    @Test
+    @DisplayName("정상 회원 탈퇴 성공")
+    void deleteUser_success() {
+        // given: 정상 상태의 유저 저장
+        User user = User.createUser("deleteuser", "delete@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", "https://cdn.example.com/profile.png", "소개글", LocalDate.of(1995, 3, 15), 500));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        // when: 탈퇴 처리
+        userService.deleteUser(user.getId());
+
+        // then: 상태 및 개인정보 마스킹 검증
+        User deleted = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(deleted.getUserStatus()).isEqualTo(UserStatus.DELETED);
+        assertThat(deleted.getUsername()).startsWith("deleted_");
+        assertThat(deleted.getEmail()).startsWith("deleted_");
+        assertThat(deleted.getProvider()).startsWith("deleted_");
+        assertThat(deleted.getProviderId()).startsWith("deleted_");
+
+        UserProfile profile = deleted.getUserProfile();
+        assertThat(profile.getNickname()).isEqualTo("탈퇴한 회원");
+        assertThat(profile.getProfileImageUrl()).isNull();
+        assertThat(profile.getBio()).isNull();
+        assertThat(profile.getBirthDate()).isNull();
+    }
+
+    @Test
+    @DisplayName("이미 탈퇴된 회원 탈퇴 시도 → USER_ALREADY_DELETED 예외")
+    void deleteUser_alreadyDeleted() {
+        // given: 상태 DELETED 유저 저장
+        User user = User.createUser("deleteduser", "deleteduser@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.DELETED);
+        userRepository.save(user);
+
+        // when & then
+        assertThatThrownBy(() -> userService.deleteUser(user.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_DELETED.getMessage());
+    }
+
+    @Test
+    @DisplayName("정지된 회원 탈퇴 시도 → USER_SUSPENDED 예외")
+    void deleteUser_suspendedUser() {
+        // given: 상태 SUSPENDED 유저 저장
+        User user = User.createUser("suspendeduser", "suspendeduser@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.SUSPENDED);
+        userRepository.save(user);
+
+        // when & then
+        assertThatThrownBy(() -> userService.deleteUser(user.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원 탈퇴 시도 → USER_NOT_FOUND 예외")
+    void deleteUser_notFound() {
+        // when & then
+        assertThatThrownBy(() -> userService.deleteUser(999L))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
 }
