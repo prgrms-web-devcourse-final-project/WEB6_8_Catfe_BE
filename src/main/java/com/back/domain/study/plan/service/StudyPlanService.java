@@ -548,7 +548,7 @@ public class StudyPlanService {
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
     }
-
+    // 시작, 종료 날짜 검증
     private void validateDateTime(LocalDateTime startDate, LocalDateTime endDate) {
         if (startDate == null || endDate == null) {
             throw new CustomException(ErrorCode.BAD_REQUEST);
@@ -558,6 +558,7 @@ public class StudyPlanService {
             throw new CustomException(ErrorCode.PLAN_INVALID_TIME_RANGE);
         }
     }
+    //
 
     private void validateRepeatRuleDate(StudyPlan studyPlan, LocalDate untilDate) {
         LocalDate planStartDate = studyPlan.getStartDate().toLocalDate();
