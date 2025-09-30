@@ -1,4 +1,4 @@
-package com.back.global.websocket.webrtc.dto;
+package com.back.global.websocket.webrtc.dto.media;
 
 import jakarta.validation.constraints.NotNull;
 

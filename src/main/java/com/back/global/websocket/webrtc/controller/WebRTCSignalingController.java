@@ -2,7 +2,9 @@ package com.back.global.websocket.webrtc.controller;
 
 import com.back.global.security.user.CustomUserDetails;
 import com.back.global.websocket.util.WebSocketErrorHelper;
-import com.back.global.websocket.webrtc.dto.*;
+import com.back.global.websocket.webrtc.dto.media.WebRTCMediaStateResponse;
+import com.back.global.websocket.webrtc.dto.media.WebRTCMediaToggleRequest;
+import com.back.global.websocket.webrtc.dto.signal.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
