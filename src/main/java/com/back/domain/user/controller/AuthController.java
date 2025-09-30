@@ -100,6 +100,7 @@ public class AuthController implements AuthControllerDocs {
         ));
     }
 
+    // 아이디 찾기
     @PostMapping("/username/recover")
     public ResponseEntity<RsData<Void>> recoverUsername(
             @Valid @RequestBody sendEmailRequest request
@@ -108,6 +109,19 @@ public class AuthController implements AuthControllerDocs {
         return ResponseEntity
                 .ok(RsData.success(
                         "아이디를 이메일로 전송했습니다.",
+                        null
+                ));
+    }
+
+    // 비밀번호 재설정 요청
+    @PostMapping("/password/recover")
+    public ResponseEntity<RsData<Void>> recoverPassword(
+            @Valid @RequestBody sendEmailRequest request
+    ) {
+        authService.recoverPassword(request.email());
+        return ResponseEntity
+                .ok(RsData.success(
+                        "비밀번호 재설정 링크를 이메일로 전송했습니다.",
                         null
                 ));
     }

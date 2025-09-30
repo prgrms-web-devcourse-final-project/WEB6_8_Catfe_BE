@@ -286,6 +286,24 @@ public class AuthService {
     }
 
     /**
+     * 비밀번호 재설정 요청 서비스
+     * 1. 이메일로 사용자 조회
+     * 2. 비밀번호 재설정 토큰 생성
+     * 3. 이메일 발송
+     */
+    public void recoverPassword(String email) {
+        // 사용자 조회
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 비밀번호 재설정 토큰 생성
+        String resetToken = tokenService.createPasswordResetToken(user.getId());
+
+        // 이메일 발송
+        emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
+    }
+
+    /**
      * 회원가입 시 중복 검증
      * - username, email, nickname
      */

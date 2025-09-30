@@ -29,6 +29,22 @@ public class TokenService {
         deleteToken(EMAIL_VERIFICATION_PREFIX, token);
     }
 
+    // -------------------- 비밀번호 재설정 토큰 --------------------
+    private static final String PASSWORD_RESET_PREFIX = "password:reset:";
+    private static final long PASSWORD_RESET_EXPIRATION_MINUTES = 60; // 1시간
+
+    public String createPasswordResetToken(Long userId) {
+        return createToken(PASSWORD_RESET_PREFIX, userId, PASSWORD_RESET_EXPIRATION_MINUTES);
+    }
+
+    public Long getUserIdByPasswordResetToken(String token) {
+        return getUserIdByToken(PASSWORD_RESET_PREFIX, token);
+    }
+
+    public void deletePasswordResetToken(String token) {
+        deleteToken(PASSWORD_RESET_PREFIX, token);
+    }
+
     // -------------------- 내부 공통 로직 --------------------
     private String createToken(String prefix, Long userId, long ttlMinutes) {
         String token = UUID.randomUUID().toString();

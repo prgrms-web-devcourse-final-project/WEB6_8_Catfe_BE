@@ -57,6 +57,27 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, htmlContent);
     }
 
+    // 비밀번호 재설정 메일 전송
+    public void sendPasswordResetEmail(String toEmail, String token) {
+        String subject = "[Catfe] 비밀번호 재설정 안내";
+        String resetUrl = FRONTEND_BASE_URL + "/reset-password?token=" + token;
+
+        String htmlContent = """
+            <p>안녕하세요, Catfe입니다.</p>
+            <p>아래 버튼을 클릭하여 비밀번호를 재설정해 주세요.</p>
+            <br>
+            <p>
+                <a href="%s" style="display:inline-block;padding:10px 20px;
+                background-color:#4CAF50;color:#fff;text-decoration:none;
+                border-radius:5px;">비밀번호 재설정하기</a>
+            </p>
+            <br>
+            <p>이 링크는 1시간 동안만 유효합니다.</p>
+            """.formatted(resetUrl);
+
+        sendHtmlEmail(toEmail, subject, htmlContent);
+    }
+
     // HTML 이메일 전송 공통 메서드
     private void sendHtmlEmail(String toEmail, String subject, String htmlContent) {
         try {
