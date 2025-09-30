@@ -18,9 +18,9 @@ import org.springframework.validation.annotation.Validated;
 
 import java.security.Principal;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
-@Slf4j
 public class WebRTCSignalingController {
 
     private final SimpMessagingTemplate messagingTemplate;

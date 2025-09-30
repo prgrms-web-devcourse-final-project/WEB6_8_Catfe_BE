@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/webrtc")
 @RequiredArgsConstructor
+@RequestMapping("/api/webrtc")
 @Tag(name = "WebRTC API", description = "WebRTC 시그널링 및 ICE 서버 관련 REST API")
 public class WebRTCApiController {
 
