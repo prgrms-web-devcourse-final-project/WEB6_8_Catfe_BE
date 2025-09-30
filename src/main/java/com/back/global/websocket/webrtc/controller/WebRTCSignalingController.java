@@ -1,13 +1,13 @@
 package com.back.global.websocket.webrtc.controller;
 
 import com.back.global.security.user.CustomUserDetails;
-import com.back.global.websocket.util.WebSocketErrorHelper;
-import com.back.global.websocket.webrtc.dto.media.WebRTCMediaStateResponse;
 import com.back.global.websocket.webrtc.dto.media.WebRTCMediaToggleRequest;
+import com.back.global.websocket.webrtc.dto.media.WebRTCMediaStateResponse;
 import com.back.global.websocket.webrtc.dto.signal.*;
+import com.back.global.websocket.webrtc.service.WebRTCSignalValidator;
+import com.back.global.websocket.util.WebSocketErrorHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -25,6 +25,7 @@ public class WebRTCSignalingController {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final WebSocketErrorHelper errorHelper;
+    private final WebRTCSignalValidator validator;
 
     // WebRTC Offer 메시지 처리
     @MessageMapping("/webrtc/offer")
@@ -40,6 +41,9 @@ public class WebRTCSignalingController {
             }
 
             Long fromUserId = userDetails.getUserId();
+
+            // 시그널 검증
+            validator.validateSignal(request.roomId(), fromUserId, request.targetUserId());
 
             log.info("WebRTC Offer received - Room: {}, From: {}, To: {}, MediaType: {}",
                     request.roomId(), fromUserId, request.targetUserId(), request.mediaType());
@@ -81,6 +85,9 @@ public class WebRTCSignalingController {
 
             Long fromUserId = userDetails.getUserId();
 
+            // 시그널 검증
+            validator.validateSignal(request.roomId(), fromUserId, request.targetUserId());
+
             log.info("WebRTC Answer received - Room: {}, From: {}, To: {}, MediaType: {}",
                     request.roomId(), fromUserId, request.targetUserId(), request.mediaType());
 
@@ -94,7 +101,7 @@ public class WebRTCSignalingController {
                     request.mediaType()
             );
 
-            // 방 전체에 브로드캐스트
+            // 방 전체에 브로드캐스트 (P2P Mesh 연결)
             messagingTemplate.convertAndSend(
                     "/topic/room/" + request.roomId() + "/webrtc",
                     response
@@ -121,6 +128,9 @@ public class WebRTCSignalingController {
 
             Long fromUserId = userDetails.getUserId();
 
+            // 시그널 검증
+            validator.validateSignal(request.roomId(), fromUserId, request.targetUserId());
+
             log.info("ICE Candidate received - Room: {}, From: {}, To: {}",
                     request.roomId(), fromUserId, request.targetUserId());
 
@@ -134,7 +144,7 @@ public class WebRTCSignalingController {
                     request.sdpMLineIndex()
             );
 
-            // 방 전체에 브로드캐스트
+            // 방 전체에 브로드캐스트 (P2P Mesh 연결)
             messagingTemplate.convertAndSend(
                     "/topic/room/" + request.roomId() + "/webrtc",
                     response
@@ -146,10 +156,9 @@ public class WebRTCSignalingController {
         }
     }
 
-    // 미디어 상태 토글 처리 (오디오/비디오/화면공유 on/off)
+    // 미디어 상태 토글 처리
     @MessageMapping("/webrtc/media/toggle")
     public void handleMediaToggle(@Validated @Payload WebRTCMediaToggleRequest request,
-                                  @DestinationVariable Long roomId,
                                   SimpMessageHeaderAccessor headerAccessor,
                                   Principal principal) {
         try {
@@ -163,8 +172,11 @@ public class WebRTCSignalingController {
             Long userId = userDetails.getUserId();
             String nickname = userDetails.getUsername();
 
+            // 미디어 상태 변경 검증
+            validator.validateMediaStateChange(request.roomId(), userId);
+
             log.info("미디어 상태 변경 - Room: {}, User: {}, MediaType: {}, Enabled: {}",
-                    roomId, userId, request.mediaType(), request.enabled());
+                    request.roomId(), userId, request.mediaType(), request.enabled());
 
             // 미디어 상태 응답 생성
             WebRTCMediaStateResponse response = WebRTCMediaStateResponse.of(
@@ -176,12 +188,12 @@ public class WebRTCSignalingController {
 
             // 방 전체에 브로드캐스트
             messagingTemplate.convertAndSend(
-                    "/topic/room/" + roomId + "/media-status",
+                    "/topic/room/" + request.roomId() + "/media-status",
                     response
             );
 
         } catch (Exception e) {
-            log.error("미디어 상태 변경 중 오류 발생 - roomId: {}", roomId, e);
+            log.error("미디어 상태 변경 중 오류 발생 - roomId: {}", request.roomId(), e);
             errorHelper.sendGenericErrorToUser(headerAccessor.getSessionId(), e, "미디어 상태 변경 중 오류가 발생했습니다");
         }
     }
