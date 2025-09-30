@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,7 +15,7 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 public class Todo extends BaseEntity {
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "user_id")
     private User user;
 
@@ -22,6 +23,20 @@ public class Todo extends BaseEntity {
 
     private String description;
 
-    private LocalDateTime date;
+    private LocalDate date;
 
+    public Todo(User user, String description, LocalDate date) {
+        this.user = user;
+        this.description = description;
+        this.date = date;
+        this.isComplete = false;
+    }
+
+    public void updateDescription(String description) {
+        this.description = description;
+    }
+
+    public void toggleComplete() {
+        this.isComplete = !this.isComplete;
+    }
 }
