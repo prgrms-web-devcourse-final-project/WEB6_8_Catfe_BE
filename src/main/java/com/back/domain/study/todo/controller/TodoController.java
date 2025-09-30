@@ -73,7 +73,7 @@ public class TodoController {
     }
 
     // 할 일 완료/미완료 토글
-    @PutMapping("/{todoId}/complete")
+    @PutMapping("/{todoId}/toggle")
     @Operation(summary = "할 일 완료 상태 토글", description = "할 일의 완료 상태를 변경합니다.")
     public ResponseEntity<RsData<TodoResponseDto>> toggleTodoComplete(
             @AuthenticationPrincipal CustomUserDetails userDetails,
