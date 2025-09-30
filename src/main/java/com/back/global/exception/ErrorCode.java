@@ -97,7 +97,8 @@ public enum ErrorCode {
 
     // ======================== 토큰 관련 ========================
     INVALID_EMAIL_TOKEN(HttpStatus.UNAUTHORIZED, "TOKEN_001", "유효하지 않은 이메일 인증 토큰입니다."),
-    ALREADY_VERIFIED(HttpStatus.CONFLICT, "TOKEN_002", "이미 인증된 계정입니다.");
+    ALREADY_VERIFIED(HttpStatus.CONFLICT, "TOKEN_002", "이미 인증된 계정입니다."),
+    INVALID_PASSWORD_RESET_TOKEN(HttpStatus.UNAUTHORIZED, "TOKEN_003", "유효하지 않은 비밀번호 재설정 토큰입니다.");
 
     private final HttpStatus status;
     private final String code;

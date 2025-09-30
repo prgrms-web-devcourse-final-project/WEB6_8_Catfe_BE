@@ -268,6 +268,76 @@ public class AuthService {
     }
 
     /**
+     * 아이디 찾기 서비스
+     * 1. 이메일로 사용자 조회
+     * 2. username 일부 마스킹 처리
+     * 3. 이메일 발송
+     */
+    public void recoverUsername(String email) {
+        // 사용자 조회
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // username 일부 마스킹 처리
+        String maskedUsername = maskUsername(user.getUsername());
+
+        // 이메일 발송
+        emailService.sendUsernameEmail(user.getEmail(), maskedUsername);
+    }
+
+    /**
+     * 비밀번호 재설정 요청 서비스
+     * 1. 이메일로 사용자 조회
+     * 2. 비밀번호 재설정 토큰 생성
+     * 3. 이메일 발송
+     */
+    public void recoverPassword(String email) {
+        // 사용자 조회
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 비밀번호 재설정 토큰 생성
+        String resetToken = tokenService.createPasswordResetToken(user.getId());
+
+        // 이메일 발송
+        emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
+    }
+
+    /**
+     * 비밀번호 재설정 서비스
+     * 1. 토큰 검증
+     * 2. 사용자 조회
+     * 3. 비밀번호 정책 검증
+     * 4. 비밀번호 변경
+     * 5. 토큰 삭제
+     */
+    public void resetPassword(String token, String newPassword) {
+        // 토큰 존재 여부 확인
+        if (token == null || token.isEmpty()) {
+            throw new CustomException(ErrorCode.BAD_REQUEST);
+        }
+
+        // 토큰으로 사용자 ID 조회
+        Long userId = tokenService.getUserIdByPasswordResetToken(token);
+        if (userId == null) {
+            throw new CustomException(ErrorCode.INVALID_PASSWORD_RESET_TOKEN);
+        }
+
+        // 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 비밀번호 정책 검증
+        PasswordValidator.validate(newPassword);
+
+        // 비밀번호 변경
+        user.setPassword(passwordEncoder.encode(newPassword));
+
+        // 토큰 삭제 (재사용 방지)
+        tokenService.deletePasswordResetToken(token);
+    }
+
+    /**
      * 회원가입 시 중복 검증
      * - username, email, nickname
      */
@@ -295,5 +365,32 @@ public class AuthService {
             }
         }
         return null;
+    }
+
+    /**
+     * username 일부 마스킹 처리
+     * - 1~2글자 → 첫 글자만 보이고 나머지는 * (ex. a*)
+     * - 3~4글자 → 앞 1글자 + * + 뒤 1글자 (ex. a*c, a**d)
+     * - 5글자 이상 → 앞 2글자 + * + 뒤 2글자 (ex. ab*de, ab**ef)
+     */
+    private String maskUsername(String username) {
+        if (username.length() <= 2) {
+            return username.charAt(0) + "*";
+        }
+        int length = username.length();
+        if (length <= 2) {
+            // 1~2글자 → 첫 글자만 보이고 나머지는 *
+            return username.charAt(0) + "*".repeat(length - 1);
+        } else if (length <= 4) {
+            // 3~4글자 → 앞 1글자 + * + 뒤 1글자
+            return username.charAt(0)
+                    + "*".repeat(length - 2)
+                    + username.charAt(length - 1);
+        } else {
+            // 5글자 이상 → 앞 2글자 + * + 뒤 2글자
+            return username.substring(0, 2)
+                    + "*".repeat(length - 4)
+                    + username.substring(length - 2);
+        }
     }
 }
