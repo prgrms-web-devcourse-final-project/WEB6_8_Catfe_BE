@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -42,6 +43,8 @@ public class StudyPlanService {
         // 날짜/시간 검증
         validateDateTime(request.getStartDate(), request.getEndDate());
 
+        // 시간 겹침 검증
+        validateTimeConflict(userId, null, request.getStartDate(), request.getEndDate());
 
         StudyPlan studyPlan = new StudyPlan();
 
@@ -311,6 +314,10 @@ public class StudyPlanService {
                 .orElseThrow(() -> new CustomException(ErrorCode.PLAN_NOT_FOUND));
 
         validateUserAccess(originalPlan, userId);
+        // 날짜/시간 검증
+        validateDateTime(request.getStartDate(), request.getEndDate());
+        // 시간 겹침 검증 (원본 계획 ID 제외)
+        validateTimeConflict(userId, originalPlan.getId(), request.getStartDate(), request.getEndDate());
 
         // 1. 단발성 계획인 경우
         if (originalPlan.getRepeatRule() == null) {
@@ -558,7 +565,49 @@ public class StudyPlanService {
             throw new CustomException(ErrorCode.PLAN_INVALID_TIME_RANGE);
         }
     }
-    //
+    //시간 겹침 검증 메서드 (최적화된 DB 쿼리 + 가상 인스턴스 검증 조합)
+    private void validateTimeConflict(Long userId, Long planIdToExclude, LocalDateTime newStart, LocalDateTime newEnd) {
+        LocalDate newPlanDate = newStart.toLocalDate();
+
+        // 1. DB 쿼리를 통해 요청 시간과 원본 시간대가 겹칠 가능성이 있는 계획들만 로드 (최적화)
+        // 기존 조회 코드를 이용하려 했으나 성능 문제로 인해 쿼리 작성.
+        // 조회기능도 리펙토링 예정
+        List<StudyPlan> conflictingOriginalPlans = studyPlanRepository.findByUserIdAndNotIdAndOverlapsTime(
+                userId, planIdToExclude, newStart, newEnd
+        );
+
+        if (conflictingOriginalPlans.isEmpty()) {
+            return;
+        }
+
+        for (StudyPlan plan : conflictingOriginalPlans) {
+            if (plan.getRepeatRule() == null) {
+                // 2-1. 단발성 계획: 쿼리에서 이미 시간 범위가 겹친다고 걸러졌지만, 최종 확인
+                if (isOverlapping(plan.getStartDate(), plan.getEndDate(), newStart, newEnd)) {
+                    throw new CustomException(ErrorCode.PLAN_TIME_CONFLICT);
+                }
+            } else {
+                // 2-2. 반복 계획: 기존 헬퍼를 사용해 요청 날짜의 가상 인스턴스를 생성하고 검사
+                StudyPlanResponse virtualPlan = createVirtualPlanForDate(plan, newPlanDate);
+
+                if (virtualPlan != null) {
+                    // 가상 인스턴스가 존재하고 (삭제되지 않았고)
+                    // 해당 인스턴스의 확정된 시간이 새 계획과 겹치는지 최종 확인
+                    if (isOverlapping(virtualPlan.getStartDate(), virtualPlan.getEndDate(), newStart, newEnd)) {
+                        throw new CustomException(ErrorCode.PLAN_TIME_CONFLICT);
+                    }
+                }
+            }
+        }
+    }
+    /*
+     * 두 시간 범위의 겹침을 확인하는 메서드
+     * 겹치는 조건: (새로운 시작 시각 < 기존 종료 시각) && (새로운 종료 시각 > 기존 시작 시각)
+     * (기존 종료 시각 == 새로운 시작 시각)은 겹치지 않는 것으로 간주
+     */
+    private boolean isOverlapping(LocalDateTime existingStart, LocalDateTime existingEnd, LocalDateTime newStart, LocalDateTime newEnd) {
+        return newStart.isBefore(existingEnd) && newEnd.isAfter(existingStart);
+    }
 
     private void validateRepeatRuleDate(StudyPlan studyPlan, LocalDate untilDate) {
         LocalDate planStartDate = studyPlan.getStartDate().toLocalDate();

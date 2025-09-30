@@ -43,7 +43,7 @@ public enum ErrorCode {
     PLAN_ORIGINAL_REPEAT_NOT_FOUND(HttpStatus.NOT_FOUND, "PLAN_004", "해당 날짜에 원본 반복 계획을 찾을 수 없습니다."),
     INVALID_DATE_FORMAT(HttpStatus.BAD_REQUEST, "PLAN_005", "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD 형식을 사용해주세요)"),
     PLAN_INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "PLAN_006", "시작 시간은 종료 시간보다 빨라야 합니다."),
-    PLAN_CONFLICT(HttpStatus.CONFLICT, "PLAN_007", "이미 존재하는 학습 계획과 시간이 겹칩니다."),
+    PLAN_TIME_CONFLICT(HttpStatus.CONFLICT, "PLAN_007", "이미 존재하는 학습 계획과 시간이 겹칩니다."),
     PLAN_CANNOT_UPDATE(HttpStatus.BAD_REQUEST, "PLAN_008", "수정 스위치 로직 탈출. 어떤 경우인지 파악이 필요합니다."),
     REPEAT_INVALID_UNTIL_DATE(HttpStatus.BAD_REQUEST, "REPEAT_001", "반복 계획의 종료 날짜는 시작 날짜 이전일 수 없습니다."),
     REPEAT_BYDAY_REQUIRED(HttpStatus.BAD_REQUEST, "REPEAT_002", "주간 반복 계획의 경우 요일(byDay) 정보가 필요합니다."),
