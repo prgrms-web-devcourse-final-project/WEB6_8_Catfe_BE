@@ -92,7 +92,7 @@ public class TodoService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
-    // 할 일 조회 및 소유권 확인
+    // 할 일 조회 및 사용자 소유 검증
     private Todo findTodoByIdAndUser(Long todoId, User user) {
         Todo todo = todoRepository.findById(todoId)
                 .orElseThrow(() -> new CustomException(ErrorCode.TODO_NOT_FOUND));
