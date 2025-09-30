@@ -5,6 +5,7 @@ import com.back.global.websocket.util.WebSocketErrorHelper;
 import com.back.global.websocket.webrtc.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -23,11 +24,7 @@ public class WebRTCSignalingController {
     private final SimpMessagingTemplate messagingTemplate;
     private final WebSocketErrorHelper errorHelper;
 
-    /**
-     * WebRTC Offer 메시지 처리
-     * P2P Mesh 방식: 방 전체에 브로드캐스트하여 모든 참가자가 수신
-     * 클라이언트가 /app/webrtc/offer로 전송
-     */
+    // WebRTC Offer 메시지 처리
     @MessageMapping("/webrtc/offer")
     public void handleOffer(@Validated @Payload WebRTCOfferRequest request,
                             SimpMessageHeaderAccessor headerAccessor,
@@ -67,11 +64,7 @@ public class WebRTCSignalingController {
         }
     }
 
-    /**
-     * WebRTC Answer 메시지 처리
-     * P2P Mesh 방식: 방 전체에 브로드캐스트하여 모든 참가자가 수신
-     * 클라이언트가 /app/webrtc/answer로 전송
-     */
+    // WebRTC Answer 메시지 처리
     @MessageMapping("/webrtc/answer")
     public void handleAnswer(@Validated @Payload WebRTCAnswerRequest request,
                              SimpMessageHeaderAccessor headerAccessor,
@@ -111,11 +104,7 @@ public class WebRTCSignalingController {
         }
     }
 
-    /**
-     * ICE Candidate 메시지 처리
-     * P2P Mesh 방식: 방 전체에 브로드캐스트하여 모든 참가자가 수신
-     * 클라이언트가 /app/webrtc/ice-candidate로 전송
-     */
+    // ICE Candidate 메시지 처리
     @MessageMapping("/webrtc/ice-candidate")
     public void handleIceCandidate(@Validated @Payload WebRTCIceCandidateRequest request,
                                    SimpMessageHeaderAccessor headerAccessor,
@@ -155,9 +144,47 @@ public class WebRTCSignalingController {
         }
     }
 
-    /**
-     * WebSocket Principal에서 CustomUserDetails 추출
-     */
+    // 미디어 상태 토글 처리 (오디오/비디오/화면공유 on/off)
+    @MessageMapping("/webrtc/media/toggle")
+    public void handleMediaToggle(@Validated @Payload WebRTCMediaToggleRequest request,
+                                  @DestinationVariable Long roomId,
+                                  SimpMessageHeaderAccessor headerAccessor,
+                                  Principal principal) {
+        try {
+            // 인증된 사용자 정보 추출
+            CustomUserDetails userDetails = extractUserDetails(principal);
+            if (userDetails == null) {
+                errorHelper.sendUnauthorizedError(headerAccessor.getSessionId());
+                return;
+            }
+
+            Long userId = userDetails.getUserId();
+            String nickname = userDetails.getUsername();
+
+            log.info("미디어 상태 변경 - Room: {}, User: {}, MediaType: {}, Enabled: {}",
+                    roomId, userId, request.mediaType(), request.enabled());
+
+            // 미디어 상태 응답 생성
+            WebRTCMediaStateResponse response = WebRTCMediaStateResponse.of(
+                    userId,
+                    nickname,
+                    request.mediaType(),
+                    request.enabled()
+            );
+
+            // 방 전체에 브로드캐스트
+            messagingTemplate.convertAndSend(
+                    "/topic/room/" + roomId + "/media-status",
+                    response
+            );
+
+        } catch (Exception e) {
+            log.error("미디어 상태 변경 중 오류 발생 - roomId: {}", roomId, e);
+            errorHelper.sendGenericErrorToUser(headerAccessor.getSessionId(), e, "미디어 상태 변경 중 오류가 발생했습니다");
+        }
+    }
+
+    // Principal에서 CustomUserDetails 추출 헬퍼 메서드
     private CustomUserDetails extractUserDetails(Principal principal) {
         if (principal instanceof Authentication auth) {
             Object principalObj = auth.getPrincipal();
