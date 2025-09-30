@@ -79,6 +79,18 @@ spring:
             user-info-uri: https://api.github.com/user
             user-name-attribute: id
 
+  mail:
+    host: smtp.gmail.com  # Gmail SMTP 서버 (운영 환경에서는 AWS SES 등으로 변경 권장)
+    port: 587
+    username: ${EMAIL_USERNAME}  # 이메일 주소
+    password: ${EMAIL_PASSWORD}  # 이메일 비밀번호 또는 앱 비밀번호
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 springdoc:
   default-produces-media-type: application/json;charset=UTF-8
 
@@ -102,3 +114,6 @@ studyroom:
     allow-camera: true
     allow-audio: true
     allow-screen-share: true
+
+frontend:
+  base-url: http://localhost:3000

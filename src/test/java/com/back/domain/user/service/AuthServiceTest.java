@@ -16,6 +16,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @Transactional
@@ -44,6 +48,20 @@ class AuthServiceTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private TokenService tokenService;
+
+    @Autowired
+    private EmailService emailService;
+
+    @TestConfiguration
+    static class MockConfig {
+        @Bean
+        EmailService emailService() {
+            return mock(EmailService.class);
+        }
+    }
 
     private User setupUser(String username, String email, String password, String nickname, UserStatus status) {
         UserRegisterRequest request = new UserRegisterRequest(username, email, password, nickname);
@@ -71,8 +89,7 @@ class AuthServiceTest {
         assertThat(response.username()).isEqualTo("testuser");
         assertThat(response.email()).isEqualTo("test@example.com");
         assertThat(response.nickname()).isEqualTo("홍길동");
-        // TODO: 이메일 인증 기능 개발 후 기본 상태를 PENDING으로 변경
-//        assertThat(response.status()).isEqualTo(UserStatus.PENDING);
+        assertThat(response.status()).isEqualTo(UserStatus.PENDING);
 
         // 비밀번호 인코딩 검증
         String encoded = userRepository.findById(response.userId()).get().getPassword();
@@ -176,6 +193,135 @@ class AuthServiceTest {
         assertThat(response.username()).isEqualTo("user3");
         assertThat(passwordEncoder.matches("Abcd123!",
                 userRepository.findById(response.userId()).get().getPassword())).isTrue();
+    }
+
+    @Test
+    @DisplayName("회원가입 시 이메일 인증 토큰 생성 및 이메일 발송 성공")
+    void register_sendVerificationEmail() {
+        // given: 회원가입 요청 생성
+        UserRegisterRequest request = new UserRegisterRequest(
+                "mailuser", "mailuser@example.com", "P@ssw0rd!", "메일닉네임"
+        );
+
+        // when: 회원가입 실행
+        UserResponse response = authService.register(request);
+
+        // then: 이메일 발송이 1회 호출되었는지 검증
+        verify(emailService, times(1))
+                .sendVerificationEmail(eq("mailuser@example.com"), anyString());
+
+        // 저장된 사용자 상태는 PENDING인지 확인
+        User saved = userRepository.findById(response.userId()).orElseThrow();
+        assertThat(saved.getUserStatus()).isEqualTo(UserStatus.PENDING);
+    }
+
+    // ======================== 이메일 인증 테스트 ========================
+
+    @Test
+    @DisplayName("정상 이메일 인증 성공 → PENDING → ACTIVE")
+    void verifyEmail_success() {
+        // given: 회원가입 후 사용자 생성 (기본 상태 = PENDING)
+        UserRegisterRequest request = new UserRegisterRequest(
+                "verifyuser", "verify@example.com", "P@ssw0rd!", "닉네임"
+        );
+        UserResponse response = authService.register(request);
+        User user = userRepository.findById(response.userId()).orElseThrow();
+
+        // 이메일 인증 토큰 생성
+        String token = tokenService.createEmailVerificationToken(user.getId());
+
+        // when: 이메일 인증 실행
+        UserResponse verified = authService.verifyEmail(token);
+
+        // then: 상태가 ACTIVE로 변경되었는지 확인
+        assertThat(verified.status()).isEqualTo(UserStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("이메일 인증 실패 - 토큰 누락 → BAD_REQUEST")
+    void verifyEmail_noToken() {
+        // when & then: 토큰이 null이면 BAD_REQUEST 예외 발생
+        assertThatThrownBy(() -> authService.verifyEmail(null))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.BAD_REQUEST.getMessage());
+    }
+
+    @Test
+    @DisplayName("이메일 인증 실패 - 잘못된 토큰 → INVALID_EMAIL_TOKEN")
+    void verifyEmail_invalidToken() {
+        // when & then: 잘못된 토큰이면 INVALID_EMAIL_TOKEN 예외 발생
+        assertThatThrownBy(() -> authService.verifyEmail("invalid-token"))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.INVALID_EMAIL_TOKEN.getMessage());
+    }
+
+    @Test
+    @DisplayName("이메일 인증 실패 - 이미 인증된 계정 → ALREADY_VERIFIED")
+    void verifyEmail_alreadyVerified() {
+        // given: 이미 ACTIVE 상태인 사용자 준비
+        UserRegisterRequest request = new UserRegisterRequest(
+                "alreadyuser", "already@example.com", "P@ssw0rd!", "닉네임"
+        );
+        UserResponse response = authService.register(request);
+        User user = userRepository.findById(response.userId()).orElseThrow();
+        user.setUserStatus(UserStatus.ACTIVE);
+
+        // 이미 인증된 사용자에 대해 토큰 발급
+        String token = tokenService.createEmailVerificationToken(user.getId());
+
+        // when & then: 인증 시도 시 ALREADY_VERIFIED 예외 발생
+        assertThatThrownBy(() -> authService.verifyEmail(token))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.ALREADY_VERIFIED.getMessage());
+    }
+
+    // ======================== 인증 메일 재발송 테스트 ========================
+
+    @Test
+    @DisplayName("정상 인증 메일 재발송 성공 → PENDING 상태 유저")
+    void resendVerificationEmail_success() {
+        // given: 회원가입 후 기본 상태는 PENDING
+        UserRegisterRequest request = new UserRegisterRequest(
+                "resenduser", "resend@example.com", "P@ssw0rd!", "닉네임"
+        );
+        UserResponse response = authService.register(request);
+        User user = userRepository.findById(response.userId()).orElseThrow();
+
+        // when: 인증 메일 재발송 요청
+        authService.resendVerificationEmail(user.getEmail());
+
+        // then: 이메일 발송이 호출되었는지 확인
+        verify(emailService, times(2))
+                .sendVerificationEmail(eq("resend@example.com"), anyString());
+        // (회원가입 시 1회 + 재발송 시 1회 → 총 2회)
+    }
+
+    @Test
+    @DisplayName("인증 메일 재발송 실패 - 존재하지 않는 사용자 → USER_NOT_FOUND")
+    void resendVerificationEmail_userNotFound() {
+        // when & then
+        assertThatThrownBy(() ->
+                authService.resendVerificationEmail("notfound@example.com")
+        ).isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("인증 메일 재발송 실패 - 이미 ACTIVE 상태 → ALREADY_VERIFIED")
+    void resendVerificationEmail_alreadyVerified() {
+        // given: 회원가입 후 사용자 상태를 ACTIVE로 변경
+        UserRegisterRequest request = new UserRegisterRequest(
+                "activeuser", "active@example.com", "P@ssw0rd!", "닉네임"
+        );
+        UserResponse response = authService.register(request);
+        User user = userRepository.findById(response.userId()).orElseThrow();
+        user.setUserStatus(UserStatus.ACTIVE);
+
+        // when & then: 재발송 시도 시 ALREADY_VERIFIED 예외 발생
+        assertThatThrownBy(() ->
+                authService.resendVerificationEmail(user.getEmail())
+        ).isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.ALREADY_VERIFIED.getMessage());
     }
 
     // ======================== 로그인 테스트 ========================

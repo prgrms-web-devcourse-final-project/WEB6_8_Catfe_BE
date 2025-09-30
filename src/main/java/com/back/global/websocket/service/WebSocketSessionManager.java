@@ -35,8 +35,8 @@ public class WebSocketSessionManager {
     private static final String SESSION_USER_KEY = "ws:session:{}";
     private static final String ROOM_USERS_KEY = "ws:room:{}:users";
 
-    // TTL 설정 (10분)
-    private static final int SESSION_TTL_MINUTES = 10;
+    // TTL 설정
+    private static final int SESSION_TTL_MINUTES = 6;
 
     // 사용자 세션 추가 (연결 시 호출)
     public void addSession(Long userId, String sessionId) {

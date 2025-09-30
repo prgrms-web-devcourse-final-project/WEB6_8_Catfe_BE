@@ -59,7 +59,7 @@ class WebSocketSessionManagerTest {
         );
 
         // then
-        verify(valueOperations, times(2)).set(anyString(), any(), eq(Duration.ofMinutes(10)));
+        verify(valueOperations, times(2)).set(anyString(), any(), eq(Duration.ofMinutes(6)));
     }
 
     @Test
@@ -81,7 +81,7 @@ class WebSocketSessionManagerTest {
 
         // then
         verify(redisTemplate, atLeastOnce()).delete(anyString()); // 기존 세션 삭제
-        verify(valueOperations, times(2)).set(anyString(), any(), eq(Duration.ofMinutes(10))); // 새 세션 등록
+        verify(valueOperations, times(2)).set(anyString(), any(), eq(Duration.ofMinutes(6))); // 새 세션 등록
     }
 
     @Test
@@ -191,7 +191,7 @@ class WebSocketSessionManagerTest {
         );
 
         // then
-        verify(valueOperations).set(eq("ws:user:123"), any(WebSocketSessionInfo.class), eq(Duration.ofMinutes(10)));
+        verify(valueOperations).set(eq("ws:user:123"), any(WebSocketSessionInfo.class), eq(Duration.ofMinutes(6)));
     }
 
     @Test
@@ -229,8 +229,8 @@ class WebSocketSessionManagerTest {
 
         // then
         verify(setOperations).add("ws:room:456:users", TEST_USER_ID);
-        verify(redisTemplate).expire("ws:room:456:users", Duration.ofMinutes(10));
-        verify(valueOperations).set(eq("ws:user:123"), any(WebSocketSessionInfo.class), eq(Duration.ofMinutes(10)));
+        verify(redisTemplate).expire("ws:room:456:users", Duration.ofMinutes(6));
+        verify(valueOperations).set(eq("ws:user:123"), any(WebSocketSessionInfo.class), eq(Duration.ofMinutes(6)));
     }
 
     @Test
@@ -280,7 +280,7 @@ class WebSocketSessionManagerTest {
 
         // then
         verify(setOperations).remove("ws:room:456:users", TEST_USER_ID);
-        verify(valueOperations).set(eq("ws:user:123"), any(WebSocketSessionInfo.class), eq(Duration.ofMinutes(10)));
+        verify(valueOperations).set(eq("ws:user:123"), any(WebSocketSessionInfo.class), eq(Duration.ofMinutes(6)));
     }
 
     @Test

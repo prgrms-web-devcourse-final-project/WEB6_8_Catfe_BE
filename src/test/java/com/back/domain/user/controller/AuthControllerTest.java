@@ -4,6 +4,8 @@ import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.service.EmailService;
+import com.back.domain.user.service.TokenService;
 import com.back.fixture.TestJwtTokenProvider;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
@@ -11,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -19,6 +23,8 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -36,10 +42,21 @@ class AuthControllerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private TokenService tokenService;
+
+    @Autowired
     private TestJwtTokenProvider testJwtTokenProvider;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @TestConfiguration
+    static class MockConfig {
+        @Bean
+        public EmailService emailService() {
+            return mock(EmailService.class);
+        }
+    }
 
     // ======================== 회원가입 테스트 ========================
 
@@ -74,8 +91,7 @@ class AuthControllerTest {
 
         // DB에서 저장된 User 상태 검증
         User saved = userRepository.findByUsername("testuser").orElseThrow();
-        // TODO: 이메일 인증 기능 개발 후 기본 상태를 PENDING으로 변경
-//        assertThat(saved.getUserStatus()).isEqualTo(UserStatus.PENDING);
+        assertThat(saved.getUserStatus()).isEqualTo(UserStatus.PENDING);
     }
 
     @Test
@@ -208,26 +224,183 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
     }
 
+    // ======================== 이메일 인증 테스트 ========================
+
+    @Test
+    @DisplayName("이메일 인증 성공 → 200 OK + UserStatus.ACTIVE")
+    void verifyEmail_success() throws Exception {
+        // given: PENDING 상태 유저 생성
+        User pending = User.createUser("verifyuser", "verify@example.com",
+                passwordEncoder.encode("P@ssw0rd!"));
+        pending.setUserProfile(new UserProfile(pending, "홍길동", null, null, null, 0));
+        pending.setUserStatus(UserStatus.PENDING);
+        User saved = userRepository.save(pending);
+
+        // 이메일 인증 토큰 발급
+        String token = tokenService.createEmailVerificationToken(saved.getId());
+
+        // when & then
+        mvc.perform(get("/api/auth/email/verify").param("token", token))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("이메일 인증이 완료되었습니다."))
+                .andExpect(jsonPath("$.data.username").value("verifyuser"))
+                .andExpect(jsonPath("$.data.email").value("verify@example.com"))
+                .andExpect(jsonPath("$.data.nickname").value("홍길동"));
+    }
+
+    @Test
+    @DisplayName("유효하지 않거나 만료된 토큰 → 401 Unauthorized")
+    void verifyEmail_invalidOrExpiredToken() throws Exception {
+        mvc.perform(get("/api/auth/email/verify").param("token", "fake-token"))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("TOKEN_001"))
+                .andExpect(jsonPath("$.message").value("유효하지 않은 이메일 인증 토큰입니다."));
+    }
+
+    @Test
+    @DisplayName("이미 인증된 계정 → 409 Conflict")
+    void verifyEmail_alreadyVerified() throws Exception {
+        // given: ACTIVE 상태 유저
+        User active = User.createUser("activeuser", "active@example.com",
+                passwordEncoder.encode("P@ssw0rd!"));
+        active.setUserProfile(new UserProfile(active, "홍길동", null, null, null, 0));
+        active.setUserStatus(UserStatus.ACTIVE);
+        User saved = userRepository.save(active);
+
+        // 토큰 발급 (실제로는 필요 없지만, 호출 상황 가정)
+        String token = tokenService.createEmailVerificationToken(saved.getId());
+
+        // when & then
+        mvc.perform(get("/api/auth/email/verify").param("token", token))
+                .andDo(print())
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("TOKEN_002"))
+                .andExpect(jsonPath("$.message").value("이미 인증된 계정입니다."));
+    }
+
+    @Test
+    @DisplayName("토큰 파라미터 누락 → 400 Bad Request")
+    void verifyEmail_missingToken() throws Exception {
+        mvc.perform(get("/api/auth/email/verify"))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
+    }
+
+    // ======================== 인증 메일 재발송 테스트 ========================
+
+    @Test
+    @DisplayName("인증 메일 재발송 성공 → 200 OK")
+    void resendVerificationEmail_success() throws Exception {
+        // given: PENDING 상태 유저 생성
+        User pending = User.createUser("resenduser", "resend@example.com",
+                passwordEncoder.encode("P@ssw0rd!"));
+        pending.setUserProfile(new UserProfile(pending, "재발송닉", null, null, null, 0));
+        pending.setUserStatus(UserStatus.PENDING);
+        userRepository.save(pending);
+
+        String body = """
+                {
+                  "email": "resend@example.com"
+                }
+                """;
+
+        // when & then
+        mvc.perform(post("/api/auth/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("인증 메일이 재발송되었습니다."))
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    @DisplayName("인증 메일 재발송 실패 - 존재하지 않는 사용자 → 404 Not Found")
+    void resendVerificationEmail_userNotFound() throws Exception {
+        String body = """
+                {
+                  "email": "notfound@example.com"
+                }
+                """;
+
+        mvc.perform(post("/api/auth/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("USER_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+    }
+
+    @Test
+    @DisplayName("인증 메일 재발송 실패 - 이미 인증된 계정 → 409 Conflict")
+    void resendVerificationEmail_alreadyVerified() throws Exception {
+        // given: ACTIVE 상태 유저 생성
+        User active = User.createUser("activeuser2", "active2@example.com",
+                passwordEncoder.encode("P@ssw0rd!"));
+        active.setUserProfile(new UserProfile(active, "액티브닉", null, null, null, 0));
+        active.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(active);
+
+        String body = """
+                {
+                  "email": "active2@example.com"
+                }
+                """;
+
+        mvc.perform(post("/api/auth/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("TOKEN_002"))
+                .andExpect(jsonPath("$.message").value("이미 인증된 계정입니다."));
+    }
+
+    @Test
+    @DisplayName("인증 메일 재발송 실패 - 이메일 필드 누락 → 400 Bad Request")
+    void resendVerificationEmail_missingField() throws Exception {
+        // given: 잘못된 요청 (이메일 누락)
+        String body = """
+                {
+                }
+                """;
+
+        mvc.perform(post("/api/auth/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
+    }
+
     // ======================== 로그인 테스트 ========================
 
     @Test
     @DisplayName("정상 로그인 → 200 OK + accessToken + refreshToken 쿠키")
     void login_success() throws Exception {
-        // given: 회원가입 요청으로 DB에 정상 유저 저장
+        // given: 활성화된 유저 저장 (비밀번호 인코딩 필수)
         String rawPassword = "P@ssw0rd!";
-        String registerBody = """
-                {
-                  "username": "loginuser",
-                  "email": "login@example.com",
-                  "password": "%s",
-                  "nickname": "홍길동"
-                }
-                """.formatted(rawPassword);
-
-        mvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(registerBody))
-                .andExpect(status().isCreated());
+        User user = User.createUser("loginuser", "login@example.com",
+                passwordEncoder.encode(rawPassword));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
 
         // when: 로그인 요청
         String loginBody = """
@@ -255,19 +428,13 @@ class AuthControllerTest {
     @Test
     @DisplayName("잘못된 비밀번호 → 401 Unauthorized")
     void login_invalidPassword() throws Exception {
-        // given: 정상 유저를 회원가입으로 저장
+        // given: 정상 유저 저장
         String rawPassword = "P@ssw0rd!";
-        String registerBody = """
-                {
-                  "username": "badpwuser",
-                  "email": "badpw@example.com",
-                  "password": "%s",
-                  "nickname": "닉네임"
-                }
-                """.formatted(rawPassword);
-        mvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(registerBody));
+        User user = User.createUser("loginuser", "login@example.com",
+                passwordEncoder.encode(rawPassword));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
 
         // when: 틀린 비밀번호로 로그인 요청
         String loginBody = """
@@ -394,21 +561,13 @@ class AuthControllerTest {
     @Test
     @DisplayName("정상 로그아웃 → 200 OK + RefreshToken 쿠키 만료")
     void logout_success() throws Exception {
-        // given: 회원가입 + 로그인
+        // given: 활성화된 유저 생성 후 로그인
         String rawPassword = "P@ssw0rd!";
-        String registerBody = """
-                {
-                  "username": "logoutuser",
-                  "email": "logout@example.com",
-                  "password": "%s",
-                  "nickname": "홍길동"
-                }
-                """.formatted(rawPassword);
-
-        mvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(registerBody))
-                .andExpect(status().isCreated());
+        User user = User.createUser("logoutuser", "logout@example.com",
+                passwordEncoder.encode(rawPassword));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
 
         String loginBody = """
                 {
@@ -489,21 +648,13 @@ class AuthControllerTest {
     @Test
     @DisplayName("정상 토큰 재발급 → 200 OK + 새로운 AccessToken 반환")
     void refreshToken_success() throws Exception {
-        // given: 회원가입 + 로그인 → 기존 토큰 확보
+        // given: 활성화된 유저 생성 후 로그인
         String rawPassword = "P@ssw0rd!";
-        String registerBody = """
-                {
-                  "username": "refreshuser",
-                  "email": "refresh@example.com",
-                  "password": "%s",
-                  "nickname": "홍길동"
-                }
-                """.formatted(rawPassword);
-
-        mvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(registerBody))
-                .andExpect(status().isCreated());
+        User user = User.createUser("refreshuser", "refresh@example.com",
+                passwordEncoder.encode(rawPassword));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
 
         String loginBody = """
                 {

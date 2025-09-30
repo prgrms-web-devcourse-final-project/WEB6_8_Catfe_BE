@@ -7,6 +7,7 @@ import com.back.domain.chat.room.dto.RoomChatMessageDto;
 import com.back.global.exception.CustomException;
 import com.back.global.security.user.CustomUserDetails;
 import com.back.domain.chat.room.service.RoomChatService;
+import com.back.global.websocket.util.WebSocketAuthHelper;
 import com.back.global.websocket.util.WebSocketErrorHelper;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class RoomChatWebSocketController {
 
     private final RoomChatService roomChatService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final WebSocketAuthHelper authHelper;
     private final WebSocketErrorHelper errorHelper;
 
     /**
@@ -43,7 +45,8 @@ public class RoomChatWebSocketController {
 
         try {
             // WebSocket에서 인증된 사용자 정보 추출
-            CustomUserDetails userDetails = extractUserDetails(principal);
+            CustomUserDetails userDetails = authHelper.extractUserDetails(principal);
+
             if (userDetails == null) {
                 errorHelper.sendUnauthorizedError(headerAccessor.getSessionId());
                 return;
@@ -101,7 +104,8 @@ public class RoomChatWebSocketController {
             log.info("WebSocket 채팅 일괄 삭제 요청 - roomId: {}", roomId);
 
             // 사용자 인증 확인
-            CustomUserDetails userDetails = extractUserDetails(principal);
+            CustomUserDetails userDetails = authHelper.extractUserDetails(principal);
+
             if (userDetails == null) {
                 errorHelper.sendUnauthorizedError(headerAccessor.getSessionId());
                 return;
@@ -146,17 +150,6 @@ public class RoomChatWebSocketController {
             log.error("채팅 일괄 삭제 중 예상치 못한 오류 발생 - roomId: {}", roomId, e);
             errorHelper.sendGenericErrorToUser(headerAccessor.getSessionId(), e, "채팅 삭제 중 오류가 발생했습니다");
         }
-    }
-
-    // WebSocket Principal에서 CustomUserDetails 추출
-    private CustomUserDetails extractUserDetails(Principal principal) {
-        if (principal instanceof Authentication auth) {
-            Object principalObj = auth.getPrincipal();
-            if (principalObj instanceof CustomUserDetails userDetails) {
-                return userDetails;
-            }
-        }
-        return null;
     }
 
 }
