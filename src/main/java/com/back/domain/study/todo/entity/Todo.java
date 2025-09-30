@@ -32,4 +32,11 @@ public class Todo extends BaseEntity {
         this.isComplete = false;
     }
 
+    public void updateDescription(String description) {
+        this.description = description;
+    }
+
+    public void toggleComplete() {
+        this.isComplete = !this.isComplete;
+    }
 }

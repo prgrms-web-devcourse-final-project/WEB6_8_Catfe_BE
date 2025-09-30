@@ -48,6 +48,10 @@ public enum ErrorCode {
     REPEAT_INVALID_UNTIL_DATE(HttpStatus.BAD_REQUEST, "REPEAT_001", "반복 계획의 종료 날짜는 시작 날짜 이전일 수 없습니다."),
     REPEAT_BYDAY_REQUIRED(HttpStatus.BAD_REQUEST, "REPEAT_002", "주간 반복 계획의 경우 요일(byDay) 정보가 필요합니다."),
 
+    // ======================== 투두 관련 ========================
+    TODO_NOT_FOUND(HttpStatus.NOT_FOUND, "TODO_001", "존재하지 않는 할 일입니다."),
+    TODO_FORBIDDEN(HttpStatus.FORBIDDEN, "TODO_002", "할 일에 대한 접근 권한이 없습니다."),
+
 
     // ======================== 메시지 관련 ========================
     MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MESSAGE_001", "존재하지 않는 메시지입니다."),

@@ -60,7 +60,39 @@ public class TodoController {
     }
 
     // ==================== 수정 ===================
+    // 할 일 내용 수정
+    @PutMapping("/{todoId}")
+    @Operation(summary = "할 일 수정", description = "할 일의 내용과 날짜를 수정합니다.")
+    public ResponseEntity<RsData<TodoResponseDto>> updateTodo(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long todoId,
+            @Valid @RequestBody TodoRequestDto requestDto
+    ) {
+        TodoResponseDto response = todoService.updateTodo(userDetails.getUserId(), todoId, requestDto);
+        return ResponseEntity.ok(RsData.success("할 일이 수정되었습니다.", response));
+    }
+
+    // 할 일 완료/미완료 토글
+    @PutMapping("/{todoId}/complete")
+    @Operation(summary = "할 일 완료 상태 토글", description = "할 일의 완료 상태를 변경합니다.")
+    public ResponseEntity<RsData<TodoResponseDto>> toggleTodoComplete(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long todoId
+    ) {
+        TodoResponseDto response = todoService.toggleTodoComplete(userDetails.getUserId(), todoId);
+        return ResponseEntity.ok(RsData.success("할 일 상태가 변경되었습니다.", response));
+    }
 
     // ==================== 삭제 ===================
+    // 할 일 삭제
+    @DeleteMapping("/{todoId}")
+    @Operation(summary = "할 일 삭제", description = "할 일을 삭제합니다.")
+    public ResponseEntity<RsData<Void>> deleteTodo(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long todoId
+    ) {
+        todoService.deleteTodo(userDetails.getUserId(), todoId);
+        return ResponseEntity.ok(RsData.success("할 일이 삭제되었습니다."));
+    }
 
 }
