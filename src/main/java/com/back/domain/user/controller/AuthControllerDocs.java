@@ -305,7 +305,7 @@ public interface AuthControllerDocs {
             )
     })
     ResponseEntity<RsData<Void>> resendVerificationEmail(
-            @Valid @RequestBody ResendVerificationRequest request
+            @Valid @RequestBody sendEmailRequest request
     );
 
     @Operation(

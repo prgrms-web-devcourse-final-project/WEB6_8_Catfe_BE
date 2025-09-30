@@ -42,6 +42,21 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, htmlContent);
     }
 
+    // 아이디 찾기 메일 전송
+    public void sendUsernameEmail(String toEmail, String maskedUsername) {
+        String subject = "[Catfe] 아이디 찾기 안내";
+        String htmlContent = """
+            <p>안녕하세요, Catfe입니다.</p>
+            <p>회원님의 로그인 아이디는 다음과 같습니다.</p>
+            <br>
+            <p><b>%s</b></p>
+            <br>
+            <p>감사합니다.</p>
+            """.formatted(maskedUsername);
+
+        sendHtmlEmail(toEmail, subject, htmlContent);
+    }
+
     // HTML 이메일 전송 공통 메서드
     private void sendHtmlEmail(String toEmail, String subject, String htmlContent) {
         try {

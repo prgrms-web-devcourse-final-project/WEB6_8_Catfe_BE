@@ -268,6 +268,24 @@ public class AuthService {
     }
 
     /**
+     * 아이디 찾기 서비스
+     * 1. 이메일로 사용자 조회
+     * 2. username 일부 마스킹 처리
+     * 3. 이메일 발송
+     */
+    public void recoverUsername(String email) {
+        // 사용자 조회
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // username 일부 마스킹 처리
+        String maskedUsername = maskUsername(user.getUsername());
+
+        // 이메일 발송
+        emailService.sendUsernameEmail(user.getEmail(), maskedUsername);
+    }
+
+    /**
      * 회원가입 시 중복 검증
      * - username, email, nickname
      */
@@ -295,5 +313,32 @@ public class AuthService {
             }
         }
         return null;
+    }
+
+    /**
+     * username 일부 마스킹 처리
+     * - 1~2글자 → 첫 글자만 보이고 나머지는 * (ex. a*)
+     * - 3~4글자 → 앞 1글자 + * + 뒤 1글자 (ex. a*c, a**d)
+     * - 5글자 이상 → 앞 2글자 + * + 뒤 2글자 (ex. ab*de, ab**ef)
+     */
+    private String maskUsername(String username) {
+        if (username.length() <= 2) {
+            return username.charAt(0) + "*";
+        }
+        int length = username.length();
+        if (length <= 2) {
+            // 1~2글자 → 첫 글자만 보이고 나머지는 *
+            return username.charAt(0) + "*".repeat(length - 1);
+        } else if (length <= 4) {
+            // 3~4글자 → 앞 1글자 + * + 뒤 1글자
+            return username.charAt(0)
+                    + "*".repeat(length - 2)
+                    + username.charAt(length - 1);
+        } else {
+            // 5글자 이상 → 앞 2글자 + * + 뒤 2글자
+            return username.substring(0, 2)
+                    + "*".repeat(length - 4)
+                    + username.substring(length - 2);
+        }
     }
 }

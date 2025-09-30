@@ -9,7 +9,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -50,7 +49,7 @@ public class AuthController implements AuthControllerDocs {
     // 인증 메일 재발송
     @PostMapping("/email/verify")
     public ResponseEntity<RsData<Void>> resendVerificationEmail(
-            @Valid @RequestBody ResendVerificationRequest request
+            @Valid @RequestBody sendEmailRequest request
     ) {
         authService.resendVerificationEmail(request.email());
         return ResponseEntity
@@ -99,5 +98,17 @@ public class AuthController implements AuthControllerDocs {
                 "토큰이 재발급되었습니다.",
                 Map.of("accessToken", newAccessToken)
         ));
+    }
+
+    @PostMapping("/username/recover")
+    public ResponseEntity<RsData<Void>> recoverUsername(
+            @Valid @RequestBody sendEmailRequest request
+    ) {
+        authService.recoverUsername(request.email());
+        return ResponseEntity
+                .ok(RsData.success(
+                        "아이디를 이메일로 전송했습니다.",
+                        null
+                ));
     }
 }
