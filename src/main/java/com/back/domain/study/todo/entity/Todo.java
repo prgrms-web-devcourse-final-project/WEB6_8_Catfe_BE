@@ -15,7 +15,7 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 public class Todo extends BaseEntity {
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "user_id")
     private User user;
 
@@ -24,5 +24,12 @@ public class Todo extends BaseEntity {
     private String description;
 
     private LocalDate date;
+
+    public Todo(User user, String description, LocalDate date) {
+        this.user = user;
+        this.description = description;
+        this.date = date;
+        this.isComplete = false;
+    }
 
 }

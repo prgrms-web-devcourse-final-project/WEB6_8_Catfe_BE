@@ -582,16 +582,16 @@ public class StudyPlanService {
 
         for (StudyPlan plan : conflictingOriginalPlans) {
             if (plan.getRepeatRule() == null) {
-                // 2-1. 단발성 계획: 쿼리에서 이미 시간 범위가 겹친다고 걸러졌지만, 최종 확인
+                // 2-1. 단발성 계획 -> 쿼리에서 이미 시간 범위가 겹친다고 걸러졌지만 재확인
                 if (isOverlapping(plan.getStartDate(), plan.getEndDate(), newStart, newEnd)) {
                     throw new CustomException(ErrorCode.PLAN_TIME_CONFLICT);
                 }
             } else {
-                // 2-2. 반복 계획: 기존 헬퍼를 사용해 요청 날짜의 가상 인스턴스를 생성하고 검사
+                // 2-2. 반복 계획 -> 기존 메서드를 사용해 요청 날짜의 가상 인스턴스를 생성하고 검사
                 StudyPlanResponse virtualPlan = createVirtualPlanForDate(plan, newPlanDate);
 
                 if (virtualPlan != null) {
-                    // 가상 인스턴스가 존재하고 (삭제되지 않았고)
+                    // 가상 인스턴스가 존재하고
                     // 해당 인스턴스의 확정된 시간이 새 계획과 겹치는지 최종 확인
                     if (isOverlapping(virtualPlan.getStartDate(), virtualPlan.getEndDate(), newStart, newEnd)) {
                         throw new CustomException(ErrorCode.PLAN_TIME_CONFLICT);
