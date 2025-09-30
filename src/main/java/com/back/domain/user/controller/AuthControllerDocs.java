@@ -833,4 +833,90 @@ public interface AuthControllerDocs {
     ResponseEntity<RsData<Void>> recoverPassword(
             @Valid @RequestBody SendEmailRequest request
     );
+
+    @Operation(
+            summary = "비밀번호 재설정",
+            description = "비밀번호 재설정 토큰과 새로운 비밀번호를 입력받아 계정 비밀번호를 변경합니다. 토큰은 1시간 동안만 유효합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "비밀번호 재설정 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "비밀번호가 성공적으로 재설정되었습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 (필드 누락, 비밀번호 정책 위반)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_400",
+                                      "message": "잘못된 요청입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "유효하지 않은 비밀번호 재설정 토큰",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "TOKEN_003",
+                                      "message": "유효하지 않은 비밀번호 재설정 토큰입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_001",
+                                      "message": "존재하지 않는 사용자입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    @PostMapping("/password/reset")
+    ResponseEntity<RsData<Void>> resetPassword(
+            @Valid @RequestBody PasswordResetRequest request
+    );
 }
