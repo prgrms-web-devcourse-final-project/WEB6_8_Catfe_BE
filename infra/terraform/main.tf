@@ -194,10 +194,7 @@ sudo mkswap /swapfile
 sudo swapon /swapfile
 sudo sh -c 'echo "/swapfile swap swap defaults 0 0" >> /etc/fstab'
 
-# git 설치
-yum install git -y
-
-#도커 설치 및 실행/활성화
+# 도커 설치 및 실행/활성화
 yum install docker -y
 systemctl enable docker
 systemctl start docker
@@ -229,6 +226,8 @@ docker run -d \
   -v /dockerProjects/npm_1/volumes/etc/letsencrypt:/etc/letsencrypt \
   jc21/nginx-proxy-manager:latest
 
+# ghcr.io 로그인
+echo "${var.github_access_token_1}" | docker login ghcr.io -u ${var.github_access_token_1_owner} --password-stdin
 
 END_OF_FILE
 }
