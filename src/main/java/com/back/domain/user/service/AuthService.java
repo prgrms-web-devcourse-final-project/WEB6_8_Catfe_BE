@@ -140,6 +140,8 @@ public class AuthService {
             throw new CustomException(ErrorCode.ALREADY_VERIFIED);
         }
 
+        // TODO: 기존 토큰이 남아있는 경우 삭제하는 로직 추가 고려
+
         // 새로운 이메일 인증 토큰 생성
         String emailToken = tokenService.createEmailVerificationToken(user.getId());
 

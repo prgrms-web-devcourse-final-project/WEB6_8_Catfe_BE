@@ -275,6 +275,55 @@ class AuthServiceTest {
                 .hasMessage(ErrorCode.ALREADY_VERIFIED.getMessage());
     }
 
+    // ======================== 인증 메일 재발송 테스트 ========================
+
+    @Test
+    @DisplayName("정상 인증 메일 재발송 성공 → PENDING 상태 유저")
+    void resendVerificationEmail_success() {
+        // given: 회원가입 후 기본 상태는 PENDING
+        UserRegisterRequest request = new UserRegisterRequest(
+                "resenduser", "resend@example.com", "P@ssw0rd!", "닉네임"
+        );
+        UserResponse response = authService.register(request);
+        User user = userRepository.findById(response.userId()).orElseThrow();
+
+        // when: 인증 메일 재발송 요청
+        authService.resendVerificationEmail(user.getEmail());
+
+        // then: 이메일 발송이 호출되었는지 확인
+        verify(emailService, times(2))
+                .sendVerificationEmail(eq("resend@example.com"), anyString());
+        // (회원가입 시 1회 + 재발송 시 1회 → 총 2회)
+    }
+
+    @Test
+    @DisplayName("인증 메일 재발송 실패 - 존재하지 않는 사용자 → USER_NOT_FOUND")
+    void resendVerificationEmail_userNotFound() {
+        // when & then
+        assertThatThrownBy(() ->
+                authService.resendVerificationEmail("notfound@example.com")
+        ).isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("인증 메일 재발송 실패 - 이미 ACTIVE 상태 → ALREADY_VERIFIED")
+    void resendVerificationEmail_alreadyVerified() {
+        // given: 회원가입 후 사용자 상태를 ACTIVE로 변경
+        UserRegisterRequest request = new UserRegisterRequest(
+                "activeuser", "active@example.com", "P@ssw0rd!", "닉네임"
+        );
+        UserResponse response = authService.register(request);
+        User user = userRepository.findById(response.userId()).orElseThrow();
+        user.setUserStatus(UserStatus.ACTIVE);
+
+        // when & then: 재발송 시도 시 ALREADY_VERIFIED 예외 발생
+        assertThatThrownBy(() ->
+                authService.resendVerificationEmail(user.getEmail())
+        ).isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.ALREADY_VERIFIED.getMessage());
+    }
+
     // ======================== 로그인 테스트 ========================
 
     @Test

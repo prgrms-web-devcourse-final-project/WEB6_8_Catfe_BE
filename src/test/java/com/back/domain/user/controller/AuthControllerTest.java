@@ -295,6 +295,100 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
     }
 
+    // ======================== 인증 메일 재발송 테스트 ========================
+
+    @Test
+    @DisplayName("인증 메일 재발송 성공 → 200 OK")
+    void resendVerificationEmail_success() throws Exception {
+        // given: PENDING 상태 유저 생성
+        User pending = User.createUser("resenduser", "resend@example.com",
+                passwordEncoder.encode("P@ssw0rd!"));
+        pending.setUserProfile(new UserProfile(pending, "재발송닉", null, null, null, 0));
+        pending.setUserStatus(UserStatus.PENDING);
+        userRepository.save(pending);
+
+        String body = """
+                {
+                  "email": "resend@example.com"
+                }
+                """;
+
+        // when & then
+        mvc.perform(post("/api/auth/email-verification/resend")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("인증 메일이 재발송되었습니다."))
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    @DisplayName("인증 메일 재발송 실패 - 존재하지 않는 사용자 → 404 Not Found")
+    void resendVerificationEmail_userNotFound() throws Exception {
+        String body = """
+                {
+                  "email": "notfound@example.com"
+                }
+                """;
+
+        mvc.perform(post("/api/auth/email-verification/resend")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("USER_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+    }
+
+    @Test
+    @DisplayName("인증 메일 재발송 실패 - 이미 인증된 계정 → 409 Conflict")
+    void resendVerificationEmail_alreadyVerified() throws Exception {
+        // given: ACTIVE 상태 유저 생성
+        User active = User.createUser("activeuser2", "active2@example.com",
+                passwordEncoder.encode("P@ssw0rd!"));
+        active.setUserProfile(new UserProfile(active, "액티브닉", null, null, null, 0));
+        active.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(active);
+
+        String body = """
+                {
+                  "email": "active2@example.com"
+                }
+                """;
+
+        mvc.perform(post("/api/auth/email-verification/resend")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("TOKEN_002"))
+                .andExpect(jsonPath("$.message").value("이미 인증된 계정입니다."));
+    }
+
+    @Test
+    @DisplayName("인증 메일 재발송 실패 - 이메일 필드 누락 → 400 Bad Request")
+    void resendVerificationEmail_missingField() throws Exception {
+        // given: 잘못된 요청 (이메일 누락)
+        String body = """
+                {
+                }
+                """;
+
+        mvc.perform(post("/api/auth/email-verification/resend")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
+    }
+
     // ======================== 로그인 테스트 ========================
 
     @Test
