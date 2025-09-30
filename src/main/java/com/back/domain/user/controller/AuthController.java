@@ -49,7 +49,7 @@ public class AuthController implements AuthControllerDocs {
     // 인증 메일 재발송
     @PostMapping("/email/verify")
     public ResponseEntity<RsData<Void>> resendVerificationEmail(
-            @Valid @RequestBody sendEmailRequest request
+            @Valid @RequestBody SendEmailRequest request
     ) {
         authService.resendVerificationEmail(request.email());
         return ResponseEntity
@@ -103,7 +103,7 @@ public class AuthController implements AuthControllerDocs {
     // 아이디 찾기
     @PostMapping("/username/recover")
     public ResponseEntity<RsData<Void>> recoverUsername(
-            @Valid @RequestBody sendEmailRequest request
+            @Valid @RequestBody SendEmailRequest request
     ) {
         authService.recoverUsername(request.email());
         return ResponseEntity
@@ -116,7 +116,7 @@ public class AuthController implements AuthControllerDocs {
     // 비밀번호 재설정 요청
     @PostMapping("/password/recover")
     public ResponseEntity<RsData<Void>> recoverPassword(
-            @Valid @RequestBody sendEmailRequest request
+            @Valid @RequestBody SendEmailRequest request
     ) {
         authService.recoverPassword(request.email());
         return ResponseEntity
