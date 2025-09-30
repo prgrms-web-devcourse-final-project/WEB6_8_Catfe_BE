@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -35,7 +37,7 @@ public class StudyPlanRequest {
     public static class RepeatRuleRequest {
         private Frequency frequency;
         private Integer intervalValue;
-        private String byDay; // "MON" 형태의 문자열
+        private List<String> byDay = new ArrayList<>();  // 문자열 리스트
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
         private String untilDate; // "2025-12-31" 형태

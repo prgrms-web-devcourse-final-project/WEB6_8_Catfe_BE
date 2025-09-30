@@ -12,6 +12,7 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -42,10 +43,13 @@ public class StudyPlanResponse {
     public static class RepeatRuleResponse {
         private Frequency frequency;
         private Integer repeatInterval;
-        private String byDay; // "MON" 형태의 문자열
+        // byDay 필드는 이미 List<String>으로 선언되어 있음.
+        private List<String> byDay = new ArrayList<>();  // "MON" 형태의 문자열 리스트
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
         private LocalDate untilDate;
+
+        // 엔티티 생성자: 그대로 유지
 
         public RepeatRuleResponse(com.back.domain.study.plan.entity.RepeatRule repeatRule) {
             if (repeatRule != null) {
@@ -56,13 +60,13 @@ public class StudyPlanResponse {
             }
         }
 
-        // 요일을 리스트로 접근 ("MON,TUE" -> [MON, TUE])
         public List<DayOfWeek> getByDaysList() {
             if (byDay == null || byDay.isEmpty()) {
                 return List.of();
             }
-            return Arrays.stream(byDay.split(","))
-                    .map(String::trim)
+
+            // List<String>의 각 요소를 DayOfWeek enum으로 변환하여 반환
+            return byDay.stream()
                     .map(com.back.domain.study.plan.entity.DayOfWeek::valueOf)
                     .collect(Collectors.toList());
         }

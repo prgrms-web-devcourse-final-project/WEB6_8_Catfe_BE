@@ -31,10 +31,11 @@ public class StudyPlanController {
                     " 이후 반복되는 계획들은 가상 계획으로서 db에는 없지만 조회 시 가상으로 생성됩니다")
 
     public ResponseEntity<RsData<StudyPlanResponse>> createStudyPlan(
-            // 로그인 유저 정보 받기 @AuthenticationPrincipal CustomUserDetails user,
+            // 로그인 유저 정보 받기
+            @AuthenticationPrincipal CustomUserDetails user,
             @RequestBody StudyPlanRequest request) {
-        //커스텀 디테일 구현 시 사용 int userId = user.getId();
-        Long userId = 1L; // 임시로 userId를 1로 설정
+        //커스텀 디테일 구현 시 사용
+        Long userId = user.getUserId();
         StudyPlanResponse response = studyPlanService.createStudyPlan(userId, request);
         return ResponseEntity.ok(RsData.success("학습 계획이 성공적으로 생성되었습니다.", response));
     }
@@ -49,9 +50,8 @@ public class StudyPlanController {
     public ResponseEntity<RsData<StudyPlanListResponse>> getStudyPlansForDate(
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        // 유저 아이디 추출. 지금은 임시값 적용
-        // Long userId = user.getId();
-        Long userId = 1L; // 임시로 userId를 1로 설정
+        // 유저 아이디 추출.
+        Long userId = user.getUserId();
 
         List<StudyPlanResponse> plans = studyPlanService.getStudyPlansForDate(userId, date);
         StudyPlanListResponse response = new StudyPlanListResponse(date, plans, plans.size());
@@ -66,11 +66,11 @@ public class StudyPlanController {
             description = "기간에 해당하는 모든 학습 계획을 조회합니다."
     )
     public ResponseEntity<RsData<List<StudyPlanResponse>>> getStudyPlansForPeriod(
-            // @AuthenticationPrincipal CustomUserDetails user,
+            @AuthenticationPrincipal CustomUserDetails user,
             @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        // Long userId = user.getId();
-        Long userId = 1L; // 임시
+
+        Long userId = user.getUserId();
 
         List<StudyPlanResponse> plans = studyPlanService.getStudyPlansForPeriod(userId, startDate, endDate);
 
@@ -90,12 +90,11 @@ public class StudyPlanController {
                     "클라이언트에서는 paln에 repeat_rule이 있으면 반복 계획으로 간주하고 반드시 apply_scope를 쿼리 파라미터로 넘겨야 합니다." +
     "repeat_rule이 없으면 단발성 계획으로 간주하여 수정 범위를 설정 할 필요가 없으므로 apply_scope를 넘기지 않아도 됩니다.")
     public ResponseEntity<RsData<StudyPlanResponse>> updateStudyPlan(
-            // @AuthenticationPrincipal CustomUserDetails user,
+            @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long planId,
             @RequestBody StudyPlanRequest request,
-            @RequestParam(required = false, defaultValue = "THIS_ONLY") ApplyScope applyScope) {
-        // Long userId = user.getId();
-        Long userId = 1L; // 임시
+            @RequestParam(name = "applyScope", required = true) ApplyScope applyScope) {
+        Long userId = user.getUserId();
 
         StudyPlanResponse response = studyPlanService.updateStudyPlan(userId, planId, request, applyScope);
         return ResponseEntity.ok(RsData.success("학습 계획이 성공적으로 수정되었습니다.", response));
@@ -113,11 +112,11 @@ public class StudyPlanController {
                     "클라이언트에서는 paln에 repeat_rule이 있으면 반복 계획으로 간주하고 반드시 apply_scope를 쿼리 파라미터로 넘겨야 합니다." +
                     "repeat_rule이 없으면 단발성 계획으로 간주하여 삭제 범위를 설정 할 필요가 없으므로 apply_scope를 넘기지 않아도 됩니다.")
     public ResponseEntity<RsData<Void>> deleteStudyPlan(
-            // @AuthenticationPrincipal CustomUserDetails user,
+            @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long planId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate selectedDate,
-            @RequestParam(required = false) ApplyScope applyScope) {
-        Long userId = 1L; // 임시
+            @RequestParam(name = "applyScope", required = true) ApplyScope applyScope) {
+        Long userId = user.getUserId();
 
         studyPlanService.deleteStudyPlan(userId, planId, selectedDate, applyScope);
         return ResponseEntity.ok(RsData.success("학습 계획이 성공적으로 삭제되었습니다."));
