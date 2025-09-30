@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -305,7 +306,7 @@ public interface AuthControllerDocs {
             )
     })
     ResponseEntity<RsData<Void>> resendVerificationEmail(
-            @Valid @RequestBody ResendVerificationRequest request
+            @Valid @RequestBody SendEmailRequest request
     );
 
     @Operation(
@@ -689,5 +690,233 @@ public interface AuthControllerDocs {
     ResponseEntity<RsData<Map<String, String>>> refreshToken(
             HttpServletRequest request,
             HttpServletResponse response
+    );
+
+    @Operation(
+            summary = "아이디 찾기",
+            description = "사용자가 이메일을 입력하면, 해당 이메일로 가입된 계정의 아이디(username)를 일부 마스킹 처리하여 이메일로 전송합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "아이디 찾기 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "아이디를 이메일로 전송했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_001",
+                                      "message": "존재하지 않는 사용자입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 (이메일 누락 등)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_400",
+                                      "message": "잘못된 요청입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    @PostMapping("/username/recover")
+    ResponseEntity<RsData<Void>> recoverUsername(
+            @Valid @RequestBody SendEmailRequest request
+    );
+
+    @Operation(
+            summary = "비밀번호 재설정 요청",
+            description = "사용자가 가입한 이메일을 입력하면, 해당 이메일로 비밀번호 재설정 링크가 발송됩니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "비밀번호 재설정 메일 발송 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "비밀번호 재설정 메일을 전송했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_001",
+                                      "message": "존재하지 않는 사용자입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 (이메일 누락 등)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_400",
+                                      "message": "잘못된 요청입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    @PostMapping("/password/recover")
+    ResponseEntity<RsData<Void>> recoverPassword(
+            @Valid @RequestBody SendEmailRequest request
+    );
+
+    @Operation(
+            summary = "비밀번호 재설정",
+            description = "비밀번호 재설정 토큰과 새로운 비밀번호를 입력받아 계정 비밀번호를 변경합니다. 토큰은 1시간 동안만 유효합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "비밀번호 재설정 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "비밀번호가 성공적으로 재설정되었습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 (필드 누락, 비밀번호 정책 위반)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_400",
+                                      "message": "잘못된 요청입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "유효하지 않은 비밀번호 재설정 토큰",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "TOKEN_003",
+                                      "message": "유효하지 않은 비밀번호 재설정 토큰입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_001",
+                                      "message": "존재하지 않는 사용자입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    @PostMapping("/password/reset")
+    ResponseEntity<RsData<Void>> resetPassword(
+            @Valid @RequestBody PasswordResetRequest request
     );
 }

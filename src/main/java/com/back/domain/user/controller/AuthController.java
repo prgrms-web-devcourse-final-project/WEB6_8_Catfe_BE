@@ -9,7 +9,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -50,7 +49,7 @@ public class AuthController implements AuthControllerDocs {
     // 인증 메일 재발송
     @PostMapping("/email/verify")
     public ResponseEntity<RsData<Void>> resendVerificationEmail(
-            @Valid @RequestBody ResendVerificationRequest request
+            @Valid @RequestBody SendEmailRequest request
     ) {
         authService.resendVerificationEmail(request.email());
         return ResponseEntity
@@ -99,5 +98,44 @@ public class AuthController implements AuthControllerDocs {
                 "토큰이 재발급되었습니다.",
                 Map.of("accessToken", newAccessToken)
         ));
+    }
+
+    // 아이디 찾기
+    @PostMapping("/username/recover")
+    public ResponseEntity<RsData<Void>> recoverUsername(
+            @Valid @RequestBody SendEmailRequest request
+    ) {
+        authService.recoverUsername(request.email());
+        return ResponseEntity
+                .ok(RsData.success(
+                        "아이디를 이메일로 전송했습니다.",
+                        null
+                ));
+    }
+
+    // 비밀번호 재설정 요청
+    @PostMapping("/password/recover")
+    public ResponseEntity<RsData<Void>> recoverPassword(
+            @Valid @RequestBody SendEmailRequest request
+    ) {
+        authService.recoverPassword(request.email());
+        return ResponseEntity
+                .ok(RsData.success(
+                        "비밀번호 재설정 링크를 이메일로 전송했습니다.",
+                        null
+                ));
+    }
+
+    // 비밀번호 재설정
+    @PostMapping("/password/reset")
+    public ResponseEntity<RsData<Void>> resetPassword(
+            @Valid @RequestBody PasswordResetRequest request
+    ) {
+        authService.resetPassword(request.token(), request.newPassword());
+        return ResponseEntity
+                .ok(RsData.success(
+                        "비밀번호가 성공적으로 재설정되었습니다.",
+                        null
+                ));
     }
 }
