@@ -124,6 +124,30 @@ public class AuthService {
     }
 
     /**
+     * 인증 메일 재발송 서비스
+     * 1. 사용자 조회
+     * 2. 이미 활성화된 사용자면 예외 처리
+     * 3. 새로운 이메일 인증 토큰 생성
+     * 4. 이메일 발송
+     */
+    public void resendVerificationEmail(String email) {
+        // 사용자 조회
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 이미 활성화된 사용자면 예외 처리
+        if (user.getUserStatus() == UserStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.ALREADY_VERIFIED);
+        }
+
+        // 새로운 이메일 인증 토큰 생성
+        String emailToken = tokenService.createEmailVerificationToken(user.getId());
+
+        // 이메일 발송
+        emailService.sendVerificationEmail(user.getEmail(), emailToken);
+    }
+
+    /**
      * 로그인 서비스
      * 1. 사용자 조회 및 비밀번호 검증
      * 2. 사용자 상태 검증 (PENDING, SUSPENDED, DELETED)

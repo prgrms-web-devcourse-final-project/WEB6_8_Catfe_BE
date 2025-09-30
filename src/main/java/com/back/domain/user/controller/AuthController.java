@@ -1,9 +1,6 @@
 package com.back.domain.user.controller;
 
-import com.back.domain.user.dto.LoginRequest;
-import com.back.domain.user.dto.LoginResponse;
-import com.back.domain.user.dto.UserRegisterRequest;
-import com.back.domain.user.dto.UserResponse;
+import com.back.domain.user.dto.*;
 import com.back.domain.user.service.AuthService;
 import com.back.global.common.dto.RsData;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,6 +44,19 @@ public class AuthController implements AuthControllerDocs {
                 .ok(RsData.success(
                         "이메일 인증이 완료되었습니다.",
                         userResponse
+                ));
+    }
+
+    // 인증 메일 재발송
+    @PostMapping("/email-verification/resend")
+    public ResponseEntity<RsData<Void>> resendVerificationEmail(
+            @Valid @RequestBody ResendVerificationRequest request
+    ) {
+        authService.resendVerificationEmail(request.email());
+        return ResponseEntity
+                .ok(RsData.success(
+                        "인증 메일이 재발송되었습니다.",
+                        null
                 ));
     }
 
