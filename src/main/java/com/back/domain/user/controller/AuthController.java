@@ -125,4 +125,17 @@ public class AuthController implements AuthControllerDocs {
                         null
                 ));
     }
+
+    // 비밀번호 재설정
+    @PostMapping("/password/reset")
+    public ResponseEntity<RsData<Void>> resetPassword(
+            @Valid @RequestBody PasswordResetRequest request
+    ) {
+        authService.resetPassword(request.token(), request.newPassword());
+        return ResponseEntity
+                .ok(RsData.success(
+                        "비밀번호가 성공적으로 재설정되었습니다.",
+                        null
+                ));
+    }
 }

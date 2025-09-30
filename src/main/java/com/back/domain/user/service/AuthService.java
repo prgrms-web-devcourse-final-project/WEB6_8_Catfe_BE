@@ -304,6 +304,40 @@ public class AuthService {
     }
 
     /**
+     * 비밀번호 재설정 서비스
+     * 1. 토큰 검증
+     * 2. 사용자 조회
+     * 3. 비밀번호 정책 검증
+     * 4. 비밀번호 변경
+     * 5. 토큰 삭제
+     */
+    public void resetPassword(String token, String newPassword) {
+        // 토큰 존재 여부 확인
+        if (token == null || token.isEmpty()) {
+            throw new CustomException(ErrorCode.BAD_REQUEST);
+        }
+
+        // 토큰으로 사용자 ID 조회
+        Long userId = tokenService.getUserIdByPasswordResetToken(token);
+        if (userId == null) {
+            throw new CustomException(ErrorCode.INVALID_PASSWORD_RESET_TOKEN);
+        }
+
+        // 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 비밀번호 정책 검증
+        PasswordValidator.validate(newPassword);
+
+        // 비밀번호 변경
+        user.setPassword(passwordEncoder.encode(newPassword));
+
+        // 토큰 삭제 (재사용 방지)
+        tokenService.deletePasswordResetToken(token);
+    }
+
+    /**
      * 회원가입 시 중복 검증
      * - username, email, nickname
      */
