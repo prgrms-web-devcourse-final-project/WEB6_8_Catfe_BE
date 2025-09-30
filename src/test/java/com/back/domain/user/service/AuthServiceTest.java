@@ -620,4 +620,65 @@ class AuthServiceTest {
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
     }
+
+    // ======================== 비밀번호 재설정 테스트 ========================
+
+    @Test
+    @DisplayName("정상 비밀번호 재설정 성공 → 비밀번호 변경 및 토큰 삭제")
+    void resetPassword_success() {
+        // given: 가입된 사용자
+        User user = User.createUser("resetuser", "reset@example.com", passwordEncoder.encode("OldPass123!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        userRepository.save(user);
+
+        // 비밀번호 재설정 토큰 생성
+        String token = tokenService.createPasswordResetToken(user.getId());
+
+        // when
+        authService.resetPassword(token, "NewPass123!");
+
+        // then: 비밀번호 변경 확인
+        User updated = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(passwordEncoder.matches("NewPass123!", updated.getPassword())).isTrue();
+
+        // 토큰이 삭제되었는지 확인
+        Long result = tokenService.getUserIdByPasswordResetToken(token);
+        assertThat(result).isNull();
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - 유효하지 않은 토큰 → INVALID_PASSWORD_RESET_TOKEN")
+    void resetPassword_invalidToken() {
+        assertThatThrownBy(() -> authService.resetPassword("fake-token", "NewPass123!"))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.INVALID_PASSWORD_RESET_TOKEN.getMessage());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - 존재하지 않는 사용자 → USER_NOT_FOUND")
+    void resetPassword_userNotFound() {
+        // given: 토큰은 만들었지만 사용자 ID는 없는 값으로 설정
+        String token = tokenService.createPasswordResetToken(99999L);
+
+        // when & then
+        assertThatThrownBy(() -> authService.resetPassword(token, "NewPass123!"))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - 비밀번호 정책 위반 → INVALID_PASSWORD")
+    void resetPassword_invalidPassword() {
+        // given: 가입된 사용자 + 토큰
+        User user = User.createUser("resetuser2", "reset2@example.com", passwordEncoder.encode("OldPass123!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        userRepository.save(user);
+
+        String token = tokenService.createPasswordResetToken(user.getId());
+
+        // when & then
+        assertThatThrownBy(() -> authService.resetPassword(token, "weakpw"))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.INVALID_PASSWORD.getMessage());
+    }
 }

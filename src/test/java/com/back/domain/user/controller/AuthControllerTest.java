@@ -881,4 +881,106 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value("COMMON_400"))
                 .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
     }
+
+    // ======================== 비밀번호 재설정 컨트롤러 테스트 ========================
+
+    @Test
+    @DisplayName("정상 비밀번호 재설정 성공 → 200 OK")
+    void resetPassword_success() throws Exception {
+        // given: 가입된 사용자
+        User user = User.createUser("resetuser", "reset@example.com", passwordEncoder.encode("OldPass123!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        userRepository.save(user);
+
+        String token = tokenService.createPasswordResetToken(user.getId());
+
+        String body = """
+            {
+              "token": "%s",
+              "newPassword": "NewPass123!"
+            }
+            """.formatted(token);
+
+        // when & then
+        mvc.perform(post("/api/auth/password/reset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("비밀번호가 성공적으로 재설정되었습니다."))
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - 유효하지 않은 토큰 → 401 Unauthorized")
+    void resetPassword_invalidToken() throws Exception {
+        // given: 가입된 사용자
+        String body = """
+            {
+              "token": "fake-token",
+              "newPassword": "NewPass123!"
+            }
+            """;
+
+        // when & then
+        mvc.perform(post("/api/auth/password/reset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("TOKEN_003"))
+                .andExpect(jsonPath("$.message").value("유효하지 않은 비밀번호 재설정 토큰입니다."));
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - 비밀번호 정책 위반 → 400 Bad Request")
+    void resetPassword_invalidPassword() throws Exception {
+        // given: 가입된 사용자 + 토큰
+        User user = User.createUser("resetuser2", "reset2@example.com", passwordEncoder.encode("OldPass123!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        userRepository.save(user);
+
+        String token = tokenService.createPasswordResetToken(user.getId());
+
+        String body = """
+            {
+              "token": "%s",
+              "newPassword": "weakpw"
+            }
+            """.formatted(token);
+
+        // when & then
+        mvc.perform(post("/api/auth/password/reset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("USER_005"))
+                .andExpect(jsonPath("$.message").value("비밀번호는 최소 8자 이상, 숫자/특수문자를 포함해야 합니다."));
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - 요청 필드 누락 → 400 Bad Request")
+    void resetPassword_missingField() throws Exception {
+        // given: 잘못된 요청 (토큰 필드 누락)
+        String body = """
+            {
+              "token": ""
+            }
+            """;
+
+        // when & then
+        mvc.perform(post("/api/auth/password/reset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
+    }
 }
