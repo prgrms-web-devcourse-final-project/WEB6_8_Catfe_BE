@@ -38,7 +38,7 @@ public class AuthController implements AuthControllerDocs {
     }
 
     // 이메일 인증
-    @GetMapping("/verify")
+    @GetMapping("/email-verification")
     public ResponseEntity<RsData<UserResponse>> verifyEmail(
             @RequestParam("token") String token
     ) {

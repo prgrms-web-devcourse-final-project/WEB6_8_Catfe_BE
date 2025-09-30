@@ -240,7 +240,7 @@ class AuthControllerTest {
         String token = tokenService.createEmailVerificationToken(saved.getId());
 
         // when & then
-        mvc.perform(get("/api/auth/verify").param("token", token))
+        mvc.perform(get("/api/auth/email-verification").param("token", token))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -254,7 +254,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("유효하지 않거나 만료된 토큰 → 401 Unauthorized")
     void verifyEmail_invalidOrExpiredToken() throws Exception {
-        mvc.perform(get("/api/auth/verify").param("token", "fake-token"))
+        mvc.perform(get("/api/auth/email-verification").param("token", "fake-token"))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
@@ -276,7 +276,7 @@ class AuthControllerTest {
         String token = tokenService.createEmailVerificationToken(saved.getId());
 
         // when & then
-        mvc.perform(get("/api/auth/verify").param("token", token))
+        mvc.perform(get("/api/auth/email-verification").param("token", token))
                 .andDo(print())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
@@ -287,7 +287,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("토큰 파라미터 누락 → 400 Bad Request")
     void verifyEmail_missingToken() throws Exception {
-        mvc.perform(get("/api/auth/verify"))
+        mvc.perform(get("/api/auth/email-verification"))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
