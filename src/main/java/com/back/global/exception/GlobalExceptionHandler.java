@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -59,6 +60,13 @@ public class GlobalExceptionHandler {
                 .body(RsData.fail(ErrorCode.BAD_REQUEST));
     }
 
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<RsData<Void>> handleMissingParam(MissingServletRequestParameterException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(RsData.fail(ErrorCode.BAD_REQUEST));
+    }
+
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<RsData<Void>> handleSecurityException(SecurityException ex) {
         return ResponseEntity
@@ -79,5 +87,4 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(RsData.fail(ErrorCode.INTERNAL_SERVER_ERROR));
     }
-
 }

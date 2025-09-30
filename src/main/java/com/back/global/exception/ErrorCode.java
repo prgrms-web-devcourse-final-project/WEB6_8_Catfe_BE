@@ -89,7 +89,11 @@ public enum ErrorCode {
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "AUTH_007", "권한이 없습니다."),
     UNSUPPORTED_OAUTH_PROVIDER(HttpStatus.BAD_REQUEST, "AUTH_008", "지원하지 않는 소셜 로그인 제공자입니다."),
     OAUTH2_ATTRIBUTE_MISSING(HttpStatus.UNAUTHORIZED, "AUTH_009", "소셜 계정에서 필요한 사용자 정보를 가져올 수 없습니다."),
-    OAUTH2_AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "AUTH_010", "소셜 로그인 인증에 실패했습니다.");
+    OAUTH2_AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "AUTH_010", "소셜 로그인 인증에 실패했습니다."),
+
+    // ======================== 토큰 관련 ========================
+    INVALID_EMAIL_TOKEN(HttpStatus.UNAUTHORIZED, "TOKEN_001", "유효하지 않은 이메일 인증 토큰입니다."),
+    ALREADY_VERIFIED(HttpStatus.CONFLICT, "TOKEN_002", "이미 인증된 계정입니다.");
 
     private final HttpStatus status;
     private final String code;

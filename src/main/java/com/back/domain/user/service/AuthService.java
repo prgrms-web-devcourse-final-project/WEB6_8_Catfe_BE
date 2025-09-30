@@ -33,6 +33,8 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserTokenRepository userTokenRepository;
+    private final EmailService emailService;
+    private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -71,16 +73,80 @@ public class AuthService {
         // 연관관계 설정
         user.setUserProfile(profile);
 
-        // TODO: 임시 로직 - 이메일 인증 기능 개발 전까지는 바로 ACTIVE 처리
-        user.setUserStatus(UserStatus.ACTIVE);
-
         // 저장 (cascade로 Profile도 함께 저장됨)
         User saved = userRepository.save(user);
 
-        // TODO: 이메일 인증 로직 추가 예정
+        // 이메일 인증 토큰 생성 및 이메일 발송
+         String emailToken = tokenService.createEmailVerificationToken(saved.getId());
+         emailService.sendVerificationEmail(saved.getEmail(), emailToken);
 
         // UserResponse 변환 및 반환
         return UserResponse.from(saved);
+    }
+
+    /**
+     * 이메일 인증 서비스
+     * 1. 토큰 존재 여부 확인
+     * 2. 사용자 조회 및 활성화 (PENDING -> ACTIVE)
+     * 5. 토큰 삭제
+     * 6. UserResponse 반환
+     */
+    public UserResponse verifyEmail(String token) {
+
+        // 토큰 존재 여부 확인
+        if (token == null || token.isEmpty()) {
+            throw new CustomException(ErrorCode.BAD_REQUEST);
+        }
+
+        // 토큰으로 사용자 ID 조회
+        Long userId = tokenService.getUserIdByEmailVerificationToken(token);
+        if (userId == null) {
+            throw new CustomException(ErrorCode.INVALID_EMAIL_TOKEN);
+        }
+
+        // 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 사용자 상태 검증
+        if (user.getUserStatus() == UserStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.ALREADY_VERIFIED);
+        }
+
+        // 사용자 상태를 ACTIVE로 변경
+        user.setUserStatus(UserStatus.ACTIVE);
+
+        // 토큰 삭제 (재사용 방지)
+        tokenService.deleteEmailVerificationToken(token);
+
+        // UserResponse 반환
+        return UserResponse.from(user);
+    }
+
+    /**
+     * 인증 메일 재발송 서비스
+     * 1. 사용자 조회
+     * 2. 이미 활성화된 사용자면 예외 처리
+     * 3. 새로운 이메일 인증 토큰 생성
+     * 4. 이메일 발송
+     */
+    public void resendVerificationEmail(String email) {
+        // 사용자 조회
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 이미 활성화된 사용자면 예외 처리
+        if (user.getUserStatus() == UserStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.ALREADY_VERIFIED);
+        }
+
+        // TODO: 기존 토큰이 남아있는 경우 삭제하는 로직 추가 고려
+
+        // 새로운 이메일 인증 토큰 생성
+        String emailToken = tokenService.createEmailVerificationToken(user.getId());
+
+        // 이메일 발송
+        emailService.sendVerificationEmail(user.getEmail(), emailToken);
     }
 
     /**
