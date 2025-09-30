@@ -1,4 +1,4 @@
-package com.back.global.websocket.dto;
+package com.back.global.websocket.webrtc.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDateTime;

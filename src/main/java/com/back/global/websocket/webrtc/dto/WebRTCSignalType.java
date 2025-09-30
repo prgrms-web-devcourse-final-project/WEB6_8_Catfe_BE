@@ -1,4 +1,4 @@
-package com.back.global.websocket.dto;
+package com.back.global.websocket.webrtc.dto;
 
 public enum WebRTCSignalType {
     OFFER,

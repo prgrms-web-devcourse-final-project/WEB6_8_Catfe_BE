@@ -1,8 +1,8 @@
-package com.back.global.websocket.controller;
+package com.back.global.websocket.webrtc.controller;
 
 import com.back.global.security.user.CustomUserDetails;
-import com.back.global.websocket.dto.*;
 import com.back.global.websocket.util.WebSocketErrorHelper;
+import com.back.global.websocket.webrtc.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
