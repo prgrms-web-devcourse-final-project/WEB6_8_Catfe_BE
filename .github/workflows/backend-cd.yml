@@ -78,7 +78,23 @@ jobs:
     needs: [ buildImageAndPush ]
     env:
       OWNER: ${{ github.repository_owner }}
+      EC2_INSTANCE_TAG_NAME: team5-ec2-1
+
     steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: get instance id
+        run: |
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name, Values=${{ EC2_INSTANCE_TAG_NAME }}" "Name=instance-state-name, Values=running" \
+            --query "Reservations[].Instances[].InstanceId" --output text)
+            [[ -n "${INSTANCE_ID}" && "${INSTANCE_ID}" != "None" ]] || { echo "No running instance found"; exit 1; }
+            echo "INSTANCE_ID=${INSTANCE_ID}" >> "${GITHUB_ENV}"
+
       - name: set lower case owner name
         run: |
           echo "OWNER_LC=${OWNER,,}" >> ${GITHUB_ENV}
@@ -90,14 +106,17 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          instance-ids: "i-00e384163ab61f6cc"
+          instance-ids: ${{ env.INSTANCE_ID }}
           working-directory: /
           comment: Deploy
           command: |
-            # 0. env 변수 확인
+            # 1. env 변수 확인
             echo "OWNER_LC = ${{ env.OWNER_LC }}"
             
-            # 1. 최신 이미지 pull
+            # 2. EC2 인스턴스 아이디 확인
+            echo "INSTANCE_ID=${INSTANCE_ID}"
+            
+            # 3. 최신 이미지 pull
             docker pull ghcr.io/${{ env.OWNER_LC }}/catfe-backend:latest
             
             # 2. 기존 컨테이너 종료 및 제거
