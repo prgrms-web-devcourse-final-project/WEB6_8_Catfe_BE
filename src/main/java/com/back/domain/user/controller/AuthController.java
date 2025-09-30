@@ -35,7 +35,7 @@ public class AuthController implements AuthControllerDocs {
     }
 
     // 이메일 인증
-    @GetMapping("/email-verification")
+    @GetMapping("/email/verify")
     public ResponseEntity<RsData<UserResponse>> verifyEmail(
             @RequestParam("token") String token
     ) {
@@ -48,7 +48,7 @@ public class AuthController implements AuthControllerDocs {
     }
 
     // 인증 메일 재발송
-    @PostMapping("/email-verification/resend")
+    @PostMapping("/email/verify")
     public ResponseEntity<RsData<Void>> resendVerificationEmail(
             @Valid @RequestBody ResendVerificationRequest request
     ) {

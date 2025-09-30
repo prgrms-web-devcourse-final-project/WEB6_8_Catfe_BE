@@ -240,7 +240,7 @@ class AuthControllerTest {
         String token = tokenService.createEmailVerificationToken(saved.getId());
 
         // when & then
-        mvc.perform(get("/api/auth/email-verification").param("token", token))
+        mvc.perform(get("/api/auth/email/verify").param("token", token))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -254,7 +254,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("유효하지 않거나 만료된 토큰 → 401 Unauthorized")
     void verifyEmail_invalidOrExpiredToken() throws Exception {
-        mvc.perform(get("/api/auth/email-verification").param("token", "fake-token"))
+        mvc.perform(get("/api/auth/email/verify").param("token", "fake-token"))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
@@ -276,7 +276,7 @@ class AuthControllerTest {
         String token = tokenService.createEmailVerificationToken(saved.getId());
 
         // when & then
-        mvc.perform(get("/api/auth/email-verification").param("token", token))
+        mvc.perform(get("/api/auth/email/verify").param("token", token))
                 .andDo(print())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
@@ -287,7 +287,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("토큰 파라미터 누락 → 400 Bad Request")
     void verifyEmail_missingToken() throws Exception {
-        mvc.perform(get("/api/auth/email-verification"))
+        mvc.perform(get("/api/auth/email/verify"))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
@@ -314,7 +314,7 @@ class AuthControllerTest {
                 """;
 
         // when & then
-        mvc.perform(post("/api/auth/email-verification/resend")
+        mvc.perform(post("/api/auth/email/verify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andDo(print())
@@ -334,7 +334,7 @@ class AuthControllerTest {
                 }
                 """;
 
-        mvc.perform(post("/api/auth/email-verification/resend")
+        mvc.perform(post("/api/auth/email/verify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andDo(print())
@@ -360,7 +360,7 @@ class AuthControllerTest {
                 }
                 """;
 
-        mvc.perform(post("/api/auth/email-verification/resend")
+        mvc.perform(post("/api/auth/email/verify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andDo(print())
@@ -379,7 +379,7 @@ class AuthControllerTest {
                 }
                 """;
 
-        mvc.perform(post("/api/auth/email-verification/resend")
+        mvc.perform(post("/api/auth/email/verify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andDo(print())
