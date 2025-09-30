@@ -593,4 +593,31 @@ class AuthServiceTest {
         verify(emailService).sendUsernameEmail(eq("mid@example.com"), eq("a*c"));
         verify(emailService).sendUsernameEmail(eq("long@example.com"), eq("ab**ef"));
     }
+
+    // ======================== 비밀번호 재설정 요청 테스트 ========================
+
+    @Test
+    @DisplayName("정상 비밀번호 재설정 요청 → 이메일 발송 성공")
+    void recoverPassword_success() {
+        // given: 가입된 사용자 생성
+        User user = User.createUser("pwuser", "pw@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        userRepository.save(user);
+
+        // when
+        authService.recoverPassword("pw@example.com");
+
+        // then: 이메일 발송 호출 확인
+        verify(emailService, times(1))
+                .sendPasswordResetEmail(eq("pw@example.com"), anyString());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 요청 실패 - 존재하지 않는 사용자 → USER_NOT_FOUND")
+    void recoverPassword_userNotFound() {
+        // when & then
+        assertThatThrownBy(() -> authService.recoverPassword("notfound@example.com"))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
 }
