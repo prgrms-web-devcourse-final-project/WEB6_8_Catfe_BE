@@ -745,4 +745,71 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value("AUTH_005"))
                 .andExpect(jsonPath("$.message").value("만료된 리프레시 토큰입니다."));
     }
+
+    // ======================== 아이디 찾기 테스트 ========================
+
+    @Test
+    @DisplayName("정상 아이디 찾기 성공 → 200 OK")
+    void recoverUsername_success() throws Exception {
+        // given: 유저 생성
+        User user = User.createUser("recoveruser", "recover@example.com",
+                passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        userRepository.save(user);
+
+        String body = """
+                {
+                  "email": "recover@example.com"
+                }
+                """;
+
+        // when & then
+        mvc.perform(post("/api/auth/username/recover")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("아이디를 이메일로 전송했습니다."))
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    @DisplayName("아이디 찾기 실패 - 존재하지 않는 이메일 → 404 Not Found")
+    void recoverUsername_userNotFound() throws Exception {
+        String body = """
+                {
+                  "email": "notfound@example.com"
+                }
+                """;
+
+        mvc.perform(post("/api/auth/username/recover")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("USER_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+    }
+
+    @Test
+    @DisplayName("아이디 찾기 실패 - 이메일 필드 누락 → 400 Bad Request")
+    void recoverUsername_missingField() throws Exception {
+        // given: 잘못된 요청 (이메일 필드 없음)
+        String body = """
+                {
+                }
+                """;
+
+        mvc.perform(post("/api/auth/username/recover")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
+    }
 }

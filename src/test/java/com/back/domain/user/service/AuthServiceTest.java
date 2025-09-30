@@ -5,6 +5,7 @@ import com.back.domain.user.dto.LoginResponse;
 import com.back.domain.user.dto.UserRegisterRequest;
 import com.back.domain.user.dto.UserResponse;
 import com.back.domain.user.entity.User;
+import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserProfileRepository;
 import com.back.domain.user.repository.UserRepository;
@@ -535,5 +536,61 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.refreshToken(request, response))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.INVALID_REFRESH_TOKEN.getMessage());
+    }
+
+    // ======================== 아이디 찾기 테스트 ========================
+
+    @Test
+    @DisplayName("정상 아이디 찾기 성공 → 이메일 발송")
+    void recoverUsername_success() {
+        // given: 회원가입으로 사용자 생성
+        UserRegisterRequest request = new UserRegisterRequest(
+                "findme", "findme@example.com", "P@ssw0rd!", "닉네임"
+        );
+        UserResponse response = authService.register(request);
+
+        // when: 아이디 찾기 실행
+        authService.recoverUsername("findme@example.com");
+
+        // then: 이메일 발송이 호출되었는지 확인
+        verify(emailService, times(1))
+                .sendUsernameEmail(eq("findme@example.com"), anyString());
+    }
+
+    @Test
+    @DisplayName("아이디 찾기 실패 - 존재하지 않는 이메일 → USER_NOT_FOUND")
+    void recoverUsername_userNotFound() {
+        // when & then
+        assertThatThrownBy(() ->
+                authService.recoverUsername("notfound@example.com")
+        ).isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("아이디 마스킹 규칙 검증")
+    void recoverUsername_maskingRules() {
+        // given: 길이가 다른 username 케이스
+        User shortUser = User.createUser("a", "short@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        shortUser.setUserProfile(new UserProfile(shortUser, "닉", null, null, null, 0));
+        userRepository.save(shortUser);
+
+        User midUser = User.createUser("abc", "mid@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        midUser.setUserProfile(new UserProfile(midUser, "닉", null, null, null, 0));
+        userRepository.save(midUser);
+
+        User longUser = User.createUser("abcdef", "long@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        longUser.setUserProfile(new UserProfile(longUser, "닉", null, null, null, 0));
+        userRepository.save(longUser);
+
+        // when
+        authService.recoverUsername("short@example.com");
+        authService.recoverUsername("mid@example.com");
+        authService.recoverUsername("long@example.com");
+
+        // then: 마스킹된 값으로 이메일 발송 확인
+        verify(emailService).sendUsernameEmail(eq("short@example.com"), eq("a*"));
+        verify(emailService).sendUsernameEmail(eq("mid@example.com"), eq("a*c"));
+        verify(emailService).sendUsernameEmail(eq("long@example.com"), eq("ab**ef"));
     }
 }
