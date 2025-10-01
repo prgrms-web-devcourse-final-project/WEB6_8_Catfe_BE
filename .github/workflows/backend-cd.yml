@@ -94,7 +94,7 @@ jobs:
       - name: get instance id
         run: |
           INSTANCE_ID=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name, Values=${{ EC2_INSTANCE_TAG_NAME }}" "Name=instance-state-name, Values=running" \
+            --filters "Name=tag:Name, Values=${{ env.EC2_INSTANCE_TAG_NAME }}" "Name=instance-state-name, Values=running" \
             --query "Reservations[].Instances[].InstanceId" --output text)
             [[ -n "${INSTANCE_ID}" && "${INSTANCE_ID}" != "None" ]] || { echo "No running instance found"; exit 1; }
             echo "INSTANCE_ID=${INSTANCE_ID}" >> "${GITHUB_ENV}"
