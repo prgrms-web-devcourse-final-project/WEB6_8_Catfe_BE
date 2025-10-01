@@ -44,7 +44,7 @@ public class StudyPlanResponse {
         private Frequency frequency;
         private Integer repeatInterval;
         // byDay 필드는 이미 List<String>으로 선언되어 있음.
-        private List<String> byDay = new ArrayList<>();  // "MON" 형태의 문자열 리스트
+        private List<DayOfWeek> byDay = new ArrayList<>();  // "MON" 형태의 문자열 리스트
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
         private LocalDate untilDate;
@@ -60,16 +60,6 @@ public class StudyPlanResponse {
             }
         }
 
-        public List<DayOfWeek> getByDaysList() {
-            if (byDay == null || byDay.isEmpty()) {
-                return List.of();
-            }
-
-            // List<String>의 각 요소를 DayOfWeek enum으로 변환하여 반환
-            return byDay.stream()
-                    .map(com.back.domain.study.plan.entity.DayOfWeek::valueOf)
-                    .collect(Collectors.toList());
-        }
     }
     //엔티티를 DTO로 변환하는 생성자
     public StudyPlanResponse(StudyPlan studyPlan) {

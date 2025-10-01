@@ -1,6 +1,7 @@
 package com.back.domain.study.plan.dto;
 
 import com.back.domain.study.plan.entity.Color;
+import com.back.domain.study.plan.entity.DayOfWeek;
 import com.back.domain.study.plan.entity.Frequency;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
@@ -37,7 +38,7 @@ public class StudyPlanRequest {
     public static class RepeatRuleRequest {
         private Frequency frequency;
         private Integer intervalValue;
-        private List<String> byDay = new ArrayList<>();  // 문자열 리스트
+        private List<DayOfWeek> byDay = new ArrayList<>();
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
         private String untilDate; // "2025-12-31" 형태
