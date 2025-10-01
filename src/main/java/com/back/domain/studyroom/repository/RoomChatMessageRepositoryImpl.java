@@ -35,6 +35,7 @@ public class RoomChatMessageRepositoryImpl implements RoomChatMessageRepositoryC
                 .selectFrom(message)
                 .leftJoin(message.room, room).fetchJoin()  // Room 정보 즉시 로딩
                 .leftJoin(message.user, user).fetchJoin()  // User 정보 즉시 로딩
+                .leftJoin(user.userProfile).fetchJoin() // UserProfile 정보 즉시 로딩
                 .where(message.room.id.eq(roomId))
                 .orderBy(message.createdAt.desc()) // 최신순 정렬
                 .offset(pageable.getOffset())
@@ -64,6 +65,7 @@ public class RoomChatMessageRepositoryImpl implements RoomChatMessageRepositoryC
                 .selectFrom(message)
                 .leftJoin(message.room, room).fetchJoin()
                 .leftJoin(message.user, user).fetchJoin()
+                .leftJoin(user.userProfile).fetchJoin()
                 .where(whereClause)
                 .orderBy(message.createdAt.desc())
                 .offset(pageable.getOffset())
