@@ -15,12 +15,9 @@ public class WebSocketSessionManager {
     private final UserSessionService userSessionService;
     private final RoomParticipantService roomParticipantService;
 
-    // ============= 세션 관리 =============
-
     // 사용자 세션 추가 (WebSocket 연결 시 호출)
     public void addSession(Long userId, String sessionId) {
         userSessionService.registerSession(userId, sessionId);
-        log.info("WebSocket 연결 완료 - 사용자: {}, 세션: {}", userId, sessionId);
     }
 
     // 세션 제거 (WebSocket 연결 종료 시 호출)
@@ -33,8 +30,6 @@ public class WebSocketSessionManager {
 
             // 2. 세션 종료
             userSessionService.terminateSession(sessionId);
-
-            log.info("WebSocket 연결 종료 완료 - 세션: {}, 사용자: {}", sessionId, userId);
         } else {
             log.warn("종료할 세션을 찾을 수 없음 - 세션: {}", sessionId);
         }
@@ -53,7 +48,6 @@ public class WebSocketSessionManager {
     // Heartbeat 처리 (활동 시간 업데이트 및 TTL 연장)
     public void updateLastActivity(Long userId) {
         userSessionService.processHeartbeat(userId);
-        log.debug("Heartbeat 처리 완료 - 사용자: {}", userId);
     }
 
     // 전체 온라인 사용자 수 조회
@@ -61,18 +55,14 @@ public class WebSocketSessionManager {
         return userSessionService.getTotalOnlineUserCount();
     }
 
-    // ============= 방 관리 =============
-
     // 사용자가 방에 입장
     public void joinRoom(Long userId, Long roomId) {
         roomParticipantService.enterRoom(userId, roomId);
-        log.info("방 입장 처리 완료 - 사용자: {}, 방: {}", userId, roomId);
     }
 
     // 사용자가 방에서 퇴장
     public void leaveRoom(Long userId, Long roomId) {
         roomParticipantService.exitRoom(userId, roomId);
-        log.info("방 퇴장 처리 완료 - 사용자: {}, 방: {}", userId, roomId);
     }
 
     // 방의 온라인 사용자 수 조회
