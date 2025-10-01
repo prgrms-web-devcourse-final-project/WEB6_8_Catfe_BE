@@ -1,9 +1,6 @@
 package com.back.global.websocket.service;
 
-import com.back.global.exception.CustomException;
-import com.back.global.exception.ErrorCode;
 import com.back.global.websocket.dto.WebSocketSessionInfo;
-import com.back.global.websocket.store.RedisSessionStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,32 +13,30 @@ import java.util.Set;
 public class WebSocketSessionManager {
 
     private final UserSessionService userSessionService;
-    private final RedisSessionStore redisSessionStore;
+    private final RoomParticipantService roomParticipantService;
 
-    // 사용자 세션 추가 (연결 시 호출)
+    // ============= 세션 관리 =============
+
+    // 사용자 세션 추가 (WebSocket 연결 시 호출)
     public void addSession(Long userId, String sessionId) {
         userSessionService.registerSession(userId, sessionId);
+        log.info("WebSocket 연결 완료 - 사용자: {}, 세션: {}", userId, sessionId);
     }
 
-    // 세션 제거 (연결 종료 시 호출)
+    // 세션 제거 (WebSocket 연결 종료 시 호출)
     public void removeSession(String sessionId) {
-        try {
-            Long userId = userSessionService.getUserIdBySessionId(sessionId);
+        Long userId = userSessionService.getUserIdBySessionId(sessionId);
 
-            if (userId != null) {
-                // 방에서 퇴장 처리
-                Long currentRoomId = userSessionService.getCurrentRoomId(userId);
-                if (currentRoomId != null) {
-                    leaveRoom(userId, currentRoomId);
-                }
-            }
+        if (userId != null) {
+            // 1. 모든 방에서 퇴장
+            roomParticipantService.exitAllRooms(userId);
 
-            // 세션 종료
+            // 2. 세션 종료
             userSessionService.terminateSession(sessionId);
 
-        } catch (Exception e) {
-            log.error("WebSocket 세션 제거 실패 - 세션: {}", sessionId, e);
-            throw new CustomException(ErrorCode.WS_REDIS_ERROR);
+            log.info("WebSocket 연결 종료 완료 - 세션: {}, 사용자: {}", sessionId, userId);
+        } else {
+            log.warn("종료할 세션을 찾을 수 없음 - 세션: {}", sessionId);
         }
     }
 
@@ -55,9 +50,10 @@ public class WebSocketSessionManager {
         return userSessionService.getSessionInfo(userId);
     }
 
-    // 사용자 활동 시간 업데이트 (Heartbeat 시 호출)
+    // Heartbeat 처리 (활동 시간 업데이트 및 TTL 연장)
     public void updateLastActivity(Long userId) {
         userSessionService.processHeartbeat(userId);
+        log.debug("Heartbeat 처리 완료 - 사용자: {}", userId);
     }
 
     // 전체 온라인 사용자 수 조회
@@ -65,79 +61,37 @@ public class WebSocketSessionManager {
         return userSessionService.getTotalOnlineUserCount();
     }
 
-    // 사용자가 방에 입장 (WebSocket 전용)
+    // ============= 방 관리 =============
+
+    // 사용자가 방에 입장
     public void joinRoom(Long userId, Long roomId) {
-        try {
-            WebSocketSessionInfo sessionInfo = redisSessionStore.getUserSession(userId);
-            if (sessionInfo != null) {
-                // 기존 방에서 퇴장
-                if (sessionInfo.currentRoomId() != null) {
-                    leaveRoom(userId, sessionInfo.currentRoomId());
-                }
-
-                // 새 방 정보 업데이트
-                WebSocketSessionInfo updatedSessionInfo = sessionInfo.withRoomId(roomId);
-                redisSessionStore.saveUserSession(userId, updatedSessionInfo);
-
-                // 방 참여자 목록에 추가
-                redisSessionStore.addUserToRoom(roomId, userId);
-
-                log.info("WebSocket 방 입장 완료 - 사용자: {}, 방: {}", userId, roomId);
-            } else {
-                log.warn("세션 정보가 없어 방 입장 처리 실패 - 사용자: {}, 방: {}", userId, roomId);
-            }
-        } catch (CustomException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("사용자 방 입장 실패 - 사용자: {}, 방: {}", userId, roomId, e);
-            throw new CustomException(ErrorCode.WS_ROOM_JOIN_FAILED);
-        }
+        roomParticipantService.enterRoom(userId, roomId);
+        log.info("방 입장 처리 완료 - 사용자: {}, 방: {}", userId, roomId);
     }
 
-    // 사용자가 방에서 퇴장 (WebSocket 전용)
+    // 사용자가 방에서 퇴장
     public void leaveRoom(Long userId, Long roomId) {
-        try {
-            WebSocketSessionInfo sessionInfo = redisSessionStore.getUserSession(userId);
-            if (sessionInfo != null) {
-                // 방 정보 제거
-                WebSocketSessionInfo updatedSessionInfo = sessionInfo.withoutRoom();
-                redisSessionStore.saveUserSession(userId, updatedSessionInfo);
-
-                // 방 참여자 목록에서 제거
-                redisSessionStore.removeUserFromRoom(roomId, userId);
-
-                log.info("WebSocket 방 퇴장 완료 - 사용자: {}, 방: {}", userId, roomId);
-            }
-        } catch (CustomException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("사용자 방 퇴장 실패 - 사용자: {}, 방: {}", userId, roomId, e);
-            throw new CustomException(ErrorCode.WS_ROOM_LEAVE_FAILED);
-        }
+        roomParticipantService.exitRoom(userId, roomId);
+        log.info("방 퇴장 처리 완료 - 사용자: {}, 방: {}", userId, roomId);
     }
 
     // 방의 온라인 사용자 수 조회
     public long getRoomOnlineUserCount(Long roomId) {
-        try {
-            return redisSessionStore.getRoomUserCount(roomId);
-        } catch (Exception e) {
-            log.error("방 온라인 사용자 수 조회 실패 - 방: {}", roomId, e);
-            throw new CustomException(ErrorCode.WS_REDIS_ERROR);
-        }
+        return roomParticipantService.getParticipantCount(roomId);
     }
 
     // 방의 온라인 사용자 목록 조회
     public Set<Long> getOnlineUsersInRoom(Long roomId) {
-        try {
-            return redisSessionStore.getRoomUsers(roomId);
-        } catch (Exception e) {
-            log.error("방 온라인 사용자 목록 조회 실패 - 방: {}", roomId, e);
-            throw new CustomException(ErrorCode.WS_REDIS_ERROR);
-        }
+        return roomParticipantService.getParticipants(roomId);
     }
 
     // 특정 사용자의 현재 방 조회
     public Long getUserCurrentRoomId(Long userId) {
-        return userSessionService.getCurrentRoomId(userId);
+        return roomParticipantService.getCurrentRoomId(userId);
+    }
+
+    // 사용자가 특정 방에 참여 중인지 확인
+    public boolean isUserInRoom(Long userId, Long roomId) {
+        return roomParticipantService.isUserInRoom(userId, roomId);
     }
 }
