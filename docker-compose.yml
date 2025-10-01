@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   redis:
-    image: redis:6.2
+    image: redis:7
     container_name: local-redis
     ports:
       - "6379:6379"
