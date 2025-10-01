@@ -41,16 +41,9 @@ public class RoomMember extends BaseEntity {
 
     // 멤버십 기본 정보
     @Column(nullable = false)
-    private LocalDateTime joinedAt;  // 방에 처음 입장한 시간
-    private LocalDateTime lastActiveAt;  // 마지막으로 활동한 시간
-
-    // 실시간 상태 관리 필드들
-    @Column(nullable = false)
-    private boolean isOnline = false;  // 현재 방에 온라인 상태인지
-
-    private String connectionId; // WebSocket 연결 ID (실시간 통신용)
-
-    private LocalDateTime lastHeartbeat;  // 마지막 heartbeat 시간 (연결 상태 확인용)
+    private LocalDateTime joinedAt;  // MEMBER 이상으로 승격된 시간
+    
+    private LocalDateTime promotedAt;  // 권한이 변경된 시간
 
     // 💡 권한 확인 메서드들 (RoomRole enum의 메서드를 위임)
     
@@ -95,18 +88,20 @@ public class RoomMember extends BaseEntity {
     }
 
     /**
-     * 현재 활성 상태인지 확인
-     온라인 멤버 목록 표시, 비활성 사용자 정리 등
-     온라인 상태이고 최근 설정된 시간 이내에 heartbeat가 있었던 경우
+     * 현재 활성 상태인지 확인 (Redis 기반으로 변경 예정)
+     * 임시로 항상 true 반환
+     * TODO: Redis에서 실시간 상태 확인하도록 변경
      */
+    @Deprecated
     public boolean isActive(int timeoutMinutes) {
-        return isOnline && lastHeartbeat != null && 
-               lastHeartbeat.isAfter(LocalDateTime.now().minusMinutes(timeoutMinutes));
+        // 실시간 상태는 Redis에서 관리
+        return true;
     }
 
     
     /**
-     기본 멤버 생성 메서드, 처음 입장 시 사용
+     기본 멤버 생성 메서드
+     MEMBER 이상 등급 생성 시 사용 (DB 저장용)
      */
     public static RoomMember create(Room room, User user, RoomRole role) {
         RoomMember member = new RoomMember();
@@ -114,9 +109,7 @@ public class RoomMember extends BaseEntity {
         member.user = user;
         member.role = role;
         member.joinedAt = LocalDateTime.now();
-        member.lastActiveAt = LocalDateTime.now();
-        member.isOnline = true;  // 생성 시 온라인 상태
-        member.lastHeartbeat = LocalDateTime.now();
+        member.promotedAt = LocalDateTime.now();
         
         return member;
     }
@@ -128,18 +121,24 @@ public class RoomMember extends BaseEntity {
 
     /**
      * 일반 멤버 생성, 권한 자동 변경
-     - 비공개 방에서 초대받은 사용자를 정식 멤버로 등록할 때 (로직 검토 중)
+     * 비공개 방에서 초대받은 사용자를 정식 멤버로 등록할 때
      */
     public static RoomMember createMember(Room room, User user) {
         return create(room, user, RoomRole.MEMBER);
     }
 
     /**
-     * 방문객 생성
-     * 사용 상황: 공개 방에 처음 입장하는 사용자를 임시 방문객으로 등록
+     * 방문객 생성 (메모리상으로만 존재, DB 저장 안함)
+     * 공개 방에 처음 입장하는 사용자용
+     * Redis에서 실시간 상태 관리
      */
     public static RoomMember createVisitor(Room room, User user) {
-        return create(room, user, RoomRole.VISITOR);
+        RoomMember member = new RoomMember();
+        member.room = room;
+        member.user = user;
+        member.role = RoomRole.VISITOR;
+        member.joinedAt = LocalDateTime.now();
+        return member;
     }
     
     /**
@@ -148,47 +147,6 @@ public class RoomMember extends BaseEntity {
      */
     public void updateRole(RoomRole newRole) {
         this.role = newRole;
-    }
-
-    /**
-     * 온라인 상태 변경
-     * 사용 상황: 멤버가 방에 입장하거나 퇴장할 때
-     활동 시간도 함께 업데이트, 온라인이 되면 heartbeat도 갱신
-     */
-    public void updateOnlineStatus(boolean online) {
-        this.isOnline = online;
-        this.lastActiveAt = LocalDateTime.now();
-        if (online) {
-            this.lastHeartbeat = LocalDateTime.now();
-        }
-    }
-
-    /**
-     * WebSocket 연결 ID 업데이트
-     * 사용 상황: 멤버가 웹소켓으로 방에 연결될 때
-     + heartbeat도 함께 갱신
-     */
-    public void updateConnectionId(String connectionId) {
-        this.connectionId = connectionId;
-        this.lastHeartbeat = LocalDateTime.now();
-    }
-
-    /**
-     * 사용 : 클라이언트에서 주기적으로 서버에 연결 상태를 알릴 때
-     * 목적: 연결이 끊어진 멤버를 자동으로 감지하기 위해 사용, 별도의 다른 것으로 변경 가능
-     */
-    public void heartbeat() {
-        this.lastHeartbeat = LocalDateTime.now();
-        this.lastActiveAt = LocalDateTime.now();
-        this.isOnline = true;
-    }
-
-    /**
-     * 방 퇴장 처리 (명시적 퇴장과 연결 끊김 상태 로직 분할 예정임.. 일단은 임시로 통합 상태)
-     멤버가 방을 나가거나 연결이 끊어졌을 때, 오프라인 상태로 변경하고 연결 ID 제거
-     */
-    public void leave() {
-        this.isOnline = false;
-        this.connectionId = null;
+        this.promotedAt = LocalDateTime.now();
     }
 }

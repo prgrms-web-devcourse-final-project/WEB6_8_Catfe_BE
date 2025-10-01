@@ -51,19 +51,12 @@ class WebRTCSignalValidatorTest {
         User fromUser = mock(User.class);
         User targetUser = mock(User.class);
 
-        // 온라인 멤버들
+        // 온라인/오프라인 구분은 Redis로 이관 예정
+        // 현재는 멤버 존재 여부만 체크
         onlineFromMember = RoomMember.createMember(mockRoom, fromUser);
-        onlineFromMember.updateOnlineStatus(true);
-
         onlineTargetMember = RoomMember.createMember(mockRoom, targetUser);
-        onlineTargetMember.updateOnlineStatus(true);
-
-        // 오프라인 멤버들
         offlineFromMember = RoomMember.createMember(mockRoom, fromUser);
-        offlineFromMember.updateOnlineStatus(false);
-
         offlineTargetMember = RoomMember.createMember(mockRoom, targetUser);
-        offlineTargetMember.updateOnlineStatus(false);
     }
 
     @Nested
@@ -115,23 +108,8 @@ class WebRTCSignalValidatorTest {
         }
 
         @Test
-        @DisplayName("실패 - 발신자가 오프라인")
-        void t4() {
-            // given
-            given(roomMemberRepository.findByRoomIdAndUserId(roomId, fromUserId))
-                    .willReturn(Optional.of(offlineFromMember));
-
-            // when & then
-            assertThatThrownBy(() -> validator.validateSignal(roomId, fromUserId, targetUserId))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_MEMBER);
-
-            verify(roomMemberRepository).findByRoomIdAndUserId(roomId, fromUserId);
-        }
-
-        @Test
         @DisplayName("실패 - 수신자가 방에 없음")
-        void t5() {
+        void t4() {
             // given
             given(roomMemberRepository.findByRoomIdAndUserId(roomId, fromUserId))
                     .willReturn(Optional.of(onlineFromMember));
@@ -146,39 +124,6 @@ class WebRTCSignalValidatorTest {
             verify(roomMemberRepository).findByRoomIdAndUserId(roomId, fromUserId);
             verify(roomMemberRepository).findByRoomIdAndUserId(roomId, targetUserId);
         }
-
-        @Test
-        @DisplayName("실패 - 수신자가 오프라인")
-        void t6() {
-            // given
-            given(roomMemberRepository.findByRoomIdAndUserId(roomId, fromUserId))
-                    .willReturn(Optional.of(onlineFromMember));
-            given(roomMemberRepository.findByRoomIdAndUserId(roomId, targetUserId))
-                    .willReturn(Optional.of(offlineTargetMember));
-
-            // when & then
-            assertThatThrownBy(() -> validator.validateSignal(roomId, fromUserId, targetUserId))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_MEMBER);
-
-            verify(roomMemberRepository).findByRoomIdAndUserId(roomId, fromUserId);
-            verify(roomMemberRepository).findByRoomIdAndUserId(roomId, targetUserId);
-        }
-
-        @Test
-        @DisplayName("실패 - 발신자와 수신자 모두 오프라인")
-        void t7() {
-            // given
-            given(roomMemberRepository.findByRoomIdAndUserId(roomId, fromUserId))
-                    .willReturn(Optional.of(offlineFromMember));
-
-            // when & then
-            assertThatThrownBy(() -> validator.validateSignal(roomId, fromUserId, targetUserId))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_MEMBER);
-
-            verify(roomMemberRepository).findByRoomIdAndUserId(roomId, fromUserId);
-        }
     }
 
     @Nested
@@ -186,8 +131,8 @@ class WebRTCSignalValidatorTest {
     class ValidateMediaStateChangeTest {
 
         @Test
-        @DisplayName("정상 - 온라인 멤버")
-        void t8() {
+        @DisplayName("정상 - 멤버 존재")
+        void t5() {
             // given
             given(roomMemberRepository.findByRoomIdAndUserId(roomId, fromUserId))
                     .willReturn(Optional.of(onlineFromMember));
@@ -201,7 +146,7 @@ class WebRTCSignalValidatorTest {
 
         @Test
         @DisplayName("실패 - 방에 없는 사용자")
-        void t9() {
+        void t6() {
             // given
             given(roomMemberRepository.findByRoomIdAndUserId(roomId, fromUserId))
                     .willReturn(Optional.empty());
@@ -215,30 +160,14 @@ class WebRTCSignalValidatorTest {
         }
 
         @Test
-        @DisplayName("실패 - 오프라인 사용자")
-        void t10() {
-            // given
-            given(roomMemberRepository.findByRoomIdAndUserId(roomId, fromUserId))
-                    .willReturn(Optional.of(offlineFromMember));
-
-            // when & then
-            assertThatThrownBy(() -> validator.validateMediaStateChange(roomId, fromUserId))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_MEMBER);
-
-            verify(roomMemberRepository).findByRoomIdAndUserId(roomId, fromUserId);
-        }
-
-        @Test
-        @DisplayName("정상 - 다른 방의 온라인 멤버")
-        void t11() {
+        @DisplayName("정상 - 다른 방의 멤버")
+        void t7() {
             // given
             Long differentRoomId = 999L;
             Room differentRoom = mock(Room.class);
             User user = mock(User.class);
 
             RoomMember memberInDifferentRoom = RoomMember.createMember(differentRoom, user);
-            memberInDifferentRoom.updateOnlineStatus(true);
 
             given(roomMemberRepository.findByRoomIdAndUserId(differentRoomId, fromUserId))
                     .willReturn(Optional.of(memberInDifferentRoom));

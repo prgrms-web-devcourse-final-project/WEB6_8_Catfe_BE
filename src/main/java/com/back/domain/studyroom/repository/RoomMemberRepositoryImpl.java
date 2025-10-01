@@ -74,48 +74,39 @@ public class RoomMemberRepositoryImpl implements RoomMemberRepositoryCustom {
 
     /**
      * 방의 온라인 멤버 조회
-     * - 현재 온라인 상태인 멤버만 (isOnline = true)
-     * - 1순위: 역할 (HOST > SUB_HOST > MEMBER > VISITOR)
-     * - 2순위: 마지막 활동 시간 (최근 활동 순)
-     * - 방 상세 페이지에서 현재 접속 중인 멤버 표시
-     * - 실시간 멤버 목록 업데이트
+     * TODO: Redis 기반으로 변경 예정
+     * 현재는 방의 모든 멤버 반환 (임시)
      * @param roomId 방 ID
-     * @return 온라인 멤버 목록
+     * @return 멤버 목록 (역할순, 입장순 정렬)
      */
     @Override
+    @Deprecated
     public List<RoomMember> findOnlineMembersByRoomId(Long roomId) {
         return queryFactory
                 .selectFrom(roomMember)
                 .leftJoin(roomMember.user, user).fetchJoin()  // N+1 방지
-                .where(
-                        roomMember.room.id.eq(roomId),
-                        roomMember.isOnline.eq(true)
-                )
+                .where(roomMember.room.id.eq(roomId))
                 .orderBy(
-                        roomMember.role.asc(),              // 역할순
-                        roomMember.lastActiveAt.desc()      // 최근 활동순
+                        roomMember.role.asc(),       // 역할순
+                        roomMember.joinedAt.asc()    // 입장 시간순
                 )
                 .fetch();
     }
 
     /**
      * 방의 활성 멤버 수 조회
-     * - 현재 온라인 상태인 멤버 (isOnline = true)
-     * - 방 목록에서 현재 참가자 수 표시
-     * - 정원 체크 (현재 참가자 vs 최대 참가자)
-     * - 통계 데이터 수집 로직 구현 시 연결 해야함..
+     * TODO: Redis 기반으로 변경 예정
+     * 현재는 방의 모든 멤버 수 반환 (임시)
      * @param roomId 방 ID
-     * @return 활성 멤버 수
+     * @return 멤버 수
      */
     @Override
+    @Deprecated
     public int countActiveMembersByRoomId(Long roomId) {
         Long count = queryFactory
                 .select(roomMember.count())
                 .from(roomMember)
-                .where(
-                        roomMember.room.id.eq(roomId),
-                        roomMember.isOnline.eq(true)
-                )
+                .where(roomMember.room.id.eq(roomId))
                 .fetchOne();
 
         return count != null ? count.intValue() : 0;
@@ -123,17 +114,15 @@ public class RoomMemberRepositoryImpl implements RoomMemberRepositoryCustom {
 
     /**
      * 사용자가 참여 중인 모든 방의 멤버십 조회
+     * DB에 저장된 멤버십만 조회 (MEMBER 이상)
      * @param userId 사용자 ID
-     * @return 참여 중인 방의 멤버십 목록
+     * @return 멤버십 목록
      */
     @Override
     public List<RoomMember> findActiveByUserId(Long userId) {
         return queryFactory
                 .selectFrom(roomMember)
-                .where(
-                        roomMember.user.id.eq(userId),
-                        roomMember.isOnline.eq(true)
-                )
+                .where(roomMember.user.id.eq(userId))
                 .fetch();
     }
 
@@ -267,29 +256,21 @@ public class RoomMemberRepositoryImpl implements RoomMemberRepositoryCustom {
     }
 
     /**
-     * 특정 역할의 온라인 멤버 수 조회
-     * - 특정 역할의 멤버
-     * - 현재 온라인 상태만
-     * 예시:
-     * ```java
-     * int hostCount = countByRoomIdAndRole(roomId, RoomRole.HOST);
-     * if (hostCount == 0) {
-     *
-     * }
-     * ```
+     * 특정 역할의 멤버 수 조회
+     * TODO: Redis 기반으로 변경 예정
      * @param roomId 방 ID
      * @param role 역할
-     * @return 해당 역할의 온라인 멤버 수
+     * @return 해당 역할의 멤버 수
      */
     @Override
+    @Deprecated
     public int countByRoomIdAndRole(Long roomId, RoomRole role) {
         Long count = queryFactory
                 .select(roomMember.count())
                 .from(roomMember)
                 .where(
                         roomMember.room.id.eq(roomId),
-                        roomMember.role.eq(role),
-                        roomMember.isOnline.eq(true)
+                        roomMember.role.eq(role)
                 )
                 .fetchOne();
 
@@ -298,75 +279,27 @@ public class RoomMemberRepositoryImpl implements RoomMemberRepositoryCustom {
 
     /**
      * 방 퇴장 처리 (벌크 업데이트)
-     * - isOnline을 false로 변경
-     * - connectionId를 null로 초기화
-     *
-     *  ai 코드 리뷰 결과 :
-     * - 한 번의 쿼리로 처리하여 성능 최적화 상태
-     * - 벌크 연산은 영속성 컨텍스트를 무시
-     * - 이후 해당 엔티티를 조회하면 DB와 불일치 가능
-     * - 필요시 em.clear() 또는 em.refresh() 사용
-     * ( 추후 기초 기능 개발 완료 후 개선 예정)
-     *
-     * - 사용자가 명시적으로 방을 나갈 때
-     * - WebSocket 연결 끊김 감지 시
-     * - 타임아웃으로 자동 퇴장 처리 시
+     * TODO: Redis로 이관 예정
+     * 현재는 아무 동작 안함 (DB에는 멤버십 유지)
      * @param roomId 방 ID
      * @param userId 사용자 ID
      */
     @Override
+    @Deprecated
     public void leaveRoom(Long roomId, Long userId) {
-        queryFactory
-                .update(roomMember)
-                .set(roomMember.isOnline, false)
-                .setNull(roomMember.connectionId)
-                .where(
-                        roomMember.room.id.eq(roomId),
-                        roomMember.user.id.eq(userId)
-                )
-                .execute();
+        // Redis로 이관 예정 - 현재는 아무 동작 안함
+        // DB의 멤버십은 유지됨
     }
 
     /**
      * 방의 모든 멤버를 오프라인 처리 (방 종료 시)
-     * - 해당 방의 모든 멤버를 오프라인으로 변경
-     * - 모든 멤버의 connectionId 제거
-     *
-     * - 방장이 방을 종료할 때
-     * - 방이 자동으로 종료될 때 (참가자 0명 + 일정 시간 경과)
-     * - 긴급 상황으로 방을 강제 종료할 때
-     *
-     *  ai 코드 리뷰 결과 :
-     *  해당 부분도 쿼리 한번으로 동작되는 내용이기 때문에,
-     *  그렇게 동작 시에는 웹소켓에 미리 종료 알림을 주는 형식으로 변경하라고 함.
-     *  이 작업 후 방 상태를 TERMINATED로 변경해야 함
-     * 
-     * 사용 예시:
-     * ```java
-     * @Transactional
-     * public void terminateRoom(Long roomId) {
-     *     Room room = roomRepository.findById(roomId)...;
-     *     
-     *     // 모든 멤버 오프라인 처리
-     *     roomMemberRepository.disconnectAllMembers(roomId);
-     *     
-     *     // 방 종료
-     *     room.terminate();
-     *     
-     *     // WebSocket으로 종료 알림
-     *     notifyRoomTermination(roomId);
-     * }
-     * ```
-     * 
+     * TODO: Redis로 이관 예정
+     * 현재는 아무 동작 안함
      * @param roomId 방 ID
      */
     @Override
+    @Deprecated
     public void disconnectAllMembers(Long roomId) {
-        queryFactory
-                .update(roomMember)
-                .set(roomMember.isOnline, false)
-                .setNull(roomMember.connectionId)
-                .where(roomMember.room.id.eq(roomId))
-                .execute();
+        // Redis로 이관 예정 - 현재는 아무 동작 안함
     }
 }
