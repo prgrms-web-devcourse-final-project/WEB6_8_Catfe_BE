@@ -27,7 +27,6 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class RoomChatService {
 
     private final RoomChatMessageRepository roomChatMessageRepository;
@@ -60,6 +59,7 @@ public class RoomChatService {
     }
 
     // 방 채팅 기록 조회
+    @Transactional(readOnly = true)
     public RoomChatPageResponse getRoomChatHistory(Long roomId, int page, int size, LocalDateTime before) {
 
         // 방 존재 여부 확인
@@ -125,6 +125,14 @@ public class RoomChatService {
         }
     }
 
+    // 방의 현재 채팅 메시지 수 조회
+    @Transactional(readOnly = true)
+    public int getRoomChatCount(Long roomId) {
+        return roomChatMessageRepository.countByRoomId(roomId);
+    }
+
+    // --------------------- 헬퍼 메서드들 ---------------------
+
     // 채팅 관리 권한 확인 (방장 또는 부방장)
     private boolean canManageChat(RoomRole role) {
         return role == RoomRole.HOST || role == RoomRole.SUB_HOST;
@@ -151,11 +159,6 @@ public class RoomChatService {
                 null,   // 텍스트 채팅에서는 null
                 message.getCreatedAt()
         );
-    }
-
-    // 방의 현재 채팅 메시지 수 조회
-    public int getRoomChatCount(Long roomId) {
-        return roomChatMessageRepository.countByRoomId(roomId);
     }
 
 }
