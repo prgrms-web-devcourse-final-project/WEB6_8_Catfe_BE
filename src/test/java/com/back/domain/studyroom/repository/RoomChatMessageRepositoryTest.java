@@ -3,11 +3,16 @@ package com.back.domain.studyroom.repository;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomChatMessage;
 import com.back.domain.user.entity.User;
+import com.back.global.config.DataSourceProxyTestConfig;
 import com.back.global.config.QueryDslTestConfig;
+import com.back.global.util.QueryCounter;
+import net.ttddyy.dsproxy.QueryCountHolder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
@@ -23,7 +28,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @ActiveProfiles("test")
-@Import({RoomChatMessageRepositoryImpl.class, QueryDslTestConfig.class})
+@AutoConfigureTestDatabase(replace = Replace.NONE)
+@Import({
+        RoomChatMessageRepositoryImpl.class,
+        QueryDslTestConfig.class,
+        DataSourceProxyTestConfig.class
+})
 @DisplayName("RoomChatMessageRepository 테스트")
 class RoomChatMessageRepositoryTest {
 
@@ -66,6 +76,9 @@ class RoomChatMessageRepositoryTest {
         createTestMessages();
         testEntityManager.flush();
         testEntityManager.clear();
+
+        // 쿼리 카운터 초기화
+        QueryCountHolder.clear();
     }
 
     private void createTestMessages() {
@@ -151,23 +164,52 @@ class RoomChatMessageRepositoryTest {
     }
 
     @Test
-    @DisplayName("N+1 문제 해결 확인")
+    @DisplayName("N+1 문제 해결 확인 - fetch join 적용")
     void t4() {
+        // Given
         Pageable pageable = PageRequest.of(0, 3);
 
-        Page<RoomChatMessage> result = roomChatMessageRepository.findMessagesByRoomId(testRoom.getId(), pageable);
+        // 영속성 컨텍스트 초기화 (캐시 제거)
+        testEntityManager.flush();
+        testEntityManager.clear();
 
+        // 쿼리 카운터 초기화
+        QueryCounter.clear();
+
+        // When - 1. 초기 조회
+        Page<RoomChatMessage> result = roomChatMessageRepository
+                .findMessagesByRoomId(testRoom.getId(), pageable);
+
+        long selectCountAfterQuery = QueryCounter.getSelectCount();
+
+        // When - 2. 연관 엔티티 접근
+        for (RoomChatMessage message : result.getContent()) {
+            String roomTitle = message.getRoom().getTitle();
+            String userNickname = message.getUser().getNickname();
+
+            assertThat(roomTitle).isNotNull();
+            assertThat(userNickname).isNotNull();
+        }
+
+        long selectCountAfterAccess = QueryCounter.getSelectCount();
+
+        // Then
         assertThat(result.getContent()).hasSize(3);
 
-        for (RoomChatMessage message : result.getContent()) {
-            // 추가 쿼리 없이 접근 가능
-            assertThat(message.getRoom().getTitle()).isNotNull();
-            assertThat(message.getUser().getNickname()).isNotNull(); // username을 반환
+        // fetch join이 제대로 동작하면 SELECT는 2번만 실행되어야 함
+        // 1. RoomChatMessage + Room + User 조회 (fetch join)
+        // 2. 페이징을 위한 count 쿼리
+        assertThat(selectCountAfterQuery)
+                .as("초기 조회 시 2번의 SELECT만 실행되어야 함 (fetch join 1번 + count 1번)")
+                .isEqualTo(2);
 
-            // 연관 엔티티가 제대로 로드되었는지 확인
-            assertThat(message.getRoom().getTitle()).isEqualTo("테스트 스터디룸");
-            assertThat(message.getUser().getNickname()).isIn("테스터1", "테스터2");
-        }
+        // 연관 엔티티 접근 시에도 추가 쿼리가 발생하지 않아야 함
+        assertThat(selectCountAfterAccess)
+                .as("연관 엔티티 접근 시 추가 쿼리가 발생하지 않아야 함")
+                .isEqualTo(selectCountAfterQuery);
+
+        // 쿼리 카운트 출력
+        QueryCounter.printQueryCount();
     }
 
     @Test

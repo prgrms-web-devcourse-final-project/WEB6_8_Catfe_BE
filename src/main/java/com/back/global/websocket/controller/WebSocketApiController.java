@@ -1,6 +1,7 @@
 package com.back.global.websocket.controller;
 
 import com.back.global.common.dto.RsData;
+import com.back.global.websocket.config.WebSocketConstants;
 import com.back.global.websocket.service.WebSocketSessionManager;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,8 +30,8 @@ public class WebSocketApiController {
         data.put("service", "WebSocket");
         data.put("status", "running");
         data.put("timestamp", LocalDateTime.now());
-        data.put("sessionTTL", "10분 (Heartbeat 방식)");
-        data.put("heartbeatInterval", "5분");
+        data.put("sessionTTL", WebSocketConstants.getSessionTTLDescription());
+        data.put("heartbeatInterval", WebSocketConstants.getHeartbeatIntervalDescription());
         data.put("totalOnlineUsers", sessionManager.getTotalOnlineUserCount());
         data.put("endpoints", Map.of(
                 "websocket", "/ws",
@@ -53,8 +54,8 @@ public class WebSocketApiController {
         connectionInfo.put("websocketUrl", "/ws");
         connectionInfo.put("sockjsSupport", true);
         connectionInfo.put("stompVersion", "1.2");
-        connectionInfo.put("heartbeatInterval", "5분");
-        connectionInfo.put("sessionTTL", "10분");
+        connectionInfo.put("heartbeatInterval", WebSocketConstants.getHeartbeatIntervalDescription());
+        connectionInfo.put("sessionTTL", WebSocketConstants.getSessionTTLDescription());
         connectionInfo.put("subscribeTopics", Map.of(
                 "roomChat", "/topic/rooms/{roomId}/chat",
                 "privateMessage", "/user/queue/messages",
