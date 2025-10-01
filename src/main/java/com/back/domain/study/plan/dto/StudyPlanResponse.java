@@ -43,8 +43,7 @@ public class StudyPlanResponse {
     public static class RepeatRuleResponse {
         private Frequency frequency;
         private Integer repeatInterval;
-        // byDay 필드는 이미 List<String>으로 선언되어 있음.
-        private List<DayOfWeek> byDay = new ArrayList<>();  // "MON" 형태의 문자열 리스트
+        private List<DayOfWeek> byDay = new ArrayList<>();  // "MON" 형태의 enum 문자열 리스트
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
         private LocalDate untilDate;
