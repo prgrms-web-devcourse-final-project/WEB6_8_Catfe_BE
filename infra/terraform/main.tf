@@ -194,10 +194,15 @@ sudo mkswap /swapfile
 sudo swapon /swapfile
 sudo sh -c 'echo "/swapfile swap swap defaults 0 0" >> /etc/fstab'
 
-# git 설치
-yum install git -y
+# 환경변수 세팅(/etc/environment)
+echo "PASSWORD=${var.password_1}" >> /etc/environment
+echo "DOMAIN=${var.catfe_domain_1}" >> /etc/environment
+echo "GITHUB_ACCESS_TOKEN_OWNER=${var.github_access_token_1_owner}" >> /etc/environment
+ehco "GITHUB_ACCESS_TOKEN=${var.github_access_token_1}" >> /etc/environment
+# EC2 환경변수 등록
+source /etc/environment
 
-#도커 설치 및 실행/활성화
+# 도커 설치 및 실행/활성화
 yum install docker -y
 systemctl enable docker
 systemctl start docker
@@ -229,6 +234,8 @@ docker run -d \
   -v /dockerProjects/npm_1/volumes/etc/letsencrypt:/etc/letsencrypt \
   jc21/nginx-proxy-manager:latest
 
+# ghcr.io 로그인
+echo "${var.github_access_token_1}" | docker login ghcr.io -u ${var.github_access_token_1_owner} --password-stdin
 
 END_OF_FILE
 }
