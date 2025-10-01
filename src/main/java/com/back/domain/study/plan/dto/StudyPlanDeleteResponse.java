@@ -2,11 +2,16 @@ package com.back.domain.study.plan.dto;
 
 import com.back.domain.study.plan.entity.ApplyScope;
 import com.back.domain.study.plan.entity.Color;
-import com.back.domain.study.plan.entity.StudyPlan;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
 public class StudyPlanDeleteResponse {
     private Long id;
     private String subject;

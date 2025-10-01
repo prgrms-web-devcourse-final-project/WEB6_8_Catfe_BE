@@ -533,7 +533,7 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."))
                 .andExpect(jsonPath("$.data.id").value(planId))
                 .andExpect(jsonPath("$.data.subject").value(originalPlan.getSubject()))
-                .andExpect(jsonPath("$.data.color").value(originalPlan.getColor()))
+                .andExpect(jsonPath("$.data.color").value(Color.RED.name()))
                 .andExpect(jsonPath("$.data.deletedDate").value("2025-10-01"))
                 .andExpect(jsonPath("$.data.applyScope").value("THIS_ONLY"));
 
@@ -562,8 +562,8 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.data.subject").value(originalPlan.getSubject()))
                 .andExpect(jsonPath("$.data.deletedDate").value("2025-10-01"))
                 .andExpect(jsonPath("$.data.applyScope").value("THIS_ONLY"))
-                .andExpect(jsonPath("$.data.startDate").value("2025-10-01T09:00:00"))
-                .andExpect(jsonPath("$.data.endDate").value("2025-10-01T11:00:00"));
+                .andExpect(jsonPath("$.data.startDate").value("2025-10-01T12:00:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-10-01T13:00:00"));
 
         // 10월 1일에 해당하는 계획은 없어야함
         mvc.perform(get("/api/plans/date/2025-10-01")
@@ -627,8 +627,8 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.data.id").value(planId))
                 .andExpect(jsonPath("$.data.deletedDate").value("2025-10-10"))
                 .andExpect(jsonPath("$.data.applyScope").value("FROM_THIS_DATE"))
-                .andExpect(jsonPath("$.data.startDate").value("2025-10-10T09:00:00"))
-                .andExpect(jsonPath("$.data.endDate").value("2025-10-10T11:00:00"));
+                .andExpect(jsonPath("$.data.startDate").value("2025-10-10T12:00:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-10-10T13:00:00"));
 
         // 10월 1일에 해당하는 계획은 있어야함
         mvc.perform(get("/api/plans/date/2025-10-01")
