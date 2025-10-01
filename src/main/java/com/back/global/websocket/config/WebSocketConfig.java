@@ -1,4 +1,4 @@
-package com.back.global.config;
+package com.back.global.websocket.config;
 
 import com.back.global.security.user.CustomUserDetails;
 import com.back.global.security.jwt.JwtTokenProvider;
