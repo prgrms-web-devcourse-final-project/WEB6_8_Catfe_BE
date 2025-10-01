@@ -530,7 +530,12 @@ class StudyPlanControllerTest {
                 .andExpect(status().isOk()) // 200 OK
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."))
+                .andExpect(jsonPath("$.data.id").value(planId))
+                .andExpect(jsonPath("$.data.subject").value(originalPlan.getSubject()))
+                .andExpect(jsonPath("$.data.color").value(originalPlan.getColor()))
+                .andExpect(jsonPath("$.data.deletedDate").value("2025-10-01"))
+                .andExpect(jsonPath("$.data.applyScope").value("THIS_ONLY"));
 
         // DB에서 실제로 삭제되었는지 확인
         boolean exists = studyPlanRepository.existsById(planId);
@@ -552,7 +557,14 @@ class StudyPlanControllerTest {
                 .andExpect(status().isOk()) // 200 OK
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."))
+                .andExpect(jsonPath("$.data.id").value(planId))
+                .andExpect(jsonPath("$.data.subject").value(originalPlan.getSubject()))
+                .andExpect(jsonPath("$.data.deletedDate").value("2025-10-01"))
+                .andExpect(jsonPath("$.data.applyScope").value("THIS_ONLY"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-10-01T09:00:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-10-01T11:00:00"));
+
         // 10월 1일에 해당하는 계획은 없어야함
         mvc.perform(get("/api/plans/date/2025-10-01")
                         .header("Authorization", "Bearer faketoken")
@@ -583,7 +595,10 @@ class StudyPlanControllerTest {
                 .andExpect(status().isOk()) // 200 OK
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."))
+                .andExpect(jsonPath("$.data.id").value(planId))
+                .andExpect(jsonPath("$.data.deletedDate").value("2025-10-01"))
+                .andExpect(jsonPath("$.data.applyScope").value("FROM_THIS_DATE"));
 
         // 10월 10일에 해당하는 계획도 없어야함
         mvc.perform(get("/api/plans/date/2025-10-10")
@@ -608,7 +623,12 @@ class StudyPlanControllerTest {
                 .andExpect(status().isOk()) // 200 OK
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."))
+                .andExpect(jsonPath("$.data.id").value(planId))
+                .andExpect(jsonPath("$.data.deletedDate").value("2025-10-10"))
+                .andExpect(jsonPath("$.data.applyScope").value("FROM_THIS_DATE"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-10-10T09:00:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-10-10T11:00:00"));
 
         // 10월 1일에 해당하는 계획은 있어야함
         mvc.perform(get("/api/plans/date/2025-10-01")
@@ -617,7 +637,7 @@ class StudyPlanControllerTest {
                 .andDo(print())
                 .andExpect(jsonPath("$.data.totalCount").value(1));
 
-    // 10.10 이후에 해당하는 계획은 없어야함
+        // 10.10 이후에 해당하는 계획은 없어야함
         mvc.perform(get("/api/plans?start=2025-10-10&end=2025-10-15")
                         .header("Authorization", "Bearer faketoken")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -625,6 +645,5 @@ class StudyPlanControllerTest {
                 //검색 결과가 없다면 빈 배열
                 .andExpect(jsonPath("$.data", hasSize(0)));
     }
-
 
 }
