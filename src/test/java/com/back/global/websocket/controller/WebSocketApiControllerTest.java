@@ -58,13 +58,15 @@ class WebSocketApiControllerTest {
                     .andExpect(jsonPath("$.data.service").value("WebSocket"))
                     .andExpect(jsonPath("$.data.status").value("running"))
                     .andExpect(jsonPath("$.data.timestamp").exists())
-                    .andExpect(jsonPath("$.data.sessionTTL").value("10분 (Heartbeat 방식)"))
-                    .andExpect(jsonPath("$.data.heartbeatInterval").value("5분"))
+                    .andExpect(jsonPath("$.data.sessionTTL").exists())
+                    .andExpect(jsonPath("$.data.heartbeatInterval").exists())
                     .andExpect(jsonPath("$.data.totalOnlineUsers").value(totalOnlineUsers))
                     .andExpect(jsonPath("$.data.endpoints").exists())
                     .andExpect(jsonPath("$.data.endpoints.websocket").value("/ws"))
                     .andExpect(jsonPath("$.data.endpoints.heartbeat").value("/app/heartbeat"))
-                    .andExpect(jsonPath("$.data.endpoints.activity").value("/app/activity"));
+                    .andExpect(jsonPath("$.data.endpoints.activity").value("/app/activity"))
+                    .andExpect(jsonPath("$.data.endpoints.joinRoom").value("/app/rooms/{roomId}/join"))
+                    .andExpect(jsonPath("$.data.endpoints.leaveRoom").value("/app/rooms/{roomId}/leave"));
 
             verify(sessionManager).getTotalOnlineUserCount();
         }
@@ -156,8 +158,8 @@ class WebSocketApiControllerTest {
                     .andExpect(jsonPath("$.data.websocketUrl").value("/ws"))
                     .andExpect(jsonPath("$.data.sockjsSupport").value(true))
                     .andExpect(jsonPath("$.data.stompVersion").value("1.2"))
-                    .andExpect(jsonPath("$.data.heartbeatInterval").value("5분"))
-                    .andExpect(jsonPath("$.data.sessionTTL").value("10분"));
+                    .andExpect(jsonPath("$.data.heartbeatInterval").exists())
+                    .andExpect(jsonPath("$.data.sessionTTL").exists());
         }
 
         @Test

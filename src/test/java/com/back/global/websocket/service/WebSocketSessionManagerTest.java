@@ -10,453 +10,512 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SetOperations;
-import org.springframework.data.redis.core.ValueOperations;
 
-import java.time.Duration;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("WebSocketSessionManager 테스트")
+@DisplayName("WebSocketSessionManager 단위 테스트")
 class WebSocketSessionManagerTest {
 
     @Mock
-    private RedisTemplate<String, Object> redisTemplate;
+    private UserSessionService userSessionService;
 
     @Mock
-    private ValueOperations<String, Object> valueOperations;
-
-    @Mock
-    private SetOperations<String, Object> setOperations;
+    private RoomParticipantService roomParticipantService;
 
     @InjectMocks
     private WebSocketSessionManager sessionManager;
 
-    private final Long TEST_USER_ID = 123L;
-    private final String TEST_SESSION_ID = "session-123";
-    private final Long TEST_ROOM_ID = 456L;
+    private Long userId;
+    private String sessionId;
+    private Long roomId;
 
     @BeforeEach
     void setUp() {
-        // Mock 설정은 각 테스트에서 필요할 때만 수행
+        userId = 1L;
+        sessionId = "test-session-123";
+        roomId = 100L;
     }
 
     @Test
-    @DisplayName("사용자 세션 등록 - 성공")
-    void t1() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(null); // 기존 세션 없음
-
+    @DisplayName("세션 추가")
+    void addSession() {
         // when
-        assertThatNoException().isThrownBy(() ->
-                sessionManager.addSession(TEST_USER_ID, TEST_SESSION_ID)
-        );
+        sessionManager.addSession(userId, sessionId);
 
         // then
-        verify(valueOperations, times(2)).set(anyString(), any(), eq(Duration.ofMinutes(6)));
+        verify(userSessionService).registerSession(userId, sessionId);
     }
 
     @Test
-    @DisplayName("사용자 세션 등록 - 기존 세션 있을 때 제거 후 등록")
-    void t2() {
+    @DisplayName("세션 제거 - 정상 케이스")
+    void removeSession_Success() {
         // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        WebSocketSessionInfo existingSession = WebSocketSessionInfo.createNewSession(TEST_USER_ID, "old-session-123")
-                .withUpdatedActivity(); // 활동 시간 업데이트
+        given(userSessionService.getUserIdBySessionId(sessionId)).willReturn(userId);
 
         // when
-        when(valueOperations.get("ws:user:123")).thenReturn(existingSession);
-        when(valueOperations.get("ws:session:old-session-123")).thenReturn(TEST_USER_ID);
-
-        assertThatNoException().isThrownBy(() ->
-                sessionManager.addSession(TEST_USER_ID, TEST_SESSION_ID)
-        );
+        sessionManager.removeSession(sessionId);
 
         // then
-        verify(redisTemplate, atLeastOnce()).delete(anyString()); // 기존 세션 삭제
-        verify(valueOperations, times(2)).set(anyString(), any(), eq(Duration.ofMinutes(6))); // 새 세션 등록
-    }
-
-    @Test
-    @DisplayName("사용자 세션 등록 - Redis 오류 시 예외 발생")
-    void t3() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenThrow(new RuntimeException("Redis connection failed"));
-
-        // when & then
-        assertThatThrownBy(() -> sessionManager.addSession(TEST_USER_ID, TEST_SESSION_ID))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WS_CONNECTION_FAILED);
-    }
-
-    @Test
-    @DisplayName("사용자 연결 상태 확인 - 연결됨")
-    void t4() {
-        // given
-        when(redisTemplate.hasKey("ws:user:123")).thenReturn(true);
-
-        // when
-        boolean result = sessionManager.isUserConnected(TEST_USER_ID);
-
-        // then
-        assertThat(result).isTrue();
-        verify(redisTemplate).hasKey("ws:user:123");
-    }
-
-    @Test
-    @DisplayName("사용자 연결 상태 확인 - 연결되지 않음")
-    void t5() {
-        // given
-        when(redisTemplate.hasKey("ws:user:123")).thenReturn(false);
-
-        // when
-        boolean result = sessionManager.isUserConnected(TEST_USER_ID);
-
-        // then
-        assertThat(result).isFalse();
-        verify(redisTemplate).hasKey("ws:user:123");
-    }
-
-    @Test
-    @DisplayName("사용자 연결 상태 확인 - Redis 오류 시 예외 발생")
-    void t6() {
-        // given
-        when(redisTemplate.hasKey(anyString())).thenThrow(new RuntimeException("Redis error"));
-
-        // when & then
-        assertThatThrownBy(() -> sessionManager.isUserConnected(TEST_USER_ID))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WS_REDIS_ERROR);
-    }
-
-    @Test
-    @DisplayName("세션 정보 조회 - 성공")
-    void t7() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        // 체이닝으로 세션 정보 생성
-        WebSocketSessionInfo expectedSessionInfo = WebSocketSessionInfo
-                .createNewSession(TEST_USER_ID, TEST_SESSION_ID)
-                .withRoomId(TEST_ROOM_ID);
-
-        when(valueOperations.get("ws:user:123")).thenReturn(expectedSessionInfo);
-
-        // when
-        WebSocketSessionInfo result = sessionManager.getSessionInfo(TEST_USER_ID);
-
-        // then
-        assertThat(result).isNotNull();
-        assertThat(result.userId()).isEqualTo(TEST_USER_ID);
-        assertThat(result.sessionId()).isEqualTo(TEST_SESSION_ID);
-        assertThat(result.currentRoomId()).isEqualTo(TEST_ROOM_ID);
-    }
-
-    @Test
-    @DisplayName("세션 정보 조회 - 세션이 없음")
-    void t8() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("ws:user:123")).thenReturn(null);
-
-        // when
-        WebSocketSessionInfo result = sessionManager.getSessionInfo(TEST_USER_ID);
-
-        // then
-        assertThat(result).isNull();
-    }
-
-    @Test
-    @DisplayName("활동 시간 업데이트 - 성공")
-    void t9() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
-                .createNewSession(TEST_USER_ID, TEST_SESSION_ID);
-
-        when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
-
-        // when
-        assertThatNoException().isThrownBy(() ->
-                sessionManager.updateLastActivity(TEST_USER_ID)
-        );
-
-        // then
-        verify(valueOperations).set(eq("ws:user:123"), any(WebSocketSessionInfo.class), eq(Duration.ofMinutes(6)));
-    }
-
-    @Test
-    @DisplayName("활동 시간 업데이트 - 세션이 없을 때")
-    void t10() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("ws:user:123")).thenReturn(null);
-
-        // when & then
-        assertThatNoException().isThrownBy(() ->
-                sessionManager.updateLastActivity(TEST_USER_ID)
-        );
-
-        // 세션이 없으면 업데이트하지 않음
-        verify(valueOperations, never()).set(anyString(), any(), any(Duration.class));
-    }
-
-    @Test
-    @DisplayName("방 입장 - 성공")
-    void t11() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(redisTemplate.opsForSet()).thenReturn(setOperations);
-
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
-                .createNewSession(TEST_USER_ID, TEST_SESSION_ID);
-
-        when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
-
-        // when
-        assertThatNoException().isThrownBy(() ->
-                sessionManager.joinRoom(TEST_USER_ID, TEST_ROOM_ID)
-        );
-
-        // then
-        verify(setOperations).add("ws:room:456:users", TEST_USER_ID);
-        verify(redisTemplate).expire("ws:room:456:users", Duration.ofMinutes(6));
-        verify(valueOperations).set(eq("ws:user:123"), any(WebSocketSessionInfo.class), eq(Duration.ofMinutes(6)));
-    }
-
-    @Test
-    @DisplayName("방 입장 - 기존 방에서 자동 퇴장 후 새 방 입장")
-    void t12() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(redisTemplate.opsForSet()).thenReturn(setOperations);
-        Long previousRoomId = 999L;
-
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
-                .createNewSession(TEST_USER_ID, TEST_SESSION_ID)
-                .withRoomId(previousRoomId);
-
-        when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
-
-        // when
-        assertThatNoException().isThrownBy(() ->
-                sessionManager.joinRoom(TEST_USER_ID, TEST_ROOM_ID)
-        );
-
-        // then
-        // 이전 방에서 퇴장
-        verify(setOperations).remove("ws:room:999:users", TEST_USER_ID);
-
-        // 새 방에 입장
-        verify(setOperations).add("ws:room:456:users", TEST_USER_ID);
-    }
-
-    @Test
-    @DisplayName("방 퇴장 - 성공")
-    void t13() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(redisTemplate.opsForSet()).thenReturn(setOperations);
-
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
-                .createNewSession(TEST_USER_ID, TEST_SESSION_ID)
-                .withRoomId(TEST_ROOM_ID);
-
-        when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
-
-        // when
-        assertThatNoException().isThrownBy(() ->
-                sessionManager.leaveRoom(TEST_USER_ID, TEST_ROOM_ID)
-        );
-
-        // then
-        verify(setOperations).remove("ws:room:456:users", TEST_USER_ID);
-        verify(valueOperations).set(eq("ws:user:123"), any(WebSocketSessionInfo.class), eq(Duration.ofMinutes(6)));
-    }
-
-    @Test
-    @DisplayName("방 온라인 사용자 수 조회 - 성공")
-    void t14() {
-        // given
-        when(redisTemplate.opsForSet()).thenReturn(setOperations);
-        when(setOperations.size("ws:room:456:users")).thenReturn(5L);
-
-        // when
-        long result = sessionManager.getRoomOnlineUserCount(TEST_ROOM_ID);
-
-        // then
-        assertThat(result).isEqualTo(5L);
-        verify(setOperations).size("ws:room:456:users");
-    }
-
-    @Test
-    @DisplayName("방 온라인 사용자 수 조회 - 사용자가 없을 때")
-    void t15() {
-        // given
-        when(redisTemplate.opsForSet()).thenReturn(setOperations);
-        when(setOperations.size("ws:room:456:users")).thenReturn(null);
-
-        // when
-        long result = sessionManager.getRoomOnlineUserCount(TEST_ROOM_ID);
-
-        // then
-        assertThat(result).isEqualTo(0L);
-    }
-
-    @Test
-    @DisplayName("방 온라인 사용자 목록 조회 - 성공")
-    void t16() {
-        // given
-        when(redisTemplate.opsForSet()).thenReturn(setOperations);
-        Set<Object> expectedUserIds = Set.of(123L, 456L, 789L);
-        when(setOperations.members("ws:room:456:users")).thenReturn(expectedUserIds);
-
-        // when
-        Set<Long> result = sessionManager.getOnlineUsersInRoom(TEST_ROOM_ID);
-
-        // then
-        assertThat(result).containsExactlyInAnyOrder(123L, 456L, 789L);
-        verify(setOperations).members("ws:room:456:users");
-    }
-
-    @Test
-    @DisplayName("방 온라인 사용자 목록 조회 - 빈 방")
-    void t17() {
-        // given
-        when(redisTemplate.opsForSet()).thenReturn(setOperations);
-        when(setOperations.members("ws:room:456:users")).thenReturn(null);
-
-        // when
-        Set<Long> result = sessionManager.getOnlineUsersInRoom(TEST_ROOM_ID);
-
-        // then
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    @DisplayName("전체 온라인 사용자 수 조회 - 성공")
-    void t18() {
-        // given
-        Set<String> userKeys = Set.of("ws:user:123", "ws:user:456", "ws:user:789");
-        when(redisTemplate.keys("ws:user:*")).thenReturn(userKeys);
-
-        // when
-        long result = sessionManager.getTotalOnlineUserCount();
-
-        // then
-        assertThat(result).isEqualTo(3L);
-    }
-
-    @Test
-    @DisplayName("전체 온라인 사용자 수 조회 - Redis 오류 시 0 반환")
-    void t19() {
-        // given
-        when(redisTemplate.keys("ws:user:*")).thenThrow(new RuntimeException("Redis error"));
-
-        // when
-        long result = sessionManager.getTotalOnlineUserCount();
-
-        // then
-        assertThat(result).isEqualTo(0L); // 예외 대신 0 반환
-    }
-
-    @Test
-    @DisplayName("사용자 현재 방 ID 조회 - 성공")
-    void t20() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
-                .createNewSession(TEST_USER_ID, TEST_SESSION_ID)
-                .withRoomId(TEST_ROOM_ID);
-
-        when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
-
-        // when
-        Long result = sessionManager.getUserCurrentRoomId(TEST_USER_ID);
-
-        // then
-        assertThat(result).isEqualTo(TEST_ROOM_ID);
-    }
-
-    @Test
-    @DisplayName("사용자 현재 방 ID 조회 - 방에 입장하지 않음")
-    void t21() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        // 방 정보 없는 세션
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
-                .createNewSession(TEST_USER_ID, TEST_SESSION_ID); // currentRoomId는 null
-
-        when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
-
-        // when
-        Long result = sessionManager.getUserCurrentRoomId(TEST_USER_ID);
-
-        // then
-        assertThat(result).isNull();
-    }
-
-    @Test
-    @DisplayName("사용자 현재 방 ID 조회 - 세션이 없음")
-    void t22() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("ws:user:123")).thenReturn(null);
-
-        // when
-        Long result = sessionManager.getUserCurrentRoomId(TEST_USER_ID);
-
-        // then
-        assertThat(result).isNull();
-    }
-
-    @Test
-    @DisplayName("세션 제거 - 성공")
-    void t23() {
-        // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(redisTemplate.opsForSet()).thenReturn(setOperations);
-        when(valueOperations.get("ws:session:session-123")).thenReturn(TEST_USER_ID);
-
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo
-                .createNewSession(TEST_USER_ID, TEST_SESSION_ID)
-                .withRoomId(TEST_ROOM_ID);
-        when(valueOperations.get("ws:user:123")).thenReturn(sessionInfo);
-
-        // when
-        assertThatNoException().isThrownBy(() ->
-                sessionManager.removeSession(TEST_SESSION_ID)
-        );
-
-        // then
-        verify(setOperations).remove("ws:room:456:users", TEST_USER_ID); // 방에서 퇴장
-        verify(redisTemplate, times(2)).delete(anyString()); // 세션 데이터 삭제
+        verify(userSessionService).getUserIdBySessionId(sessionId);
+        verify(roomParticipantService).exitAllRooms(userId);
+        verify(userSessionService).terminateSession(sessionId);
     }
 
     @Test
     @DisplayName("세션 제거 - 존재하지 않는 세션")
-    void t24() {
+    void removeSession_NotFound() {
         // given
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("ws:session:session-123")).thenReturn(null);
+        given(userSessionService.getUserIdBySessionId(sessionId)).willReturn(null);
+
+        // when
+        sessionManager.removeSession(sessionId);
+
+        // then
+        verify(userSessionService).getUserIdBySessionId(sessionId);
+        verify(roomParticipantService, never()).exitAllRooms(anyLong());
+        verify(userSessionService, never()).terminateSession(anyString());
+    }
+
+    @Test
+    @DisplayName("사용자 연결 상태 확인")
+    void isUserConnected() {
+        // given
+        given(userSessionService.isConnected(userId)).willReturn(true);
+
+        // when
+        boolean result = sessionManager.isUserConnected(userId);
+
+        // then
+        assertThat(result).isTrue();
+        verify(userSessionService).isConnected(userId);
+    }
+
+    @Test
+    @DisplayName("사용자 세션 정보 조회")
+    void getSessionInfo() {
+        // given
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        given(userSessionService.getSessionInfo(userId)).willReturn(sessionInfo);
+
+        // when
+        WebSocketSessionInfo result = sessionManager.getSessionInfo(userId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.userId()).isEqualTo(userId);
+        verify(userSessionService).getSessionInfo(userId);
+    }
+
+    @Test
+    @DisplayName("Heartbeat 처리")
+    void updateLastActivity() {
+        // when
+        sessionManager.updateLastActivity(userId);
+
+        // then
+        verify(userSessionService).processHeartbeat(userId);
+    }
+
+    @Test
+    @DisplayName("전체 온라인 사용자 수 조회")
+    void getTotalOnlineUserCount() {
+        // given
+        long expectedCount = 42L;
+        given(userSessionService.getTotalOnlineUserCount()).willReturn(expectedCount);
+
+        // when
+        long result = sessionManager.getTotalOnlineUserCount();
+
+        // then
+        assertThat(result).isEqualTo(expectedCount);
+        verify(userSessionService).getTotalOnlineUserCount();
+    }
+
+    @Test
+    @DisplayName("방 입장")
+    void joinRoom() {
+        // when
+        sessionManager.joinRoom(userId, roomId);
+
+        // then
+        verify(roomParticipantService).enterRoom(userId, roomId);
+    }
+
+    @Test
+    @DisplayName("방 퇴장")
+    void leaveRoom() {
+        // when
+        sessionManager.leaveRoom(userId, roomId);
+
+        // then
+        verify(roomParticipantService).exitRoom(userId, roomId);
+    }
+
+    @Test
+    @DisplayName("방의 온라인 사용자 수 조회")
+    void getRoomOnlineUserCount() {
+        // given
+        long expectedCount = 10L;
+        given(roomParticipantService.getParticipantCount(roomId)).willReturn(expectedCount);
+
+        // when
+        long result = sessionManager.getRoomOnlineUserCount(roomId);
+
+        // then
+        assertThat(result).isEqualTo(expectedCount);
+        verify(roomParticipantService).getParticipantCount(roomId);
+    }
+
+    @Test
+    @DisplayName("방의 온라인 사용자 목록 조회")
+    void getOnlineUsersInRoom() {
+        // given
+        Set<Long> expectedUsers = Set.of(1L, 2L, 3L);
+        given(roomParticipantService.getParticipants(roomId)).willReturn(expectedUsers);
+
+        // when
+        Set<Long> result = sessionManager.getOnlineUsersInRoom(roomId);
+
+        // then
+        assertThat(result).containsExactlyInAnyOrderElementsOf(expectedUsers);
+        verify(roomParticipantService).getParticipants(roomId);
+    }
+
+    @Test
+    @DisplayName("사용자의 현재 방 조회")
+    void getUserCurrentRoomId() {
+        // given
+        given(roomParticipantService.getCurrentRoomId(userId)).willReturn(roomId);
+
+        // when
+        Long result = sessionManager.getUserCurrentRoomId(userId);
+
+        // then
+        assertThat(result).isEqualTo(roomId);
+        verify(roomParticipantService).getCurrentRoomId(userId);
+    }
+
+    @Test
+    @DisplayName("사용자가 특정 방에 참여 중인지 확인")
+    void isUserInRoom() {
+        // given
+        given(roomParticipantService.isUserInRoom(userId, roomId)).willReturn(true);
+
+        // when
+        boolean result = sessionManager.isUserInRoom(userId, roomId);
+
+        // then
+        assertThat(result).isTrue();
+        verify(roomParticipantService).isUserInRoom(userId, roomId);
+    }
+
+    @Test
+    @DisplayName("전체 플로우: 연결 → 방 입장 → Heartbeat → 방 퇴장 → 연결 종료")
+    void fullLifecycleFlow() {
+        // given
+        given(userSessionService.getUserIdBySessionId(sessionId)).willReturn(userId);
 
         // when & then
-        assertThatNoException().isThrownBy(() ->
-                sessionManager.removeSession(TEST_SESSION_ID)
-        );
+        // 1. 연결
+        sessionManager.addSession(userId, sessionId);
+        verify(userSessionService).registerSession(userId, sessionId);
 
-        // 아무것도 삭제하지 않음
-        verify(redisTemplate, never()).delete(anyString());
+        // 2. 방 입장
+        sessionManager.joinRoom(userId, roomId);
+        verify(roomParticipantService).enterRoom(userId, roomId);
+
+        // 3. Heartbeat
+        sessionManager.updateLastActivity(userId);
+        verify(userSessionService).processHeartbeat(userId);
+
+        // 4. 방 퇴장
+        sessionManager.leaveRoom(userId, roomId);
+        verify(roomParticipantService).exitRoom(userId, roomId);
+
+        // 5. 연결 종료
+        sessionManager.removeSession(sessionId);
+        verify(roomParticipantService).exitAllRooms(userId);
+        verify(userSessionService).terminateSession(sessionId);
+    }
+
+    @Test
+    @DisplayName("전체 플로우: 연결 → 방 A 입장 → 방 B 이동 → 연결 종료")
+    void fullLifecycleFlow_RoomTransition() {
+        // given
+        Long roomA = 100L;
+        Long roomB = 200L;
+        given(userSessionService.getUserIdBySessionId(sessionId)).willReturn(userId);
+
+        // when & then
+        // 1. 연결
+        sessionManager.addSession(userId, sessionId);
+        verify(userSessionService).registerSession(userId, sessionId);
+
+        // 2. 방 A 입장
+        sessionManager.joinRoom(userId, roomA);
+        verify(roomParticipantService).enterRoom(userId, roomA);
+
+        // 3. 방 B로 이동 (자동으로 방 A 퇴장)
+        sessionManager.joinRoom(userId, roomB);
+        verify(roomParticipantService).enterRoom(userId, roomB);
+
+        // 4. 연결 종료 (모든 방에서 퇴장)
+        sessionManager.removeSession(sessionId);
+        verify(roomParticipantService).exitAllRooms(userId);
+        verify(userSessionService).terminateSession(sessionId);
+    }
+
+    @Test
+    @DisplayName("여러 사용자의 동시 세션 관리")
+    void multipleUsersSessions() {
+        // given
+        Long userId1 = 1L;
+        Long userId2 = 2L;
+        Long userId3 = 3L;
+        String sessionId1 = "session-1";
+        String sessionId2 = "session-2";
+        String sessionId3 = "session-3";
+
+        // when
+        sessionManager.addSession(userId1, sessionId1);
+        sessionManager.addSession(userId2, sessionId2);
+        sessionManager.addSession(userId3, sessionId3);
+
+        // then
+        verify(userSessionService).registerSession(userId1, sessionId1);
+        verify(userSessionService).registerSession(userId2, sessionId2);
+        verify(userSessionService).registerSession(userId3, sessionId3);
+    }
+
+    @Test
+    @DisplayName("여러 사용자가 같은 방에 입장")
+    void multipleUsersInSameRoom() {
+        // given
+        Long userId1 = 1L;
+        Long userId2 = 2L;
+        Long userId3 = 3L;
+
+        // when
+        sessionManager.joinRoom(userId1, roomId);
+        sessionManager.joinRoom(userId2, roomId);
+        sessionManager.joinRoom(userId3, roomId);
+
+        // then
+        verify(roomParticipantService).enterRoom(userId1, roomId);
+        verify(roomParticipantService).enterRoom(userId2, roomId);
+        verify(roomParticipantService).enterRoom(userId3, roomId);
+    }
+
+    @Test
+    @DisplayName("중복 연결 시도 (기존 세션 종료 후 새 세션 등록)")
+    void duplicateConnection() {
+        // given
+        String newSessionId = "new-session-456";
+
+        // when
+        sessionManager.addSession(userId, sessionId);
+        sessionManager.addSession(userId, newSessionId);
+
+        // then
+        verify(userSessionService).registerSession(userId, sessionId);
+        verify(userSessionService).registerSession(userId, newSessionId);
+        // UserSessionService 내부에서 기존 세션 종료 처리
+    }
+
+    @Test
+    @DisplayName("비정상 종료 시나리오: 명시적 퇴장 없이 연결 종료")
+    void abnormalDisconnection() {
+        // given
+        given(userSessionService.getUserIdBySessionId(sessionId)).willReturn(userId);
+
+        // when
+        sessionManager.addSession(userId, sessionId);
+        sessionManager.joinRoom(userId, roomId);
+        // 명시적 leaveRoom 없이 바로 연결 종료
+        sessionManager.removeSession(sessionId);
+
+        // then
+        verify(roomParticipantService).enterRoom(userId, roomId);
+        verify(roomParticipantService).exitAllRooms(userId); // 모든 방에서 자동 퇴장
+        verify(userSessionService).terminateSession(sessionId);
+    }
+
+    @Test
+    @DisplayName("방 입장 전 상태 조회")
+    void queryBeforeJoinRoom() {
+        // given
+        given(roomParticipantService.getCurrentRoomId(userId)).willReturn(null);
+        given(roomParticipantService.isUserInRoom(userId, roomId)).willReturn(false);
+
+        // when
+        Long currentRoomId = sessionManager.getUserCurrentRoomId(userId);
+        boolean isInRoom = sessionManager.isUserInRoom(userId, roomId);
+
+        // then
+        assertThat(currentRoomId).isNull();
+        assertThat(isInRoom).isFalse();
+        verify(roomParticipantService).getCurrentRoomId(userId);
+        verify(roomParticipantService).isUserInRoom(userId, roomId);
+    }
+
+    @Test
+    @DisplayName("방 입장 후 상태 조회")
+    void queryAfterJoinRoom() {
+        // given
+        given(roomParticipantService.getCurrentRoomId(userId)).willReturn(roomId);
+        given(roomParticipantService.isUserInRoom(userId, roomId)).willReturn(true);
+
+        // when
+        sessionManager.joinRoom(userId, roomId);
+        Long currentRoomId = sessionManager.getUserCurrentRoomId(userId);
+        boolean isInRoom = sessionManager.isUserInRoom(userId, roomId);
+
+        // then
+        assertThat(currentRoomId).isEqualTo(roomId);
+        assertThat(isInRoom).isTrue();
+        verify(roomParticipantService).enterRoom(userId, roomId);
+        verify(roomParticipantService).getCurrentRoomId(userId);
+        verify(roomParticipantService).isUserInRoom(userId, roomId);
+    }
+
+    @Test
+    @DisplayName("Heartbeat 여러 번 호출")
+    void multipleHeartbeats() {
+        // when
+        sessionManager.updateLastActivity(userId);
+        sessionManager.updateLastActivity(userId);
+        sessionManager.updateLastActivity(userId);
+
+        // then
+        verify(userSessionService, times(3)).processHeartbeat(userId);
+    }
+
+    @Test
+    @DisplayName("빈 방의 사용자 목록 조회")
+    void getOnlineUsersInRoom_EmptyRoom() {
+        // given
+        given(roomParticipantService.getParticipants(roomId)).willReturn(Set.of());
+
+        // when
+        Set<Long> result = sessionManager.getOnlineUsersInRoom(roomId);
+
+        // then
+        assertThat(result).isEmpty();
+        verify(roomParticipantService).getParticipants(roomId);
+    }
+
+    @Test
+    @DisplayName("온라인 사용자가 없을 때 전체 수 조회")
+    void getTotalOnlineUserCount_NoUsers() {
+        // given
+        given(userSessionService.getTotalOnlineUserCount()).willReturn(0L);
+
+        // when
+        long result = sessionManager.getTotalOnlineUserCount();
+
+        // then
+        assertThat(result).isZero();
+        verify(userSessionService).getTotalOnlineUserCount();
+    }
+
+    @Test
+    @DisplayName("세션 제거 시 모든 정리 작업이 순서대로 실행됨")
+    void removeSession_VerifyExecutionOrder() {
+        // given
+        given(userSessionService.getUserIdBySessionId(sessionId)).willReturn(userId);
+
+        // when
+        sessionManager.removeSession(sessionId);
+
+        // then
+        // InOrder를 사용하여 실행 순서 검증
+        var inOrder = inOrder(userSessionService, roomParticipantService);
+        inOrder.verify(userSessionService).getUserIdBySessionId(sessionId);
+        inOrder.verify(roomParticipantService).exitAllRooms(userId);
+        inOrder.verify(userSessionService).terminateSession(sessionId);
+    }
+
+    @Test
+    @DisplayName("방 입장 실패 시 예외 전파")
+    void joinRoom_ExceptionPropagation() {
+        // given
+        willThrow(new CustomException(ErrorCode.WS_SESSION_NOT_FOUND))
+                .given(roomParticipantService).enterRoom(userId, roomId);
+
+        // when & then
+        assertThatThrownBy(() -> sessionManager.joinRoom(userId, roomId))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WS_SESSION_NOT_FOUND);
+
+        verify(roomParticipantService).enterRoom(userId, roomId);
+    }
+
+    @Test
+    @DisplayName("통합 시나리오: 사용자 A와 B가 같은 방에서 만남")
+    void integrationScenario_TwoUsersInSameRoom() {
+        // given
+        Long userA = 1L;
+        Long userB = 2L;
+        String sessionA = "session-A";
+        String sessionB = "session-B";
+
+        given(roomParticipantService.getParticipants(roomId))
+                .willReturn(Set.of(userA))
+                .willReturn(Set.of(userA, userB));
+
+        // when & then
+        // 1. 사용자 A 연결 및 방 입장
+        sessionManager.addSession(userA, sessionA);
+        sessionManager.joinRoom(userA, roomId);
+
+        Set<Long> usersAfterA = sessionManager.getOnlineUsersInRoom(roomId);
+        assertThat(usersAfterA).containsExactly(userA);
+
+        // 2. 사용자 B 연결 및 같은 방 입장
+        sessionManager.addSession(userB, sessionB);
+        sessionManager.joinRoom(userB, roomId);
+
+        Set<Long> usersAfterB = sessionManager.getOnlineUsersInRoom(roomId);
+        assertThat(usersAfterB).containsExactlyInAnyOrder(userA, userB);
+
+        // 3. 검증
+        verify(userSessionService).registerSession(userA, sessionA);
+        verify(userSessionService).registerSession(userB, sessionB);
+        verify(roomParticipantService).enterRoom(userA, roomId);
+        verify(roomParticipantService).enterRoom(userB, roomId);
+        verify(roomParticipantService, times(2)).getParticipants(roomId);
+    }
+
+    @Test
+    @DisplayName("통합 시나리오: 네트워크 불안정으로 재연결")
+    void integrationScenario_Reconnection() {
+        // given
+        String newSessionId = "new-session-789";
+        given(userSessionService.getUserIdBySessionId(sessionId)).willReturn(userId);
+
+        // when & then
+        // 1. 초기 연결 및 방 입장
+        sessionManager.addSession(userId, sessionId);
+        sessionManager.joinRoom(userId, roomId);
+
+        // 2. 갑작스런 연결 끊김
+        sessionManager.removeSession(sessionId);
+        verify(roomParticipantService).exitAllRooms(userId);
+
+        // 3. 재연결 (새 세션 ID로)
+        sessionManager.addSession(userId, newSessionId);
+        verify(userSessionService).registerSession(userId, newSessionId);
+
+        // 4. 다시 방 입장
+        sessionManager.joinRoom(userId, roomId);
+        verify(roomParticipantService, times(2)).enterRoom(userId, roomId);
     }
 }
