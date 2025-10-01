@@ -75,9 +75,13 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: [ buildImageAndPush ]
+    needs: [ makeTagAndRelease, buildImageAndPush ]
     env:
-      OWNER: ${{ github.repository_owner }}
+      IMAGE_REPOSITORY: catfe_backend # 도커 이미지 명
+      CONTAINER_1_NAME: catfe_1 # 슬롯 1
+      CONTAINER_2_NAME: catfe_2 # 슬롯 2
+      CONTAINER_PORT: 8080 # 컨테이너 내부 포트
+      DOCKER_NETWORK: common # 도커 네트워크
       EC2_INSTANCE_TAG_NAME: team5-ec2-1
 
     steps:
@@ -95,10 +99,6 @@ jobs:
             [[ -n "${INSTANCE_ID}" && "${INSTANCE_ID}" != "None" ]] || { echo "No running instance found"; exit 1; }
             echo "INSTANCE_ID=${INSTANCE_ID}" >> "${GITHUB_ENV}"
 
-      - name: set lower case owner name
-        run: |
-          echo "OWNER_LC=${OWNER,,}" >> ${GITHUB_ENV}
-
       - name: AWS SSM Send-Command
         uses: peterkimzz/aws-ssm-send-command@master
         id: ssm
@@ -110,21 +110,128 @@ jobs:
           working-directory: /
           comment: Deploy
           command: |
-            # 1. env 변수 확인
-            echo "OWNER_LC = ${{ env.OWNER_LC }}"
+            set -Eeuo pipefail
             
-            # 2. EC2 인스턴스 아이디 확인
+            # 1. EC2 인스턴스 아이디 확인
             echo "INSTANCE_ID=${INSTANCE_ID}"
             
-            # 3. 최신 이미지 pull
-            docker pull ghcr.io/${{ env.OWNER_LC }}/catfe-backend:latest
+            # 3. 실행 로그(라인 타임스탬프 부착)
+            LOG="/tmp/ssm-$(date +%Y%m%d_%H%M%S).log"
+            exec > >(awk '{ fflush(); print strftime("[%Y-%m-%d %H:%M:%S]"), $0 }' | tee -a "$LOG")
+            exec 2> >(awk '{ fflush(); print strftime("[%Y-%m-%d %H:%M:%S]"), $0 }' | tee -a "$LOG" >&2)
             
-            # 2. 기존 컨테이너 종료 및 제거
-            docker stop catfe-backend 2>/dev/null
-            docker rm catfe-backend 2>/dev/null
+            # 4. 변수 정의
+            source /etc/environment || true
+            OWNER_LC="${{ github.repository_owner }}"
+            OWNER_LC="${OWNER_LC,,}"
+            IMAGE_TAG="${{ needs.makeTagAndRelease.outputs.tag_name }}"
+            IMAGE_REPOSITORY="${{ env.IMAGE_REPOSITORY }}"
+            IMAGE="ghcr.io/${OWNER_LC}/${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+            SLOT1="${{ env.CONTAINER_1_NAME }}"
+            SLOT2="${{ env.CONTAINER_2_NAME }}"
+            PORT_IN="${{ env.CONTAINER_PORT }}"
+            NET="${{ env.DOCKER_NETWORK }}"
             
-            # 3. 새로운 컨테이너 실행
-            docker run -d --name catfe-backend -p 8080:8080 ghcr.io/${{ env.OWNER_LC }}/catfe-backend:latest
+              # 도커 이미지 pull 받기
+            echo "🔹 Use image: ${IMAGE}"
+            docker pull "${IMAGE}"
             
-            # 4. dangling 이미지 삭제
-            docker rmi $(docker images -f "dangling=true" -q)
+            #5. NPM API 토큰 발급
+            TOKEN=$(curl -s -X POST http://127.0.0.1:81/api/tokens \
+              -H "Content-Type: application/json" \
+              -d "{\"identity\": \"admin@npm.com\", \"secret\": \"${PASSWORD:-}\"}" | jq -r '.token')
+              
+              # 조회한 토큰과 도메인 검증
+            [[ -n "${TOKEN}" && "${TOKEN}" != "null" ]] || { echo "NPM token issue failed"; exit 1; }
+            [[ -n "${DOMAIN:-}" ]] || { echo "DOMAIN is empty"; exit 1; }
+            
+            # 6. 대상 프록시 호스트 ID 조회(도메인 매칭)
+            PROXY_ID=$(curl -s -X GET "http://127.0.0.1:81/api/nginx/proxy-hosts" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              | jq ".[] | select(.domain_names[]==\"${APP_1_DOMAIN}\") | .id")
+              
+              # 조회한 프록시 호스트 ID 검증
+            [[ -n "${PROXY_ID}" && "${PROXY_ID}" != "null" ]] || { echo "Proxy host not found for ${APP_1_DOMAIN}"; exit 1; }
+            
+            # 현재 프록시가 바라보는 업스트림(컨테이너명) 조회
+            CURRENT_HOST=$(curl -s -X GET "http://127.0.0.1:81/api/nginx/proxy-hosts/${PROXY_ID}" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              | jq -r '.forward_host')
+
+            echo "🔎 CURRENT_HOST: ${CURRENT_HOST:-none}"
+            
+            # 7. 역할(blue/green) 판정 (blue -> 현재 운영 중인 서버, green -> 교체할 서버)
+            if [[ "${CURRENT_HOST:-}" == "${SLOT1}" ]]; then
+              BLUE="${SLOT1}"
+              GREEN="${SLOT2}"
+            
+            elif [[ "${CURRENT_HOST:-}" == "${SLOT2}" ]]; then
+              BLUE="${SLOT2}"
+              GREEN="${SLOT1}"
+            
+            # 초기 배포
+            else
+              BLUE="none"
+              GREEN="${SLOT1}"
+            
+            # 조건문 종료
+            fi
+            echo "🎨 role -> blue(now): ${BLUE}, green(next): ${GREEN}"
+            
+            # 8. Green 역할 컨테이너 
+            docker rm -f "${Green}" > /dev/null 2>&1 || true
+            echo "run new container -> ${Green}"
+            docker run -d --name "${Green}" \
+              --restart unless-stopped \
+              --network "${NET}" \
+              -e TZ=Asia/Seoul \
+              "${IMAGE}"
+            
+            # 9. 헬스체크
+            echo "⏱ health-check: ${GREEN}"
+            TIMEOUT=120
+            INTERVAL=3
+            ELAPSED=0
+            sleep 8 # 초기부팅 여유
+            
+            while (( ELAPSED < TIMEOUT )); do
+              CODE=$(docker exec "${GREEN}" curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT_IN}/actuator/health" || echo 000)
+              [[ "${CODE}" == "200" ]] && { echo "✅ ${GREEN} healthy"; break; }
+              sleep "${INTERVAL}"
+              ELAPSED=$((ELAPSED + INTERVAL))
+            done
+            [[ "${CODE:-000}" == "200" ]] || { echo "❌ ${GREEN} health failed"; docker logs --tail=200 "${GREEN}" || true; docker rm -f "${GREEN}" || true; exit 1; }
+            
+            # 10. 업스트림 전환
+            NEW_CFG=$(jq -n --arg host "${GREEN}" --argjson port ${PORT_IN} '{forward_host:$host, forward_port:$port}')
+            curl -s -X PUT "http://127.0.0.1:81/api/nginx/proxy-hosts/${PROXY_ID}" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "${NEW_CFG}" >/dev/null
+            echo "🔁 switch upstream → ${GREEN}:${PORT_IN}"
+            
+            # 11. 이전 Blue 종료
+            if [[ "${BLUE}" != "none" ]]; then
+              docker stop "${BLUE}" >/dev/null 2>&1 || true
+              docker rm "${BLUE}" >/dev/null 2>&1 || true
+              echo "🧹 removed old blue: ${BLUE}"
+            fi
+            
+            # 12. 이미지 정리
+            {
+              docker images --format '{{.Repository}}:{{.Tag}}' \
+                | grep -F "ghcr.io/${OWNER_LC}/${IMAGE_REPOSITORY}:" \
+                | grep -v -F ":${IMAGE_TAG}" \
+                | grep -v -F ":latest" \
+                | xargs -r docker rmi
+            } || true
+
+            echo "🏁 Blue/Green switch complete. now blue = ${GREEN}"
+            
+            
+            
+            
+            
+            
+            
+            
