@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class RedisSessionStore {
 
     private final RedisTemplate<String, Object> redisTemplate;
@@ -39,8 +38,11 @@ public class RedisSessionStore {
     // TTL 설정
     private static final Duration SESSION_TTL = Duration.ofMinutes(6);
 
+    // 생성자에서 ObjectMapper 설정
     public RedisSessionStore(RedisTemplate<String, Object> redisTemplate) {
         this.redisTemplate = redisTemplate;
+
+        // ObjectMapper 초기화 및 설정
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
         this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
