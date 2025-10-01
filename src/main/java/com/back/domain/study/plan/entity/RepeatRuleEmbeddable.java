@@ -22,6 +22,6 @@ public class RepeatRuleEmbeddable {
     private Frequency frequency;
 
     private Integer intervalValue;
-    private List<String> byDay = new ArrayList<>();
+    private List<DayOfWeek> byDay = new ArrayList<>();
     private LocalDate untilDate; // LocalDateTime → LocalDate 변경
 }

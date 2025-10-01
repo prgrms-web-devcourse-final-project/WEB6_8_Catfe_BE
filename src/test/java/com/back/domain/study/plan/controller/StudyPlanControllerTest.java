@@ -36,6 +36,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -200,7 +202,7 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.data.endDate").value("2025-09-26T11:46:00"))
                 .andExpect(jsonPath("$.data.repeatRule.frequency").value("DAILY"))
                 .andExpect(jsonPath("$.data.repeatRule.repeatInterval").value(1))
-                .andExpect(jsonPath("$.data.repeatRule.byDay", Matchers.hasSize(0)))
+                .andExpect(jsonPath("$.data.repeatRule.byDay", hasSize(0)))
                 .andExpect(jsonPath("$.data.repeatRule.untilDate").value("2025-12-31"));
 
     }
@@ -295,7 +297,7 @@ class StudyPlanControllerTest {
                     .andExpect(jsonPath("$.message").value("해당 날짜의 계획을 조회했습니다."))
                     .andExpect(jsonPath("$.data.date").value("2025-09-29"))
                     .andExpect(jsonPath("$.data.totalCount").value(1))
-                    .andExpect(jsonPath("$.data.plans", Matchers.hasSize(1)))
+                    .andExpect(jsonPath("$.data.plans", hasSize(1)))
                     .andExpect(jsonPath("$.data.plans[0].subject").value("Java 공부"))
                     .andExpect(jsonPath("$.data.plans[0].color").value("BLUE"))
                     .andExpect(jsonPath("$.data.plans[0].startDate").value("2025-09-29T09:00:00"))
@@ -318,7 +320,7 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.message").value("해당 날짜의 계획을 조회했습니다."))
                 .andExpect(jsonPath("$.data.date").value("2025-09-01"))
                 .andExpect(jsonPath("$.data.totalCount").value(0))
-                .andExpect(jsonPath("$.data.plans", Matchers.hasSize(0)));
+                .andExpect(jsonPath("$.data.plans", hasSize(0)));
     }
     @Test
     @DisplayName("계획 조회 - 기간별 조회")
@@ -357,7 +359,7 @@ class StudyPlanControllerTest {
                 .andExpect(handler().methodName("getStudyPlansForPeriod"))
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("기간별 계획을 조회했습니다."))
-                .andExpect(jsonPath("$.data", Matchers.hasSize(7)));
+                .andExpect(jsonPath("$.data", hasSize(7)));
     }
 
     @Test
@@ -403,12 +405,13 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.data.subject").value("수정된 최종 계획 (PUT)"))
                 .andExpect(jsonPath("$.data.color").value("RED"))
                 .andExpect(jsonPath("$.data.startDate").value("2025-10-10T14:00:00"))
-                .andExpect(jsonPath("$.data.endDate").value("2025-10-10T16:00:00"));
+                .andExpect(jsonPath("$.data.endDate").value("2025-10-10T16:00:00"))
+                .andExpect(jsonPath("$.data.repeatRule").doesNotExist());
 
     }
 
     @Test
-    @DisplayName("계획 수정 - 단발성 (반복 규칙 추가 시도)")
+    @DisplayName("계획 수정 - 단발성 (반복 규칙 추가 시도 + WEEKLY 인 경우 byDay 자동 적용)")
     void t9_1() throws Exception {
         StudyPlan originalPlan = createSinglePlan();
         Long planId = originalPlan.getId();
@@ -423,7 +426,7 @@ class StudyPlanControllerTest {
                             "endDate": "2025-10-01T12:00:00",
                             "color": "RED",
                             "repeatRule": {
-                                "frequency": "DAILY",
+                                "frequency": "WEEKLY",
                                 "repeatInterval": 1,
                                 "untilDate": "2025-12-31"
                             }
@@ -434,11 +437,14 @@ class StudyPlanControllerTest {
         resultActions
                 .andExpect(status().isOk()) // 400 Bad Request
                 .andExpect(handler().handlerType(StudyPlanController.class))
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.subject").value("수정된 최종 계획 (PUT)"))
+                .andExpect(jsonPath("$.data.repeatRule.byDay", hasSize(1)))
+                .andExpect(jsonPath("$.data.repeatRule.byDay[0]").value("WED"));
     }
 
     @Test
-    @DisplayName("계획 수정 - 반복성 단일 수정")
+    @DisplayName("계획 수정 - 반복성 가상 계획 단일 수정")
     void t10() throws Exception {
         StudyPlan originalPlan = createDailyPlan();
         Long planId = originalPlan.getId();
@@ -467,13 +473,12 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.data.color").value("BLUE"))
                 .andExpect(jsonPath("$.data.startDate").value("2025-10-10T14:00:00"))
                 .andExpect(jsonPath("$.data.endDate").value("2025-10-10T16:00:00"));
-
-        //조회가 잘 되는지도 검증
-        mvc.perform(get("/api/plans/date/2025-10-10")
+        //원본은 변경사항 없이 조회가 잘 되는지도 검증
+        mvc.perform(get("/api/plans/date/2025-10-01")
                         .header("Authorization", "Bearer faketoken")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
-                .andExpect(jsonPath("$.data.plans[0].subject").value("수정된 반복 계획 (PUT)"));
+                .andExpect(jsonPath("$.data.plans[0].subject").value("매일 반복 계획"));
     }
 
     @Test
@@ -509,6 +514,7 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.data.plans[0].subject").value("매일 반복 계획"));
     }
 
+
     @Test
     @DisplayName("계획 삭제 - 단발성 단독 삭제")
     void t12() throws Exception {
@@ -524,7 +530,12 @@ class StudyPlanControllerTest {
                 .andExpect(status().isOk()) // 200 OK
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."))
+                .andExpect(jsonPath("$.data.id").value(planId))
+                .andExpect(jsonPath("$.data.subject").value(originalPlan.getSubject()))
+                .andExpect(jsonPath("$.data.color").value(Color.RED.name()))
+                .andExpect(jsonPath("$.data.deletedDate").value("2025-10-01"))
+                .andExpect(jsonPath("$.data.applyScope").value("THIS_ONLY"));
 
         // DB에서 실제로 삭제되었는지 확인
         boolean exists = studyPlanRepository.existsById(planId);
@@ -546,7 +557,14 @@ class StudyPlanControllerTest {
                 .andExpect(status().isOk()) // 200 OK
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."))
+                .andExpect(jsonPath("$.data.id").value(planId))
+                .andExpect(jsonPath("$.data.subject").value(originalPlan.getSubject()))
+                .andExpect(jsonPath("$.data.deletedDate").value("2025-10-01"))
+                .andExpect(jsonPath("$.data.applyScope").value("THIS_ONLY"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-10-01T12:00:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-10-01T13:00:00"));
+
         // 10월 1일에 해당하는 계획은 없어야함
         mvc.perform(get("/api/plans/date/2025-10-01")
                         .header("Authorization", "Bearer faketoken")
@@ -577,7 +595,10 @@ class StudyPlanControllerTest {
                 .andExpect(status().isOk()) // 200 OK
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."))
+                .andExpect(jsonPath("$.data.id").value(planId))
+                .andExpect(jsonPath("$.data.deletedDate").value("2025-10-01"))
+                .andExpect(jsonPath("$.data.applyScope").value("FROM_THIS_DATE"));
 
         // 10월 10일에 해당하는 계획도 없어야함
         mvc.perform(get("/api/plans/date/2025-10-10")
@@ -602,7 +623,12 @@ class StudyPlanControllerTest {
                 .andExpect(status().isOk()) // 200 OK
                 .andExpect(handler().handlerType(StudyPlanController.class))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."));
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 삭제되었습니다."))
+                .andExpect(jsonPath("$.data.id").value(planId))
+                .andExpect(jsonPath("$.data.deletedDate").value("2025-10-10"))
+                .andExpect(jsonPath("$.data.applyScope").value("FROM_THIS_DATE"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-10-10T12:00:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-10-10T13:00:00"));
 
         // 10월 1일에 해당하는 계획은 있어야함
         mvc.perform(get("/api/plans/date/2025-10-01")
@@ -611,14 +637,13 @@ class StudyPlanControllerTest {
                 .andDo(print())
                 .andExpect(jsonPath("$.data.totalCount").value(1));
 
-    // 10.10 이후에 해당하는 계획은 없어야함
+        // 10.10 이후에 해당하는 계획은 없어야함
         mvc.perform(get("/api/plans?start=2025-10-10&end=2025-10-15")
                         .header("Authorization", "Bearer faketoken")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 //검색 결과가 없다면 빈 배열
-                .andExpect(jsonPath("$.data", Matchers.hasSize(0)));
+                .andExpect(jsonPath("$.data", hasSize(0)));
     }
-
 
 }
