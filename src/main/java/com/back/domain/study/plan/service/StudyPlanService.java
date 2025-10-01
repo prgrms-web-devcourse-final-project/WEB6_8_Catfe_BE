@@ -1,5 +1,6 @@
 package com.back.domain.study.plan.service;
 
+import com.back.domain.study.plan.dto.StudyPlanDeleteResponse;
 import com.back.domain.study.plan.dto.StudyPlanRequest;
 import com.back.domain.study.plan.dto.StudyPlanResponse;
 import com.back.domain.study.plan.entity.*;
@@ -486,20 +487,29 @@ public class StudyPlanService {
 
     // ==================== 삭제 ===================
     @Transactional
-    public void deleteStudyPlan(Long userId, Long planId, LocalDate selectedDate, ApplyScope applyScope) {
+    public StudyPlanDeleteResponse deleteStudyPlan(Long userId, Long planId, LocalDate selectedDate, ApplyScope applyScope) {
         StudyPlan studyPlan = studyPlanRepository.findById(planId)
                 .orElseThrow(() -> new CustomException(ErrorCode.PLAN_NOT_FOUND));
 
         validateUserAccess(studyPlan, userId);
 
-        // 단발성 계획 삭제 (반복 룰이 null이거나 applyScope가 null인 경우)
+        // 삭제 전 정보 조회
+        StudyPlanResponse deletedPlan;
+
         if (studyPlan.getRepeatRule() == null || applyScope == null) {
+            // 단발성 계획
+            deletedPlan = new StudyPlanResponse(studyPlan);
             studyPlanRepository.delete(studyPlan);
-            return;
+        } else {
+            // 반복성 계획 - 가상 계획 조회
+            deletedPlan = createVirtualPlanForDate(studyPlan, selectedDate);
+            if (deletedPlan == null) {
+                throw new CustomException(ErrorCode.PLAN_NOT_FOUND);
+            }
+            deleteRepeatPlan(studyPlan, selectedDate, applyScope);
         }
 
-        // 반복성 계획 삭제 - applyScope에 따른 처리
-        deleteRepeatPlan(studyPlan, selectedDate, applyScope);
+        return new StudyPlanDeleteResponse(deletedPlan, applyScope);
     }
 
     private void deleteRepeatPlan(StudyPlan studyPlan, LocalDate selectedDate, ApplyScope applyScope) {

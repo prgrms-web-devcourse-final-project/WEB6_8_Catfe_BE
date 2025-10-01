@@ -1,5 +1,6 @@
 package com.back.domain.study.plan.controller;
 
+import com.back.domain.study.plan.dto.StudyPlanDeleteResponse;
 import com.back.domain.study.plan.dto.StudyPlanRequest;
 import com.back.domain.study.plan.dto.StudyPlanListResponse;
 import com.back.domain.study.plan.dto.StudyPlanResponse;
@@ -111,15 +112,15 @@ public class StudyPlanController {
             description = "기존 학습 계획을 삭제합니다. 반복 계획의 경우 적용 범위를 applyScope로 설정 할 수 있으며" +
                     "클라이언트에서는 paln에 repeat_rule이 있으면 반복 계획으로 간주하고 반드시 apply_scope를 쿼리 파라미터로 넘겨야 합니다." +
                     "repeat_rule이 없으면 단발성 계획으로 간주하여 삭제 범위를 설정 할 필요가 없으므로 apply_scope를 넘기지 않아도 됩니다.")
-    public ResponseEntity<RsData<Void>> deleteStudyPlan(
+    public ResponseEntity<RsData<StudyPlanDeleteResponse>> deleteStudyPlan(
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long planId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate selectedDate,
             @RequestParam(name = "applyScope", required = true) ApplyScope applyScope) {
         Long userId = user.getUserId();
 
-        studyPlanService.deleteStudyPlan(userId, planId, selectedDate, applyScope);
-        return ResponseEntity.ok(RsData.success("학습 계획이 성공적으로 삭제되었습니다."));
+        StudyPlanDeleteResponse response = studyPlanService.deleteStudyPlan(userId, planId, selectedDate, applyScope);
+        return ResponseEntity.ok(RsData.success("학습 계획이 성공적으로 삭제되었습니다.",response));
     }
 
 }
