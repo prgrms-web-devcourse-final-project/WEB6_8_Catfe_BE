@@ -10,6 +10,7 @@ import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.PathBuilder;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -19,10 +20,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -141,7 +139,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                         post.id,
                         new QPostListResponse_AuthorResponse(user.id, user.userProfile.nickname),
                         post.title,
-                        null,   // 카테고리는 나중에 주입
+                        Expressions.constant(Collections.emptyList()),   // 카테고리는 나중에 주입
                         postLike.id.countDistinct(),
                         postBookmark.id.countDistinct(),
                         comment.id.countDistinct(),
