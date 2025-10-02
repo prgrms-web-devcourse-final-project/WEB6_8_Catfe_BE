@@ -1,0 +1,204 @@
+package com.back.domain.board.controller;
+
+import com.back.domain.board.dto.CommentRequest;
+import com.back.domain.board.entity.Post;
+import com.back.domain.board.repository.PostRepository;
+import com.back.domain.user.entity.User;
+import com.back.domain.user.entity.UserProfile;
+import com.back.domain.user.entity.UserStatus;
+import com.back.domain.user.repository.UserRepository;
+import com.back.fixture.TestJwtTokenProvider;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Transactional
+class CommentControllerTest {
+
+    @Autowired
+    private MockMvc mvc;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PostRepository postRepository;
+
+    @Autowired
+    private TestJwtTokenProvider testJwtTokenProvider;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private String generateAccessToken(User user) {
+        return testJwtTokenProvider.createAccessToken(
+                user.getId(),
+                user.getUsername(),
+                user.getRole().name()
+        );
+    }
+
+    // ====================== 댓글 생성 테스트 ======================
+
+    @Test
+    @DisplayName("댓글 생성 성공 → 201 Created")
+    void createComment_success() throws Exception {
+        // given: 정상 유저 + 게시글
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "첫 글", "내용");
+        postRepository.save(post);
+
+        String accessToken = generateAccessToken(user);
+
+        CommentRequest request = new CommentRequest("좋은 글 감사합니다!");
+
+        // when
+        ResultActions resultActions = mvc.perform(
+                post("/api/posts/{postId}/comments", post.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
+        ).andDo(print());
+
+        // then
+        resultActions
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.data.content").value("좋은 글 감사합니다!"))
+                .andExpect(jsonPath("$.data.author.nickname").value("홍길동"))
+                .andExpect(jsonPath("$.data.postId").value(post.getId()));
+    }
+
+    @Test
+    @DisplayName("댓글 생성 실패 - 존재하지 않는 사용자 → 404 Not Found")
+    void createComment_userNotFound() throws Exception {
+        // given: 게시글 저장
+        User user = User.createUser("temp", "temp@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "임시", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        // DB에 없는 userId 기반 토큰
+        String fakeToken = testJwtTokenProvider.createAccessToken(999L, "ghost", "USER");
+
+        CommentRequest request = new CommentRequest("댓글 내용");
+
+        // when & then
+        mvc.perform(post("/api/posts/{postId}/comments", post.getId())
+                        .header("Authorization", "Bearer " + fakeToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("USER_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+    }
+
+    @Test
+    @DisplayName("댓글 생성 실패 - 존재하지 않는 게시글 → 404 Not Found")
+    void createComment_postNotFound() throws Exception {
+        // given: 정상 유저
+        User user = User.createUser("writer2", "writer2@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "작성자", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        CommentRequest request = new CommentRequest("댓글 내용");
+
+        // when & then
+        mvc.perform(post("/api/posts/{postId}/comments", 999L)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POST_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 게시글입니다."));
+    }
+
+    @Test
+    @DisplayName("댓글 생성 실패 - 잘못된 요청(필드 누락) → 400 Bad Request")
+    void createComment_badRequest() throws Exception {
+        // given: 정상 유저 + 게시글
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        String accessToken = generateAccessToken(user);
+
+        // content 누락
+        String invalidJson = """
+                {
+                }
+                """;
+
+        // when & then
+        mvc.perform(post("/api/posts/{postId}/comments", post.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
+    }
+
+    @Test
+    @DisplayName("댓글 생성 실패 - 토큰 없음 → 401 Unauthorized")
+    void createComment_noToken() throws Exception {
+        // given: 게시글
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "작성자", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        CommentRequest request = new CommentRequest("댓글 내용");
+
+        // when & then
+        mvc.perform(post("/api/posts/{postId}/comments", post.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+    }
+}

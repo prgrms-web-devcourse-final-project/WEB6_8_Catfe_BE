@@ -1,0 +1,48 @@
+package com.back.domain.board.service;
+
+import com.back.domain.board.dto.CommentRequest;
+import com.back.domain.board.dto.CommentResponse;
+import com.back.domain.board.entity.Comment;
+import com.back.domain.board.entity.Post;
+import com.back.domain.board.repository.CommentRepository;
+import com.back.domain.board.repository.PostRepository;
+import com.back.domain.user.entity.User;
+import com.back.domain.user.repository.UserRepository;
+import com.back.global.exception.CustomException;
+import com.back.global.exception.ErrorCode;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class CommentService {
+    private final CommentRepository commentRepository;
+    private final UserRepository userRepository;
+    private final PostRepository postRepository;
+
+    /**
+     * 댓글 생성 서비스
+     * 1. User 조회
+     * 2. Post 조회
+     * 3. Comment 생성
+     * 4. Comment 저장 및 CommentResponse 반환
+     */
+    public CommentResponse createComment(Long postId, CommentRequest request, Long userId) {
+        // User 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // Post 조회
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+
+        // Comment 생성
+        Comment comment = new Comment(post, user, request.content());
+
+        // Comment 저장 및 응답 반환
+        commentRepository.save(comment);
+        return CommentResponse.from(comment);
+    }
+}
