@@ -23,4 +23,10 @@ public class CreateRoomRequest {
     @Min(value = 2, message = "최소 2명 이상이어야 합니다")
     @Max(value = 100, message = "최대 100명까지 가능합니다")
     private Integer maxParticipants = 10;
+    
+    // WebRTC 통합 제어 필드 (카메라, 오디오, 화면공유를 한 번에 제어)
+    // true: WebRTC 기능 전체 활성화
+    // false: WebRTC 기능 전체 비활성화
+    // null: 디폴트 true로 처리
+    private Boolean useWebRTC = true;
 }

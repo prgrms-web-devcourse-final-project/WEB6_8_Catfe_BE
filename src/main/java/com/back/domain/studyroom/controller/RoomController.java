@@ -43,7 +43,7 @@ public class RoomController {
     @PostMapping
     @Operation(
         summary = "방 생성", 
-        description = "새로운 스터디 룸을 생성합니다. 방 생성자는 자동으로 방장(HOST)이 됩니다."
+        description = "새로운 스터디 룸을 생성합니다. 방 생성자는 자동으로 방장(HOST)이 됩니다. useWebRTC로 화상/음성/화면공유 기능을 한 번에 제어할 수 있습니다."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "방 생성 성공"),
@@ -61,7 +61,8 @@ public class RoomController {
                 request.getIsPrivate() != null ? request.getIsPrivate() : false,
                 request.getPassword(),
                 request.getMaxParticipants() != null ? request.getMaxParticipants() : 10,
-                currentUserId
+                currentUserId,
+                request.getUseWebRTC() != null ? request.getUseWebRTC() : true  // 디폴트: true
         );
         
         RoomResponse response = roomService.toRoomResponse(room);
