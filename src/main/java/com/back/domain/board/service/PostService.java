@@ -1,7 +1,6 @@
 package com.back.domain.board.service;
 
-import com.back.domain.board.dto.PostRequest;
-import com.back.domain.board.dto.PostResponse;
+import com.back.domain.board.dto.*;
 import com.back.domain.board.entity.Post;
 import com.back.domain.board.entity.PostCategory;
 import com.back.domain.board.repository.PostCategoryRepository;
@@ -11,6 +10,8 @@ import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,5 +53,31 @@ public class PostService {
         // Post 저장 및 응답 반환
         Post saved = postRepository.save(post);
         return PostResponse.from(saved);
+    }
+
+    /**
+     * 게시글 다건 조회 서비스
+     * 1. Post 검색 (키워드, 검색타입, 카테고리, 페이징)
+     * 2. PageResponse 반환
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<PostListResponse> getPosts(String keyword, String searchType, Long categoryId, Pageable pageable) {
+        Page<PostListResponse> posts = postRepository.searchPosts(keyword, searchType, categoryId, pageable);
+        return PageResponse.from(posts);
+    }
+
+    /**
+     * 게시글 단건 조회 서비스
+     * 1. Post 조회
+     * 2. PostResponse 반환
+     */
+    @Transactional(readOnly = true)
+    public PostDetailResponse getPost(Long postId) {
+        // Post 조회
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+
+        // 응답 반환
+        return PostDetailResponse.from(post);
     }
 }
