@@ -8,8 +8,5 @@ import java.util.Optional;
 
 @Repository
 public interface RoomMemberRepository extends JpaRepository<RoomMember, Long>, RoomMemberRepositoryCustom {
-    /**
-     * WebSocket 연결 ID로 멤버 조회
-     */
-    Optional<RoomMember> findByConnectionId(String connectionId);
+    // 모든 메서드는 RoomMemberRepositoryCustom 인터페이스로 이동
 }

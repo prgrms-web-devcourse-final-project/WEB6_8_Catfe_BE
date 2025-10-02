@@ -18,4 +18,10 @@ public class PostCategoryMapping {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private PostCategory category;
+
+    // -------------------- 생성자 --------------------
+    public PostCategoryMapping(Post post, PostCategory category) {
+        this.post = post;
+        this.category = category;
+    }
 }

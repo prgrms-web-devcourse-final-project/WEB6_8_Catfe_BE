@@ -84,4 +84,13 @@ public class WebSocketSessionManager {
     public boolean isUserInRoom(Long userId, Long roomId) {
         return roomParticipantService.isUserInRoom(userId, roomId);
     }
+
+    // 여러 방의 온라인 사용자 수 일괄 조회 (N+1 방지)
+    public java.util.Map<Long, Long> getBulkRoomOnlineUserCounts(java.util.List<Long> roomIds) {
+        return roomIds.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        roomId -> roomId,
+                        this::getRoomOnlineUserCount
+                ));
+    }
 }

@@ -81,6 +81,11 @@ public enum ErrorCode {
     WS_INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "WS_015", "WebSocket 내부 오류가 발생했습니다."),
     WS_CHAT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "WS_016", "채팅 삭제 권한이 없습니다. 방장 또는 부방장만 가능합니다."),
 
+    // ======================== 커뮤니티 관련 ========================
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_001", "존재하지 않는 게시글입니다."),
+    POST_NO_PERMISSION(HttpStatus.FORBIDDEN, "POST_002", "게시글 작성자만 수정/삭제할 수 있습니다."),
+    CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_003", "존재하지 않는 카테고리입니다."),
+
     // ======================== 공통 에러 ========================
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON_400", "잘못된 요청입니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON_403", "접근 권한이 없습니다."),
