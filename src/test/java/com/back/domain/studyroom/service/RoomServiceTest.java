@@ -71,7 +71,7 @@ class RoomServiceTest {
         userProfile.setNickname("테스트유저");
         testUser.setUserProfile(userProfile);
 
-        // 테스트 방 생성
+        // 테스트 방 생성 (WebRTC 사용)
         testRoom = Room.create(
                 "테스트 방",
                 "테스트 설명",
@@ -79,7 +79,8 @@ class RoomServiceTest {
                 null,
                 10,
                 testUser,
-                null
+                null,
+                true  // useWebRTC
         );
 
         // 테스트 멤버 생성
@@ -101,7 +102,8 @@ class RoomServiceTest {
                 false,
                 null,
                 10,
-                1L
+                1L,
+                true  // useWebRTC
         );
 
         // then
@@ -125,7 +127,8 @@ class RoomServiceTest {
                 false,
                 null,
                 10,
-                999L
+                999L,
+                true  // useWebRTC
         ))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
@@ -171,7 +174,8 @@ class RoomServiceTest {
                 "1234",
                 10,
                 testUser,
-                null
+                null,
+                true  // useWebRTC
         );
         given(roomRepository.findByIdWithLock(1L)).willReturn(Optional.of(privateRoom));
 
@@ -242,7 +246,8 @@ class RoomServiceTest {
                 "1234",
                 10,
                 testUser,
-                null
+                null,
+                true  // useWebRTC
         );
         given(roomRepository.findById(1L)).willReturn(Optional.of(privateRoom));
         given(roomMemberRepository.existsByRoomIdAndUserId(1L, 2L)).willReturn(false);
@@ -386,5 +391,57 @@ class RoomServiceTest {
         assertThatThrownBy(() -> roomService.kickMember(1L, 2L, 1L))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_MANAGER);
+    }
+
+    @Test
+    @DisplayName("방 생성 - WebRTC 활성화")
+    void createRoom_WithWebRTC() {
+        // given
+        given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+        given(roomRepository.save(any(Room.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(roomMemberRepository.save(any(RoomMember.class))).willReturn(testMember);
+
+        // when
+        Room createdRoom = roomService.createRoom(
+                "WebRTC 방",
+                "화상 채팅 가능",
+                false,
+                null,
+                10,
+                1L,
+                true  // WebRTC 사용
+        );
+
+        // then
+        assertThat(createdRoom).isNotNull();
+        assertThat(createdRoom.isAllowCamera()).isTrue();
+        assertThat(createdRoom.isAllowAudio()).isTrue();
+        assertThat(createdRoom.isAllowScreenShare()).isTrue();
+    }
+
+    @Test
+    @DisplayName("방 생성 - WebRTC 비활성화")
+    void createRoom_WithoutWebRTC() {
+        // given
+        given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+        given(roomRepository.save(any(Room.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(roomMemberRepository.save(any(RoomMember.class))).willReturn(testMember);
+
+        // when
+        Room createdRoom = roomService.createRoom(
+                "채팅 전용 방",
+                "텍스트만 가능",
+                false,
+                null,
+                50,  // WebRTC 없으면 더 많은 인원 가능
+                1L,
+                false  // WebRTC 미사용
+        );
+
+        // then
+        assertThat(createdRoom).isNotNull();
+        assertThat(createdRoom.isAllowCamera()).isFalse();
+        assertThat(createdRoom.isAllowAudio()).isFalse();
+        assertThat(createdRoom.isAllowScreenShare()).isFalse();
     }
 }

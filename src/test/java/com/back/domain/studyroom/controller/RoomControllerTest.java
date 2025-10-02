@@ -66,7 +66,7 @@ class RoomControllerTest {
         userProfile.setNickname("테스트유저");
         testUser.setUserProfile(userProfile);
 
-        // 테스트 방 생성
+        // 테스트 방 생성 (WebRTC 사용)
         testRoom = Room.create(
                 "테스트 방",
                 "테스트 설명",
@@ -74,7 +74,8 @@ class RoomControllerTest {
                 null,
                 10,
                 testUser,
-                null
+                null,
+                true  // useWebRTC
         );
 
         // 테스트 멤버 생성
@@ -94,7 +95,8 @@ class RoomControllerTest {
                 "테스트 설명",
                 false,
                 null,
-                10
+                10,
+                true  // useWebRTC
         );
 
         given(roomService.createRoom(
@@ -103,7 +105,8 @@ class RoomControllerTest {
                 anyBoolean(),
                 any(),
                 anyInt(),
-                eq(1L)
+                eq(1L),
+                anyBoolean()  // useWebRTC 파라미터 추가
         )).willReturn(testRoom);
         
         RoomResponse roomResponse = RoomResponse.from(testRoom, 1);
@@ -125,7 +128,8 @@ class RoomControllerTest {
                 anyBoolean(),
                 any(),
                 anyInt(),
-                eq(1L)
+                eq(1L),
+                anyBoolean()  // useWebRTC 파라미터 추가
         );
         verify(roomService, times(1)).toRoomResponse(any(Room.class));
     }
@@ -365,5 +369,125 @@ class RoomControllerTest {
         
         verify(roomService, times(1)).getPopularRooms(any());
         verify(roomService, times(1)).toRoomResponseList(anyList());
+    }
+
+    @Test
+    @DisplayName("방 생성 API - WebRTC 활성화 테스트")
+    void createRoom_WithWebRTC() {
+        // given
+        given(currentUser.getUserId()).willReturn(1L);
+
+        CreateRoomRequest request = new CreateRoomRequest(
+                "WebRTC 방",
+                "화상 채팅 가능",
+                false,
+                null,
+                10,
+                true  // WebRTC 활성화
+        );
+
+        Room webRTCRoom = Room.create(
+                "WebRTC 방",
+                "화상 채팅 가능",
+                false,
+                null,
+                10,
+                testUser,
+                null,
+                true
+        );
+
+        given(roomService.createRoom(
+                anyString(),
+                anyString(),
+                anyBoolean(),
+                any(),
+                anyInt(),
+                eq(1L),
+                eq(true)  // WebRTC true 검증
+        )).willReturn(webRTCRoom);
+        
+        RoomResponse roomResponse = RoomResponse.from(webRTCRoom, 1);
+        given(roomService.toRoomResponse(any(Room.class))).willReturn(roomResponse);
+
+        // when
+        ResponseEntity<RsData<RoomResponse>> response = roomController.createRoom(request);
+        
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getData().getAllowCamera()).isTrue();
+        assertThat(response.getBody().getData().getAllowAudio()).isTrue();
+        assertThat(response.getBody().getData().getAllowScreenShare()).isTrue();
+
+        verify(roomService, times(1)).createRoom(
+                anyString(),
+                anyString(),
+                anyBoolean(),
+                any(),
+                anyInt(),
+                eq(1L),
+                eq(true)
+        );
+    }
+
+    @Test
+    @DisplayName("방 생성 API - WebRTC 비활성화 테스트")
+    void createRoom_WithoutWebRTC() {
+        // given
+        given(currentUser.getUserId()).willReturn(1L);
+
+        CreateRoomRequest request = new CreateRoomRequest(
+                "채팅 전용 방",
+                "텍스트만 가능",
+                false,
+                null,
+                50,
+                false  // WebRTC 비활성화
+        );
+
+        Room chatOnlyRoom = Room.create(
+                "채팅 전용 방",
+                "텍스트만 가능",
+                false,
+                null,
+                50,
+                testUser,
+                null,
+                false
+        );
+
+        given(roomService.createRoom(
+                anyString(),
+                anyString(),
+                anyBoolean(),
+                any(),
+                anyInt(),
+                eq(1L),
+                eq(false)  // WebRTC false 검증
+        )).willReturn(chatOnlyRoom);
+        
+        RoomResponse roomResponse = RoomResponse.from(chatOnlyRoom, 1);
+        given(roomService.toRoomResponse(any(Room.class))).willReturn(roomResponse);
+
+        // when
+        ResponseEntity<RsData<RoomResponse>> response = roomController.createRoom(request);
+        
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getData().getAllowCamera()).isFalse();
+        assertThat(response.getBody().getData().getAllowAudio()).isFalse();
+        assertThat(response.getBody().getData().getAllowScreenShare()).isFalse();
+
+        verify(roomService, times(1)).createRoom(
+                anyString(),
+                anyString(),
+                anyBoolean(),
+                any(),
+                anyInt(),
+                eq(1L),
+                eq(false)
+        );
     }
 }
