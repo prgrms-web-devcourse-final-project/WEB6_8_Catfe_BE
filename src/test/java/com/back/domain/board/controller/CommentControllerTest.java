@@ -390,4 +390,135 @@ class CommentControllerTest {
                 .andExpect(jsonPath("$.code").value("AUTH_001"))
                 .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
     }
+    // ====================== 댓글 삭제 테스트 ======================
+
+    @Test
+    @DisplayName("댓글 삭제 성공 → 200 OK")
+    void deleteComment_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        Comment comment = new Comment(post, user, "삭제할 댓글");
+        commentRepository.save(comment);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(delete("/api/posts/{postId}/comments/{commentId}", post.getId(), comment.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("댓글이 삭제되었습니다."));
+    }
+
+    @Test
+    @DisplayName("댓글 삭제 실패 - 존재하지 않는 게시글 → 404 Not Found")
+    void deleteComment_postNotFound() throws Exception {
+        // given
+        User user = User.createUser("writer2", "writer2@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "작성자2", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        Comment comment = new Comment(post, user, "댓글");
+        commentRepository.save(comment);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(delete("/api/posts/{postId}/comments/{commentId}", 999L, comment.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POST_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 게시글입니다."));
+    }
+
+    @Test
+    @DisplayName("댓글 삭제 실패 - 존재하지 않는 댓글 → 404 Not Found")
+    void deleteComment_commentNotFound() throws Exception {
+        // given
+        User user = User.createUser("writer3", "writer3@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "작성자3", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(delete("/api/posts/{postId}/comments/{commentId}", post.getId(), 999L)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COMMENT_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 댓글입니다."));
+    }
+
+    @Test
+    @DisplayName("댓글 삭제 실패 - 작성자가 아님 → 403 Forbidden")
+    void deleteComment_noPermission() throws Exception {
+        // given
+        User writer = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        writer.setUserProfile(new UserProfile(writer, "작성자", null, null, null, 0));
+        writer.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(writer);
+
+        User other = User.createUser("other", "other@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        other.setUserProfile(new UserProfile(other, "다른사람", null, null, null, 0));
+        other.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(other);
+
+        Post post = new Post(writer, "제목", "내용");
+        postRepository.save(post);
+
+        Comment comment = new Comment(post, writer, "원래 댓글");
+        commentRepository.save(comment);
+
+        String accessToken = generateAccessToken(other);
+
+        // when & then
+        mvc.perform(delete("/api/posts/{postId}/comments/{commentId}", post.getId(), comment.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("COMMENT_002"))
+                .andExpect(jsonPath("$.message").value("댓글 작성자만 수정/삭제할 수 있습니다."));
+    }
+
+    @Test
+    @DisplayName("댓글 삭제 실패 - 토큰 없음 → 401 Unauthorized")
+    void deleteComment_noToken() throws Exception {
+        // given
+        User user = User.createUser("writer4", "writer4@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "작성자4", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        Comment comment = new Comment(post, user, "댓글");
+        commentRepository.save(comment);
+
+        // when & then
+        mvc.perform(delete("/api/posts/{postId}/comments/{commentId}", post.getId(), comment.getId()))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+    }
 }
