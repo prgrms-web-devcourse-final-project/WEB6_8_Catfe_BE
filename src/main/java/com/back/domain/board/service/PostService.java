@@ -80,4 +80,55 @@ public class PostService {
         // 응답 반환
         return PostDetailResponse.from(post);
     }
+
+    /**
+     * 게시글 수정 서비스
+     * 1. Post 조회
+     * 2. 작성자 검증
+     * 3. Post 업데이트 (제목, 내용, 카테고리)
+     * 4. PostResponse 반환
+     */
+    public PostResponse updatePost(Long postId, PostRequest request, Long userId) {
+        // Post 조회
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+
+        // 작성자 검증
+        if (!post.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.POST_NO_PERMISSION);
+        }
+
+        // Post 업데이트
+        post.update(request.title(), request.content());
+
+        // Category 매핑 업데이트
+        List<PostCategory> categories = postCategoryRepository.findAllById(request.categoryIds());
+        if (categories.size() != request.categoryIds().size()) {
+            throw new CustomException(ErrorCode.CATEGORY_NOT_FOUND);
+        }
+        post.updateCategories(categories);
+
+        // 응답 반환
+        return PostResponse.from(post);
+    }
+
+    /**
+     * 게시글 삭제 서비스
+     * 1. Post 조회
+     * 2. 작성자 검증
+     * 3. Post 삭제
+     */
+    public void deletePost(Long postId, Long userId) {
+        // Post 조회
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+
+        // 작성자 검증
+        if (!post.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.POST_NO_PERMISSION);
+        }
+
+        // Post 삭제
+        postRepository.delete(post);
+    }
 }
