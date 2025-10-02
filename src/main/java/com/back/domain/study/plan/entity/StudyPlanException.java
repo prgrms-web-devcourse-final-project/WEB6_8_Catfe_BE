@@ -61,7 +61,7 @@ public class StudyPlanException extends BaseEntity {
     @Column(name = "modified_repeat_rule")
     @AttributeOverrides({
             @AttributeOverride(name = "frequency", column = @Column(name = "modified_frequency")),
-            @AttributeOverride(name = "intervalValue", column = @Column(name = "modified_repeat_interval")),
+            @AttributeOverride(name = "repeatInterval", column = @Column(name = "modified_interval_value")),
             @AttributeOverride(name = "byDay", column = @Column(name = "modified_by_day")),
             @AttributeOverride(name = "untilDate", column = @Column(name = "modified_until_date"))
     })

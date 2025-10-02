@@ -42,25 +42,26 @@ public class StudyPlanResponse {
     @AllArgsConstructor
     public static class RepeatRuleResponse {
         private Frequency frequency;
-        private Integer repeatInterval;
+        private Integer intervalValue;
         private List<DayOfWeek> byDay = new ArrayList<>();  // "MON" 형태의 enum 문자열 리스트
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
         private LocalDate untilDate;
 
-        // 엔티티 생성자: 그대로 유지
-
+        // RepeatRule 엔티티를 DTO로 변환하는 생성자
+        // intervalValue의 경우 요청, 응답(프론트)에서는 intervalValue 사용
+        // 백엔드 내에서는 repeatInterval 사용
         public RepeatRuleResponse(com.back.domain.study.plan.entity.RepeatRule repeatRule) {
             if (repeatRule != null) {
                 this.frequency = repeatRule.getFrequency();
-                this.repeatInterval = repeatRule.getRepeatInterval();
+                this.intervalValue = repeatRule.getRepeatInterval();
                 this.byDay = repeatRule.getByDay();
                 this.untilDate = repeatRule.getUntilDate();
             }
         }
 
     }
-    //엔티티를 DTO로 변환하는 생성자
+    // 엔티티를 DTO로 변환하는 생성자
     public StudyPlanResponse(StudyPlan studyPlan) {
         if (studyPlan != null) {
             this.id = studyPlan.getId();
