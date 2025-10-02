@@ -441,4 +441,93 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.code").value("AUTH_001"))
                 .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
     }
+
+    // ====================== 게시글 삭제 테스트 ======================
+
+    @Test
+    @DisplayName("게시글 삭제 성공 → 200 OK")
+    void deletePost_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "삭제할 제목", "삭제할 내용");
+        postRepository.save(post);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(delete("/api/posts/{postId}", post.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("게시글이 삭제되었습니다."))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("게시글 삭제 실패 - 게시글 없음 → 404 Not Found")
+    void deletePost_fail_postNotFound() throws Exception {
+        // given
+        User user = User.createUser("writer2", "writer2@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "작성자", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(delete("/api/posts/{postId}", 999L)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POST_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 게시글입니다."));
+    }
+
+    @Test
+    @DisplayName("게시글 삭제 실패 - 작성자 아님 → 403 Forbidden")
+    void deletePost_fail_noPermission() throws Exception {
+        // given
+        User writer = User.createUser("writer3", "writer3@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        writer.setUserProfile(new UserProfile(writer, "작성자3", null, null, null, 0));
+        writer.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(writer);
+
+        User another = User.createUser("other", "other@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        another.setUserProfile(new UserProfile(another, "다른사람", null, null, null, 0));
+        another.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(another);
+
+        Post post = new Post(writer, "원래 제목", "원래 내용");
+        postRepository.save(post);
+
+        String accessToken = generateAccessToken(another);
+
+        // when & then
+        mvc.perform(delete("/api/posts/{postId}", post.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("POST_002"))
+                .andExpect(jsonPath("$.message").value("게시글 작성자만 수정/삭제할 수 있습니다."));
+    }
+
+    @Test
+    @DisplayName("게시글 삭제 실패 - 인증 없음 → 401 Unauthorized")
+    void deletePost_fail_unauthorized() throws Exception {
+        // given
+        Post post = new Post(); // 굳이 저장 안 해도 됨, 그냥 요청만 보냄
+
+        // when & then
+        mvc.perform(delete("/api/posts/{postId}", 1L))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+    }
 }
