@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: .env 생성
-        run: echo "$DOT_ENV" > .env
+        run: echo "$DOT_ENV_PROD" > .env
 
       - name: Docker Buildx 설치
         uses: docker/setup-buildx-action@v2
