@@ -64,7 +64,7 @@ public class RoomController {
                 currentUserId
         );
         
-        RoomResponse response = RoomResponse.from(room);
+        RoomResponse response = roomService.toRoomResponse(room);
         
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -139,9 +139,7 @@ public class RoomController {
         Pageable pageable = PageRequest.of(page, size);
         Page<Room> rooms = roomService.getJoinableRooms(pageable);
 
-        List<RoomResponse> roomList = rooms.getContent().stream()
-                .map(RoomResponse::from)
-                .collect(Collectors.toList());
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
 
         Map<String, Object> response = new HashMap<>();
         response.put("rooms", roomList);
@@ -175,11 +173,7 @@ public class RoomController {
         Room room = roomService.getRoomDetail(roomId, currentUserId);
         List<RoomMember> members = roomService.getRoomMembers(roomId, currentUserId);
 
-        List<RoomMemberResponse> memberResponses = members.stream()
-                .map(RoomMemberResponse::from)
-                .collect(Collectors.toList());
-
-        RoomDetailResponse response = RoomDetailResponse.of(room, memberResponses);
+        RoomDetailResponse response = roomService.toRoomDetailResponse(room, members);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
@@ -201,12 +195,7 @@ public class RoomController {
 
         List<Room> rooms = roomService.getUserRooms(currentUserId);
 
-        List<MyRoomResponse> roomList = rooms.stream()
-                .map(room -> MyRoomResponse.of(
-                        room, 
-                        roomService.getUserRoomRole(room.getId(), currentUserId)
-                ))
-                .collect(Collectors.toList());
+        List<MyRoomResponse> roomList = roomService.toMyRoomResponseList(rooms, currentUserId);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
@@ -313,9 +302,7 @@ public class RoomController {
         Pageable pageable = PageRequest.of(page, size);
         Page<Room> rooms = roomService.getPopularRooms(pageable);
 
-        List<RoomResponse> roomList = rooms.getContent().stream()
-                .map(RoomResponse::from)
-                .collect(Collectors.toList());
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
 
         Map<String, Object> response = new HashMap<>();
         response.put("rooms", roomList);

@@ -19,12 +19,12 @@ public class RoomResponse {
     private String createdBy;
     private LocalDateTime createdAt;
     
-    public static RoomResponse from(Room room) {
+    public static RoomResponse from(Room room, long currentParticipants) {
         return RoomResponse.builder()
                 .roomId(room.getId())
                 .title(room.getTitle())
                 .description(room.getDescription() != null ? room.getDescription() : "")
-                .currentParticipants(room.getCurrentParticipants())
+                .currentParticipants((int) currentParticipants)  // Redis에서 조회한 실시간 값
                 .maxParticipants(room.getMaxParticipants())
                 .status(room.getStatus())
                 .createdBy(room.getCreatedBy().getNickname())

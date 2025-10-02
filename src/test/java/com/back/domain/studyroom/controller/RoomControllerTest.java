@@ -105,9 +105,13 @@ class RoomControllerTest {
                 anyInt(),
                 eq(1L)
         )).willReturn(testRoom);
+        
+        RoomResponse roomResponse = RoomResponse.from(testRoom, 1);
+        given(roomService.toRoomResponse(any(Room.class))).willReturn(roomResponse);
 
         // when
         ResponseEntity<RsData<RoomResponse>> response = roomController.createRoom(request);
+        
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
@@ -123,6 +127,7 @@ class RoomControllerTest {
                 anyInt(),
                 eq(1L)
         );
+        verify(roomService, times(1)).toRoomResponse(any(Room.class));
     }
 
     @Test
@@ -174,6 +179,9 @@ class RoomControllerTest {
                 1
         );
         given(roomService.getJoinableRooms(any())).willReturn(roomPage);
+        
+        List<RoomResponse> roomResponses = Arrays.asList(RoomResponse.from(testRoom, 1));
+        given(roomService.toRoomResponseList(anyList())).willReturn(roomResponses);
 
         // when
         ResponseEntity<RsData<Map<String, Object>>> response = roomController.getRooms(0, 20);
@@ -185,6 +193,7 @@ class RoomControllerTest {
         assertThat(response.getBody().getData().get("rooms")).isNotNull();
         
         verify(roomService, times(1)).getJoinableRooms(any());
+        verify(roomService, times(1)).toRoomResponseList(anyList());
     }
 
     @Test
@@ -195,6 +204,13 @@ class RoomControllerTest {
         
         given(roomService.getRoomDetail(eq(1L), eq(1L))).willReturn(testRoom);
         given(roomService.getRoomMembers(eq(1L), eq(1L))).willReturn(Arrays.asList(testMember));
+        
+        RoomDetailResponse roomDetailResponse = RoomDetailResponse.of(
+            testRoom, 
+            1, 
+            Arrays.asList(RoomMemberResponse.from(testMember))
+        );
+        given(roomService.toRoomDetailResponse(any(Room.class), anyList())).willReturn(roomDetailResponse);
 
         // when
         ResponseEntity<RsData<RoomDetailResponse>> response = roomController.getRoomDetail(1L);
@@ -208,6 +224,7 @@ class RoomControllerTest {
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).getRoomDetail(eq(1L), eq(1L));
         verify(roomService, times(1)).getRoomMembers(eq(1L), eq(1L));
+        verify(roomService, times(1)).toRoomDetailResponse(any(Room.class), anyList());
     }
 
     @Test
@@ -226,7 +243,11 @@ class RoomControllerTest {
         }
 
         given(roomService.getUserRooms(eq(1L))).willReturn(Arrays.asList(testRoom));
-        given(roomService.getUserRoomRole(eq(1L), eq(1L))).willReturn(RoomRole.HOST);
+        
+        List<MyRoomResponse> myRoomResponses = Arrays.asList(
+            MyRoomResponse.of(testRoom, 1, RoomRole.HOST)
+        );
+        given(roomService.toMyRoomResponseList(anyList(), eq(1L))).willReturn(myRoomResponses);
 
         // when
         ResponseEntity<RsData<List<MyRoomResponse>>> response = roomController.getMyRooms();
@@ -240,6 +261,7 @@ class RoomControllerTest {
 
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).getUserRooms(eq(1L));
+        verify(roomService, times(1)).toMyRoomResponseList(anyList(), eq(1L));
     }
 
     @Test
@@ -328,6 +350,9 @@ class RoomControllerTest {
                 1
         );
         given(roomService.getPopularRooms(any())).willReturn(roomPage);
+        
+        List<RoomResponse> roomResponses = Arrays.asList(RoomResponse.from(testRoom, 1));
+        given(roomService.toRoomResponseList(anyList())).willReturn(roomResponses);
 
         // when
         ResponseEntity<RsData<Map<String, Object>>> response = roomController.getPopularRooms(0, 20);
@@ -339,5 +364,6 @@ class RoomControllerTest {
         assertThat(response.getBody().getData().get("rooms")).isNotNull();
         
         verify(roomService, times(1)).getPopularRooms(any());
+        verify(roomService, times(1)).toRoomResponseList(anyList());
     }
 }
