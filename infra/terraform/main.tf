@@ -198,7 +198,8 @@ sudo sh -c 'echo "/swapfile swap swap defaults 0 0" >> /etc/fstab'
 echo "PASSWORD=${var.password_1}" >> /etc/environment
 echo "DOMAIN=${var.catfe_domain_1}" >> /etc/environment
 echo "GITHUB_ACCESS_TOKEN_OWNER=${var.github_access_token_1_owner}" >> /etc/environment
-ehco "GITHUB_ACCESS_TOKEN=${var.github_access_token_1}" >> /etc/environment
+echo "GITHUB_ACCESS_TOKEN=${var.github_access_token_1}" >> /etc/environment
+
 # EC2 환경변수 등록
 source /etc/environment
 

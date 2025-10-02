@@ -110,11 +110,7 @@ jobs:
           working-directory: /
           comment: Deploy
           command: |
-            
             set -Eeuo pipefail
-            
-            # 1. EC2 인스턴스 아이디 확인
-            echo "INSTANCE_ID=${INSTANCE_ID}"
             
             # 3. 실행 로그(라인 타임스탬프 부착)
             LOG="/tmp/ssm-$(date +%Y%m%d_%H%M%S).log"
