@@ -65,4 +65,20 @@ public class PostController implements PostControllerDocs {
                         response
                 ));
     }
+
+    // 게시글 수정
+    @PutMapping("/{postId}")
+    public ResponseEntity<RsData<PostResponse>> updatePost(
+            @PathVariable Long postId,
+            @RequestBody @Valid PostRequest request,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        PostResponse response = postService.updatePost(postId, request, user.getUserId());
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success(
+                        "게시글이 수정되었습니다.",
+                        response
+                ));
+    }
 }
