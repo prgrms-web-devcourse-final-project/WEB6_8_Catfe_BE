@@ -13,18 +13,18 @@ public class RoomMemberResponse {
     private Long userId;
     private String nickname;
     private RoomRole role;
-    private boolean isOnline;
     private LocalDateTime joinedAt;
-    private LocalDateTime lastActiveAt;
+    private LocalDateTime promotedAt;
+    
+    // TODO: isOnline은 Redis에서 조회하여 추가 예정
     
     public static RoomMemberResponse from(RoomMember member) {
         return RoomMemberResponse.builder()
                 .userId(member.getUser().getId())
                 .nickname(member.getUser().getNickname())
                 .role(member.getRole())
-                .isOnline(member.isOnline())
                 .joinedAt(member.getJoinedAt())
-                .lastActiveAt(member.getLastActiveAt() != null ? member.getLastActiveAt() : member.getJoinedAt())
+                .promotedAt(member.getPromotedAt())
                 .build();
     }
 }

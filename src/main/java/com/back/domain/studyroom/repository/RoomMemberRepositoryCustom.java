@@ -20,16 +20,22 @@ public interface RoomMemberRepositoryCustom {
 
     /**
      * 방의 온라인 멤버 조회
+     * TODO: Redis 기반으로 변경 예정
+     * 현재는 DB에 저장된 모든 멤버 반환 (임시)
      */
+    @Deprecated
     List<RoomMember> findOnlineMembersByRoomId(Long roomId);
 
     /**
      * 방의 활성 멤버 수 조회
+     * TODO: Redis 기반으로 변경 예정
      */
+    @Deprecated
     int countActiveMembersByRoomId(Long roomId);
 
     /**
      * 사용자가 참여 중인 모든 방의 멤버십 조회
+     * DB에 저장된 멤버십만 조회 (MEMBER 이상)
      */
     List<RoomMember> findActiveByUserId(Long userId);
 
@@ -60,16 +66,22 @@ public interface RoomMemberRepositoryCustom {
 
     /**
      * 특정 역할의 멤버 수 조회
+     * TODO: Redis 기반으로 변경 예정
      */
+    @Deprecated
     int countByRoomIdAndRole(Long roomId, RoomRole role);
 
     /**
      * 방 퇴장 처리 (벌크 업데이트)
+     * TODO: Redis로 이관 예정, DB에는 멤버십만 유지
      */
+    @Deprecated
     void leaveRoom(Long roomId, Long userId);
 
     /**
      * 방의 모든 멤버를 오프라인 처리 (방 종료 시)
+     * TODO: Redis로 이관 예정
      */
+    @Deprecated
     void disconnectAllMembers(Long roomId);
 }

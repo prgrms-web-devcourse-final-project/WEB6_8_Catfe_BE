@@ -32,15 +32,17 @@ public class WebRTCSignalValidator {
         }
 
         // 2. 발신자가 방에 속해있는지 확인
+        // TODO: Redis에서 온라인 상태 확인하도록 변경
         Optional<RoomMember> fromMember = roomMemberRepository.findByRoomIdAndUserId(roomId, fromUserId);
-        if (fromMember.isEmpty() || !fromMember.get().isOnline()) {
+        if (fromMember.isEmpty()) {
             log.warn("방에 속하지 않은 사용자의 시그널 전송 시도 - roomId: {}, userId: {}", roomId, fromUserId);
             throw new CustomException(ErrorCode.NOT_ROOM_MEMBER);
         }
 
         // 3. 수신자가 같은 방에 속해있는지 확인
+        // TODO: Redis에서 온라인 상태 확인하도록 변경
         Optional<RoomMember> targetMember = roomMemberRepository.findByRoomIdAndUserId(roomId, targetUserId);
-        if (targetMember.isEmpty() || !targetMember.get().isOnline()) {
+        if (targetMember.isEmpty()) {
             log.warn("수신자가 방에 없거나 오프라인 상태 - roomId: {}, targetUserId: {}", roomId, targetUserId);
             throw new CustomException(ErrorCode.NOT_ROOM_MEMBER);
         }
@@ -50,9 +52,10 @@ public class WebRTCSignalValidator {
 
     // 미디어 상태 변경 검증
     public void validateMediaStateChange(Long roomId, Long userId) {
+        // TODO: Redis에서 온라인 상태 확인하도록 변경
         Optional<RoomMember> member = roomMemberRepository.findByRoomIdAndUserId(roomId, userId);
 
-        if (member.isEmpty() || !member.get().isOnline()) {
+        if (member.isEmpty()) {
             log.warn("방에 속하지 않은 사용자의 미디어 상태 변경 시도 - roomId: {}, userId: {}", roomId, userId);
             throw new CustomException(ErrorCode.NOT_ROOM_MEMBER);
         }
