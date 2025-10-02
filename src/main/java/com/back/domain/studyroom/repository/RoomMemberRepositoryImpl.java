@@ -256,6 +256,35 @@ public class RoomMemberRepositoryImpl implements RoomMemberRepositoryCustom {
     }
 
     /**
+     * 여러 사용자의 멤버십 일괄 조회 (IN 절)
+     * - Redis 온라인 목록으로 DB 멤버십 조회
+     * - N+1 문제 해결
+     * - VISITOR는 DB에 없으므로 결과에 포함 안됨
+     * @param roomId 방 ID
+     * @param userIds 사용자 ID Set
+     * @return DB에 저장된 멤버 목록 (MEMBER 이상)
+     */
+    @Override
+    public List<RoomMember> findByRoomIdAndUserIdIn(Long roomId, java.util.Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+
+        return queryFactory
+                .selectFrom(roomMember)
+                .leftJoin(roomMember.user, user).fetchJoin()  // N+1 방지
+                .where(
+                        roomMember.room.id.eq(roomId),
+                        roomMember.user.id.in(userIds)
+                )
+                .orderBy(
+                        roomMember.role.asc(),       // 역할순
+                        roomMember.joinedAt.asc()    // 입장 시간순
+                )
+                .fetch();
+    }
+
+    /**
      * 특정 역할의 멤버 수 조회
      * TODO: Redis 기반으로 변경 예정
      * @param roomId 방 ID
