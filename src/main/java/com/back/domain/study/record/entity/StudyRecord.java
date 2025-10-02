@@ -3,14 +3,13 @@ package com.back.domain.study.record.entity;
 import com.back.domain.study.plan.entity.StudyPlan;
 import com.back.domain.studyroom.entity.Room;
 import com.back.global.entity.BaseEntity;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @NoArgsConstructor
@@ -24,9 +23,12 @@ public class StudyRecord extends BaseEntity {
     @JoinColumn(name = "room_id")
     private Room room;
 
-    private int duration;
+    private Long duration;
 
     private LocalDateTime startTime;
+
+    @OneToMany(mappedBy = "studyRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PauseInfo> pauseInfos = new ArrayList<>();
 
     private LocalDateTime endTime;
 }
