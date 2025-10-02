@@ -1,8 +1,10 @@
 package com.back.domain.board.controller;
 
 import com.back.domain.board.dto.PostRequest;
+import com.back.domain.board.entity.Post;
 import com.back.domain.board.entity.PostCategory;
 import com.back.domain.board.repository.PostCategoryRepository;
+import com.back.domain.board.repository.PostRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
@@ -24,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -39,6 +41,9 @@ class PostControllerTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private PostRepository postRepository;
 
     @Autowired
     private PostCategoryRepository postCategoryRepository;
@@ -167,5 +172,83 @@ class PostControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_400"))
                 .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
+    }
+
+    // ====================== 게시글 조회 테스트 ======================
+
+    @Test
+    @DisplayName("게시글 다건 조회 성공 → 200 OK")
+    void getPosts_success() throws Exception {
+        // given: 유저 + 카테고리 + 게시글 2개
+        User user = User.createUser("reader", "reader@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        PostCategory c1 = new PostCategory("공지사항");
+        PostCategory c2 = new PostCategory("자유게시판");
+        postCategoryRepository.saveAll(List.of(c1, c2));
+
+        Post post1 = new Post(user, "첫 글", "내용1");
+        post1.updateCategories(List.of(c1));
+        postRepository.save(post1);
+
+        Post post2 = new Post(user, "두 번째 글", "내용2");
+        post2.updateCategories(List.of(c2));
+        postRepository.save(post2);
+
+        // when
+        mvc.perform(get("/api/posts")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                // then
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.data.items.length()").value(2))
+                .andExpect(jsonPath("$.data.items[0].author.nickname").value("홍길동"));
+    }
+
+    @Test
+    @DisplayName("게시글 단건 조회 성공 → 200 OK")
+    void getPost_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "이몽룡", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        PostCategory c1 = new PostCategory("공지사항");
+        postCategoryRepository.save(c1);
+
+        Post post = new Post(user, "조회 테스트 글", "조회 테스트 내용");
+        post.updateCategories(List.of(c1));
+        postRepository.save(post);
+
+        // when
+        mvc.perform(get("/api/posts/{postId}", post.getId())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                // then
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.data.postId").value(post.getId()))
+                .andExpect(jsonPath("$.data.title").value("조회 테스트 글"))
+                .andExpect(jsonPath("$.data.author.nickname").value("이몽룡"))
+                .andExpect(jsonPath("$.data.categories[0].name").value("공지사항"));
+    }
+
+    @Test
+    @DisplayName("게시글 단건 조회 실패 - 존재하지 않는 게시글 → 404 Not Found")
+    void getPost_fail_notFound() throws Exception {
+        mvc.perform(get("/api/posts/{postId}", 999L)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POST_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 게시글입니다."));
     }
 }
