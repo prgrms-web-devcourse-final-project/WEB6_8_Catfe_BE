@@ -41,6 +41,12 @@ public class Post extends BaseEntity {
     }
 
     // -------------------- 비즈니스 메서드 --------------------
+    // 게시글 업데이트
+    public void update(String title, String content) {
+        this.title = title;
+        this.content = content;
+    }
+
     // 카테고리 업데이트
     public void updateCategories(List<PostCategory> categories) {
         this.postCategoryMappings.clear();

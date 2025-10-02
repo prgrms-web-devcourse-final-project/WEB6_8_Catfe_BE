@@ -66,7 +66,7 @@ class PostServiceTest {
         assertThat(response.content()).isEqualTo("내용");
         assertThat(response.author().nickname()).isEqualTo("작성자");
         assertThat(response.categories()).hasSize(1);
-        assertThat(response.categories().get(0).name()).isEqualTo("공지");
+        assertThat(response.categories().getFirst().name()).isEqualTo("공지");
     }
 
     @Test
@@ -171,5 +171,167 @@ class PostServiceTest {
         assertThatThrownBy(() -> postService.getPost(999L))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.POST_NOT_FOUND.getMessage());
+    }
+
+    // ====================== 게시글 수정 테스트 ======================
+
+    @Test
+    @DisplayName("게시글 수정 성공 - 작성자 본인")
+    void updatePost_success() {
+        // given
+        User user = User.createUser("writer", "writer@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "작성자", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        PostCategory oldCategory = new PostCategory("공지");
+        PostCategory newCategory = new PostCategory("자유");
+        postCategoryRepository.saveAll(List.of(oldCategory, newCategory));
+
+        Post post = new Post(user, "원래 제목", "원래 내용");
+        post.updateCategories(List.of(oldCategory));
+        postRepository.save(post);
+
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", List.of(newCategory.getId()));
+
+        // when
+        PostResponse response = postService.updatePost(post.getId(), request, user.getId());
+
+        // then
+        assertThat(response.title()).isEqualTo("수정된 제목");
+        assertThat(response.content()).isEqualTo("수정된 내용");
+        assertThat(response.categories()).hasSize(1);
+        assertThat(response.categories().getFirst().name()).isEqualTo("자유");
+    }
+
+    @Test
+    @DisplayName("게시글 수정 실패 - 게시글 없음")
+    void updatePost_fail_postNotFound() {
+        // given
+        User user = User.createUser("writer2", "writer2@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "작성자2", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        PostRequest request = new PostRequest("제목", "내용", List.of());
+
+        // when & then
+        assertThatThrownBy(() -> postService.updatePost(999L, request, user.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.POST_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("게시글 수정 실패 - 작성자 아님")
+    void updatePost_fail_noPermission() {
+        // given: 게시글 작성자
+        User writer = User.createUser("writer3", "writer3@example.com", "encodedPwd");
+        writer.setUserProfile(new UserProfile(writer, "작성자3", null, null, null, 0));
+        writer.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(writer);
+
+        // 다른 사용자
+        User another = User.createUser("other", "other@example.com", "encodedPwd");
+        another.setUserProfile(new UserProfile(another, "다른사람", null, null, null, 0));
+        another.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(another);
+
+        PostCategory category = new PostCategory("공지");
+        postCategoryRepository.save(category);
+
+        Post post = new Post(writer, "원래 제목", "원래 내용");
+        post.updateCategories(List.of(category));
+        postRepository.save(post);
+
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", List.of(category.getId()));
+
+        // when & then
+        assertThatThrownBy(() -> postService.updatePost(post.getId(), request, another.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.POST_NO_PERMISSION.getMessage());
+    }
+
+    @Test
+    @DisplayName("게시글 수정 실패 - 존재하지 않는 카테고리 포함")
+    void updatePost_fail_categoryNotFound() {
+        // given
+        User user = User.createUser("writer4", "writer4@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "작성자4", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        PostCategory category = new PostCategory("공지");
+        postCategoryRepository.save(category);
+
+        Post post = new Post(user, "원래 제목", "원래 내용");
+        post.updateCategories(List.of(category));
+        postRepository.save(post);
+
+        // 실제 DB에는 없는 카테고리 ID 전달
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", List.of(999L));
+
+        // when & then
+        assertThatThrownBy(() -> postService.updatePost(post.getId(), request, user.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.CATEGORY_NOT_FOUND.getMessage());
+    }
+
+    // ====================== 게시글 삭제 테스트 ======================
+
+    @Test
+    @DisplayName("게시글 삭제 성공 - 작성자 본인")
+    void deletePost_success() {
+        // given
+        User user = User.createUser("writer", "writer@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "작성자", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "삭제 대상 제목", "삭제 대상 내용");
+        postRepository.save(post);
+
+        // when
+        postService.deletePost(post.getId(), user.getId());
+
+        // then
+        assertThat(postRepository.findById(post.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("게시글 삭제 실패 - 게시글 없음")
+    void deletePost_fail_postNotFound() {
+        // given
+        User user = User.createUser("writer2", "writer2@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "작성자2", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        // when & then
+        assertThatThrownBy(() -> postService.deletePost(999L, user.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.POST_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("게시글 삭제 실패 - 작성자 아님")
+    void deletePost_fail_noPermission() {
+        // given
+        User writer = User.createUser("writer3", "writer3@example.com", "encodedPwd");
+        writer.setUserProfile(new UserProfile(writer, "작성자3", null, null, null, 0));
+        writer.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(writer);
+
+        User another = User.createUser("other", "other@example.com", "encodedPwd");
+        another.setUserProfile(new UserProfile(another, "다른사람", null, null, null, 0));
+        another.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(another);
+
+        Post post = new Post(writer, "원래 제목", "원래 내용");
+        postRepository.save(post);
+
+        // when & then
+        assertThatThrownBy(() -> postService.deletePost(post.getId(), another.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.POST_NO_PERMISSION.getMessage());
     }
 }
