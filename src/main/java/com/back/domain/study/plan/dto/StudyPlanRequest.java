@@ -10,26 +10,41 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class StudyPlanRequest {
     private String subject;
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime startDate;
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime endDate;
 
     private Color color;
 
     // RepeatRule 중첩 객체
     private RepeatRuleRequest repeatRule;
+    // LocalDateTime을 초 단위로 자르기 위한 setter
+    public void setStartDate(LocalDateTime startDate) {
+        this.startDate = startDate != null ? startDate.truncatedTo(ChronoUnit.SECONDS) : null;
+    }
+    public void setEndDate(LocalDateTime endDate) {
+        this.endDate = endDate != null ? endDate.truncatedTo(ChronoUnit.SECONDS) : null;
+    }
+
+    // 초 단위로 자른 값을 생성자에서도 설정
+    public StudyPlanRequest(String subject, LocalDateTime startDate, LocalDateTime endDate,
+                            Color color, RepeatRuleRequest repeatRule) {
+        this.subject = subject;
+        this.startDate = startDate != null ? startDate.truncatedTo(ChronoUnit.SECONDS) : null;
+        this.endDate = endDate != null ? endDate.truncatedTo(ChronoUnit.SECONDS) : null;
+        this.color = color;
+        this.repeatRule = repeatRule;
+    }
 
     @Getter
     @Setter

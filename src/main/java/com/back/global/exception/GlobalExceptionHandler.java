@@ -34,8 +34,8 @@ public class GlobalExceptionHandler {
                 .body(RsData.fail(ErrorCode.BAD_REQUEST));
     }
 
-    // PATH VARIABLE, REQUEST PARAMETER 타입 미스매치 예외 처리
-    // 클라이언트의 데이터 형식이 서버 인자 타입과 안 맞는 경우 예외 (형식 불일치)
+    // PATH VARIABLE, REQUEST PARAMETER의 validation 예외 처리
+    // 클라이언트의 데이터 형식이 서버 인자 형식과 안 맞는 경우 예외 (형식 불일치)
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<RsData<Void>> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
