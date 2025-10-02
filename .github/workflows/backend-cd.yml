@@ -179,9 +179,9 @@ jobs:
             echo "🎨 role -> blue(now): ${BLUE}, green(next): ${GREEN}"
             
             # 8. Green 역할 컨테이너 
-            docker rm -f "${Green}" > /dev/null 2>&1 || true
-            echo "run new container -> ${Green}"
-            docker run -d --name "${Green}" \
+            docker rm -f "${GREEN}" > /dev/null 2>&1 || true
+            echo "run new container -> ${GREEN}"
+            docker run -d --name "${GREEN}" \
               --restart unless-stopped \
               --network "${NET}" \
               -e TZ=Asia/Seoul \
