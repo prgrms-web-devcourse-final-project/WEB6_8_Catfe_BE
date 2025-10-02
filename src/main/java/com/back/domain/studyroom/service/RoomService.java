@@ -127,6 +127,7 @@ public class RoomService {
             // TODO: Redis에서 온라인 여부 확인하도록 변경
             // 현재는 기존 멤버 재입장 허용
             // room.incrementParticipant();  // Redis로 이관 - DB 업데이트 제거
+
             return member;
         }
 

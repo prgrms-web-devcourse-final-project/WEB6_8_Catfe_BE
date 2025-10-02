@@ -52,6 +52,10 @@ public enum ErrorCode {
     TODO_NOT_FOUND(HttpStatus.NOT_FOUND, "TODO_001", "존재하지 않는 할 일입니다."),
     TODO_FORBIDDEN(HttpStatus.FORBIDDEN, "TODO_002", "할 일에 대한 접근 권한이 없습니다."),
 
+    // ======================== 알림 관련 ========================
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION_001", "존재하지 않는 알림입니다."),
+    NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NOTIFICATION_002", "알림에 대한 접근 권한이 없습니다."),
+    NOTIFICATION_ALREADY_READ(HttpStatus.BAD_REQUEST, "NOTIFICATION_003", "이미 읽은 알림입니다."),
 
     // ======================== 메시지 관련 ========================
     MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MESSAGE_001", "존재하지 않는 메시지입니다."),
@@ -76,6 +80,11 @@ public enum ErrorCode {
     WS_INVALID_REQUEST(HttpStatus.BAD_REQUEST, "WS_014", "잘못된 WebSocket 요청입니다."),
     WS_INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "WS_015", "WebSocket 내부 오류가 발생했습니다."),
     WS_CHAT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "WS_016", "채팅 삭제 권한이 없습니다. 방장 또는 부방장만 가능합니다."),
+
+    // ======================== 커뮤니티 관련 ========================
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_001", "존재하지 않는 게시글입니다."),
+    POST_NO_PERMISSION(HttpStatus.FORBIDDEN, "POST_002", "게시글 작성자만 수정/삭제할 수 있습니다."),
+    CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_003", "존재하지 않는 카테고리입니다."),
 
     // ======================== 공통 에러 ========================
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON_400", "잘못된 요청입니다."),

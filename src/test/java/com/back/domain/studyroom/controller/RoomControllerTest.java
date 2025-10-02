@@ -369,6 +369,7 @@ class RoomControllerTest {
         
         verify(roomService, times(1)).getPopularRooms(any());
         verify(roomService, times(1)).toRoomResponseList(anyList());
+
     }
 
     @Test

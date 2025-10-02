@@ -40,6 +40,7 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // CORS Preflight 요청 허용
                                 .requestMatchers("/api/auth/**", "/oauth2/**", "/login/oauth2/**").permitAll()
                                 .requestMatchers("api/ws/**", "/ws/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
                                 .requestMatchers("/api/rooms/*/messages/**").permitAll()  //스터디 룸 내에 잡혀있어 있는 채팅 관련 전체 허용
                                 //.requestMatchers("/api/rooms/RoomChatApiControllerTest").permitAll() // 테스트용 임시 허용
                                 .requestMatchers("/","/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger 허용
