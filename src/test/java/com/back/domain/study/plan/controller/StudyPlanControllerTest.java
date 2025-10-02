@@ -230,7 +230,7 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.data.startDate").value("2025-09-26T10:46:00"))
                 .andExpect(jsonPath("$.data.endDate").value("2025-09-26T11:46:00"))
                 .andExpect(jsonPath("$.data.repeatRule.frequency").value("DAILY"))
-                .andExpect(jsonPath("$.data.repeatRule.repeatInterval").value(1))
+                .andExpect(jsonPath("$.data.repeatRule.intervalValue").value(1))
                 .andExpect(jsonPath("$.data.repeatRule.byDay", hasSize(0)))
                 .andExpect(jsonPath("$.data.repeatRule.untilDate").value("2025-12-31"));
 
