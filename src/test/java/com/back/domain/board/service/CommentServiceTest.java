@@ -2,6 +2,7 @@ package com.back.domain.board.service;
 
 import com.back.domain.board.dto.CommentRequest;
 import com.back.domain.board.dto.CommentResponse;
+import com.back.domain.board.entity.Comment;
 import com.back.domain.board.entity.Post;
 import com.back.domain.board.repository.CommentRepository;
 import com.back.domain.board.repository.PostRepository;
@@ -97,5 +98,106 @@ class CommentServiceTest {
         assertThatThrownBy(() -> commentService.createComment(999L, request, user.getId()))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.POST_NOT_FOUND.getMessage());
+    }
+
+    // ====================== 댓글 수정 테스트 ======================
+
+    @Test
+    @DisplayName("댓글 수정 성공")
+    void updateComment_success() {
+        // given: 유저 + 게시글 + 댓글
+        User user = User.createUser("writer", "writer@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "작성자", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        Comment comment = new Comment(post, user, "원래 댓글");
+        commentRepository.save(comment);
+
+        CommentRequest updateRequest = new CommentRequest("수정된 댓글");
+
+        // when
+        CommentResponse response = commentService.updateComment(post.getId(), comment.getId(), updateRequest, user.getId());
+
+        // then
+        assertThat(response.content()).isEqualTo("수정된 댓글");
+        assertThat(response.commentId()).isEqualTo(comment.getId());
+    }
+
+    @Test
+    @DisplayName("댓글 수정 실패 - 존재하지 않는 게시글")
+    void updateComment_fail_postNotFound() {
+        // given: 유저 + 댓글
+        User user = User.createUser("writer2", "writer2@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "작성자2", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        Comment comment = new Comment(post, user, "댓글");
+        commentRepository.save(comment);
+
+        CommentRequest updateRequest = new CommentRequest("수정된 댓글");
+
+        // when & then
+        assertThatThrownBy(() ->
+                commentService.updateComment(999L, comment.getId(), updateRequest, user.getId())
+        ).isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.POST_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("댓글 수정 실패 - 존재하지 않는 댓글")
+    void updateComment_fail_commentNotFound() {
+        // given: 유저 + 게시글
+        User user = User.createUser("writer3", "writer3@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "작성자3", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        CommentRequest updateRequest = new CommentRequest("수정된 댓글");
+
+        // when & then
+        assertThatThrownBy(() ->
+                commentService.updateComment(post.getId(), 999L, updateRequest, user.getId())
+        ).isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.COMMENT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("댓글 수정 실패 - 작성자가 아님")
+    void updateComment_fail_noPermission() {
+        // given: 유저 2명 + 게시글 + 댓글
+        User writer = User.createUser("writer", "writer@example.com", "encodedPwd");
+        writer.setUserProfile(new UserProfile(writer, "작성자", null, null, null, 0));
+        writer.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(writer);
+
+        User other = User.createUser("other", "other@example.com", "encodedPwd");
+        other.setUserProfile(new UserProfile(other, "다른사람", null, null, null, 0));
+        other.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(other);
+
+        Post post = new Post(writer, "제목", "내용");
+        postRepository.save(post);
+
+        Comment comment = new Comment(post, writer, "원래 댓글");
+        commentRepository.save(comment);
+
+        CommentRequest updateRequest = new CommentRequest("수정된 댓글");
+
+        // when & then
+        assertThatThrownBy(() ->
+                commentService.updateComment(post.getId(), comment.getId(), updateRequest, other.getId())
+        ).isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.COMMENT_NO_PERMISSION.getMessage());
     }
 }
