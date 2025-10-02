@@ -102,7 +102,7 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 사용자 → 404 Not Found")
+    @DisplayName("게시글 생성 실패 - 존재하지 않는 사용자 → 404 Not Found")
     void createPost_userNotFound() throws Exception {
         // given: 토큰만 발급(실제 DB엔 없음)
         String fakeToken = testJwtTokenProvider.createAccessToken(999L, "ghost", "USER");
@@ -121,7 +121,7 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 카테고리 → 404 Not Found")
+    @DisplayName("게시글 생성 실패 - 존재하지 않는 카테고리 → 404 Not Found")
     void createPost_categoryNotFound() throws Exception {
         // given: 정상 유저
         User user = User.createUser("writer2", "writer2@example.com", passwordEncoder.encode("P@ssw0rd!"));
@@ -146,7 +146,7 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("잘못된 요청(필드 누락) → 400 Bad Request")
+    @DisplayName("게시글 생성 실패 - 잘못된 요청(필드 누락) → 400 Bad Request")
     void createPost_badRequest() throws Exception {
         // given: 정상 유저 생성
         User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
@@ -172,6 +172,22 @@ class PostControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_400"))
                 .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
+    }
+
+    @Test
+    @DisplayName("게시글 생성 실패 - 토큰 없음 → 401 Unauthorized")
+    void createPost_noToken() throws Exception {
+        // given
+        PostRequest request = new PostRequest("제목", "내용", null);
+
+        // when & then
+        mvc.perform(post("/api/posts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
     }
 
     // ====================== 게시글 조회 테스트 ======================
@@ -250,5 +266,179 @@ class PostControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("POST_001"))
                 .andExpect(jsonPath("$.message").value("존재하지 않는 게시글입니다."));
+    }
+
+    // ====================== 게시글 수정 테스트 ======================
+
+    @Test
+    @DisplayName("게시글 수정 성공 → 200 OK")
+    void updatePost_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        PostCategory c1 = new PostCategory("공지사항");
+        postCategoryRepository.save(c1);
+
+        Post post = new Post(user, "원래 제목", "원래 내용");
+        post.updateCategories(List.of(c1));
+        postRepository.save(post);
+
+        String accessToken = generateAccessToken(user);
+
+        PostCategory c2 = new PostCategory("자유게시판");
+        postCategoryRepository.save(c2);
+
+        PostRequest request = new PostRequest("수정된 게시글", "안녕하세요, 수정했습니다!", List.of(c1.getId(), c2.getId()));
+
+        // when & then
+        mvc.perform(put("/api/posts/{postId}", post.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.data.title").value("수정된 게시글"))
+                .andExpect(jsonPath("$.data.categories.length()").value(2));
+    }
+
+    @Test
+    @DisplayName("게시글 수정 실패 - 게시글 없음 → 404 Not Found")
+    void updatePost_fail_notFound() throws Exception {
+        // given
+        User user = User.createUser("writer2", "writer2@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "작성자2", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        PostRequest request = new PostRequest("수정된 제목", "내용", List.of());
+
+        // when & then
+        mvc.perform(put("/api/posts/{postId}", 999L)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POST_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 게시글입니다."));
+    }
+
+    @Test
+    @DisplayName("게시글 수정 실패 - 작성자 아님 → 403 Forbidden")
+    void updatePost_fail_noPermission() throws Exception {
+        // given
+        User writer = User.createUser("writer3", "writer3@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        writer.setUserProfile(new UserProfile(writer, "작성자3", null, null, null, 0));
+        writer.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(writer);
+
+        User another = User.createUser("other", "other@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        another.setUserProfile(new UserProfile(another, "다른사람", null, null, null, 0));
+        another.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(another);
+
+        PostCategory c1 = new PostCategory("공지사항");
+        postCategoryRepository.save(c1);
+
+        Post post = new Post(writer, "원래 제목", "원래 내용");
+        post.updateCategories(List.of(c1));
+        postRepository.save(post);
+
+        String accessToken = generateAccessToken(another);
+
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", List.of(c1.getId()));
+
+        // when & then
+        mvc.perform(put("/api/posts/{postId}", post.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("POST_002"))
+                .andExpect(jsonPath("$.message").value("게시글 작성자만 수정/삭제할 수 있습니다."));
+    }
+
+    @Test
+    @DisplayName("게시글 수정 실패 - 존재하지 않는 카테고리 → 404 Not Found")
+    void updatePost_fail_categoryNotFound() throws Exception {
+        // given
+        User user = User.createUser("writer4", "writer4@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "작성자4", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        PostCategory c1 = new PostCategory("공지사항");
+        postCategoryRepository.save(c1);
+
+        Post post = new Post(user, "원래 제목", "원래 내용");
+        post.updateCategories(List.of(c1));
+        postRepository.save(post);
+
+        String accessToken = generateAccessToken(user);
+
+        // 존재하지 않는 카테고리 ID
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", List.of(999L));
+
+        // when & then
+        mvc.perform(put("/api/posts/{postId}", post.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POST_003"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 카테고리입니다."));
+    }
+
+    @Test
+    @DisplayName("게시글 수정 실패 - 잘못된 요청(필드 누락) → 400 Bad Request")
+    void updatePost_fail_badRequest() throws Exception {
+        // given
+        User user = User.createUser("writer5", "writer5@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "작성자5", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        String invalidJson = """
+                {
+                  "content": "본문만 있음"
+                }
+                """;
+
+        // when & then
+        mvc.perform(put("/api/posts/{postId}", 1L)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
+    }
+
+    @Test
+    @DisplayName("게시글 수정 실패 - 인증 없음 → 401 Unauthorized")
+    void updatePost_fail_unauthorized() throws Exception {
+        // given
+        PostRequest request = new PostRequest("제목", "내용", List.of());
+
+        // when & then
+        mvc.perform(put("/api/posts/{postId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
     }
 }
