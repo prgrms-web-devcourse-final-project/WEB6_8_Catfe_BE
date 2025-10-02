@@ -81,4 +81,19 @@ public class PostController implements PostControllerDocs {
                         response
                 ));
     }
+
+    // 게시글 삭제
+    @DeleteMapping("/{postId}")
+    public ResponseEntity<RsData<Void>> deletePost(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        postService.deletePost(postId, user.getUserId());
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success(
+                        "게시글이 삭제되었습니다.",
+                        null
+                ));
+    }
 }
