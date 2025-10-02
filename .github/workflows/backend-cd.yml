@@ -148,10 +148,10 @@ jobs:
             # 6. 대상 프록시 호스트 ID 조회(도메인 매칭)
             PROXY_ID=$(curl -s -X GET "http://127.0.0.1:81/api/nginx/proxy-hosts" \
               -H "Authorization: Bearer ${TOKEN}" \
-              | jq ".[] | select(.domain_names[]==\"${APP_1_DOMAIN}\") | .id")
+              | jq ".[] | select(.domain_names[]==\"${DOMAIN}\") | .id")
               
               # 조회한 프록시 호스트 ID 검증
-            [[ -n "${PROXY_ID}" && "${PROXY_ID}" != "null" ]] || { echo "Proxy host not found for ${APP_1_DOMAIN}"; exit 1; }
+            [[ -n "${PROXY_ID}" && "${PROXY_ID}" != "null" ]] || { echo "Proxy host not found for ${DOMAIN}"; exit 1; }
             
             # 현재 프록시가 바라보는 업스트림(컨테이너명) 조회
             CURRENT_HOST=$(curl -s -X GET "http://127.0.0.1:81/api/nginx/proxy-hosts/${PROXY_ID}" \
