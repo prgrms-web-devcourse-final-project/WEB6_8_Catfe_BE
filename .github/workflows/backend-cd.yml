@@ -110,6 +110,7 @@ jobs:
           working-directory: /
           comment: Deploy
           command: |
+            
             set -Eeuo pipefail
             
             # 1. EC2 인스턴스 아이디 확인
