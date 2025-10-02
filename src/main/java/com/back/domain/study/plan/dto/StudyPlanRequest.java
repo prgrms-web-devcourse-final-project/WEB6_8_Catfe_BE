@@ -28,20 +28,20 @@ public class StudyPlanRequest {
 
     // RepeatRule 중첩 객체
     private RepeatRuleRequest repeatRule;
-    // LocalDateTime을 초 단위로 자르기 위한 setter
+    // LocalDateTime을 분 단위로 자르기 위한 setter
     public void setStartDate(LocalDateTime startDate) {
-        this.startDate = startDate != null ? startDate.truncatedTo(ChronoUnit.SECONDS) : null;
+        this.startDate = startDate != null ? startDate.truncatedTo(ChronoUnit.MINUTES) : null;
     }
     public void setEndDate(LocalDateTime endDate) {
-        this.endDate = endDate != null ? endDate.truncatedTo(ChronoUnit.SECONDS) : null;
+        this.endDate = endDate != null ? endDate.truncatedTo(ChronoUnit.MINUTES) : null;
     }
 
-    // 초 단위로 자른 값을 생성자에서도 설정
+    // 분 단위로 자른 값을 생성자에서도 설정
     public StudyPlanRequest(String subject, LocalDateTime startDate, LocalDateTime endDate,
                             Color color, RepeatRuleRequest repeatRule) {
         this.subject = subject;
-        this.startDate = startDate != null ? startDate.truncatedTo(ChronoUnit.SECONDS) : null;
-        this.endDate = endDate != null ? endDate.truncatedTo(ChronoUnit.SECONDS) : null;
+        this.startDate = startDate != null ? startDate.truncatedTo(ChronoUnit.MINUTES) : null;
+        this.endDate = endDate != null ? endDate.truncatedTo(ChronoUnit.MINUTES) : null;
         this.color = color;
         this.repeatRule = repeatRule;
     }

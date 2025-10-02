@@ -169,6 +169,25 @@ class StudyPlanControllerTest {
     }
 
     @Test
+    @DisplayName("단발성 계획 생성 - 밀리초까지 전송받는 경우")
+    void t1_1() throws Exception {
+
+        ResultActions resultActions = mvc.perform(post("/api/plans")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                        "subject": "단발성 계획 - 밀리초 포함",
+                        "startDate": "2025-09-21T05:00:00.000Z",
+                        "endDate": "2025-09-21T07:00:00.000Z",
+                        "color": "RED"
+                    }
+                    """))
+                .andDo(print());
+
+    }
+
+    @Test
     @DisplayName("반복성 계획 생성")
     void t2() throws Exception {
 
