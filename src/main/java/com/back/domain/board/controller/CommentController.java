@@ -33,4 +33,37 @@ public class CommentController implements CommentControllerDocs {
                         response
                 ));
     }
+
+    // 댓글 수정
+    @PutMapping("/{commentId}")
+    public ResponseEntity<RsData<CommentResponse>> updateComment(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @RequestBody @Valid CommentRequest request,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        CommentResponse response = commentService.updateComment(postId, commentId, request, user.getUserId());
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success(
+                        "댓글이 수정되었습니다.",
+                        response
+                ));
+    }
+
+    // 댓글 삭제
+    @DeleteMapping("/{commentId}")
+    public ResponseEntity<RsData<Void>> deleteComment(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        commentService.deleteComment(postId, commentId, user.getUserId());
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success(
+                   "댓글이 삭제되었습니다.",
+                   null
+                ));
+    }
 }
