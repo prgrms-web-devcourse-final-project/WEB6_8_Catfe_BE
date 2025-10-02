@@ -19,6 +19,11 @@ public class RoomResponse {
     private String createdBy;
     private LocalDateTime createdAt;
     
+    // WebRTC 설정 정보 (프론트엔드에서 UI 제어용)
+    private Boolean allowCamera;
+    private Boolean allowAudio;
+    private Boolean allowScreenShare;
+    
     public static RoomResponse from(Room room, long currentParticipants) {
         return RoomResponse.builder()
                 .roomId(room.getId())
@@ -29,6 +34,9 @@ public class RoomResponse {
                 .status(room.getStatus())
                 .createdBy(room.getCreatedBy().getNickname())
                 .createdAt(room.getCreatedAt())
+                .allowCamera(room.isAllowCamera())
+                .allowAudio(room.isAllowAudio())
+                .allowScreenShare(room.isAllowScreenShare())
                 .build();
     }
 }
