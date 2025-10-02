@@ -20,12 +20,12 @@ public class MyRoomResponse {
     private RoomRole myRole;
     private LocalDateTime createdAt;
     
-    public static MyRoomResponse of(Room room, RoomRole myRole) {
+    public static MyRoomResponse of(Room room, long currentParticipants, RoomRole myRole) {
         return MyRoomResponse.builder()
                 .roomId(room.getId())
                 .title(room.getTitle())
                 .description(room.getDescription() != null ? room.getDescription() : "")
-                .currentParticipants(room.getCurrentParticipants())
+                .currentParticipants((int) currentParticipants)  // Redis에서 조회한 실시간 값
                 .maxParticipants(room.getMaxParticipants())
                 .status(room.getStatus())
                 .myRole(myRole)

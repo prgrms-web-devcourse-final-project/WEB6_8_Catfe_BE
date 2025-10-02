@@ -25,14 +25,14 @@ public class RoomDetailResponse {
     private LocalDateTime createdAt;
     private List<RoomMemberResponse> members;
     
-    public static RoomDetailResponse of(Room room, List<RoomMemberResponse> members) {
+    public static RoomDetailResponse of(Room room, long currentParticipants, List<RoomMemberResponse> members) {
         return RoomDetailResponse.builder()
                 .roomId(room.getId())
                 .title(room.getTitle())
                 .description(room.getDescription() != null ? room.getDescription() : "")
                 .isPrivate(room.isPrivate())
                 .maxParticipants(room.getMaxParticipants())
-                .currentParticipants(room.getCurrentParticipants())
+                .currentParticipants((int) currentParticipants)  // Redis에서 조회한 실시간 값
                 .status(room.getStatus())
                 .allowCamera(room.isAllowCamera())
                 .allowAudio(room.isAllowAudio())
