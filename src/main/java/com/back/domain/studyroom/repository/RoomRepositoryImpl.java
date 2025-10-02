@@ -76,9 +76,9 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
 
     /**
      * 사용자가 참여 중인 방 조회
-     *  조회 조건:
-     * - 특정 사용자가 멤버로 등록된 방
-     * - 현재 온라인 상태인 방만
+     * 조회 조건:
+     * - 특정 사용자가 멤버로 등록된 방 (DB에 저장된 멤버십)
+     * TODO: Redis에서 온라인 상태 확인하도록 변경
      * @param userId 사용자 ID
      * @return 참여 중인 방 목록
      */
@@ -88,10 +88,7 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .selectFrom(room)
                 .leftJoin(room.createdBy, user).fetchJoin()  // N+1 방지
                 .join(room.roomMembers, roomMember)          // 멤버 조인
-                .where(
-                        roomMember.user.id.eq(userId),
-                        roomMember.isOnline.eq(true)
-                )
+                .where(roomMember.user.id.eq(userId))
                 .fetch();
     }
 

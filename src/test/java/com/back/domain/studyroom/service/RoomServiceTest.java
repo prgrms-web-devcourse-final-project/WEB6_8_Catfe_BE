@@ -185,7 +185,7 @@ class RoomServiceTest {
     @DisplayName("방 나가기 - 성공")
     void leaveRoom_Success() {
         // given
-        testMember.updateOnlineStatus(true);
+        // TODO: Redis 통합 후 온라인 상태 체크 추가 예정
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(testMember));
 
@@ -303,7 +303,7 @@ class RoomServiceTest {
     void terminateRoom_Success() {
         // given
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
-        willDoNothing().given(roomMemberRepository).disconnectAllMembers(1L);
+        // disconnectAllMembers는 더 이상 호출되지 않음 (Redis로 이관 예정)
 
         // when
         roomService.terminateRoom(1L, 1L);
@@ -311,7 +311,7 @@ class RoomServiceTest {
         // then
         assertThat(testRoom.getStatus()).isEqualTo(RoomStatus.TERMINATED);
         assertThat(testRoom.isActive()).isFalse();
-        verify(roomMemberRepository, times(1)).disconnectAllMembers(1L);
+        // verify 제거: disconnectAllMembers는 더 이상 호출되지 않음
     }
 
     @Test

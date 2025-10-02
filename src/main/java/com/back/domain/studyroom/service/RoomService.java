@@ -123,10 +123,8 @@ public class RoomService {
         Optional<RoomMember> existingMember = roomMemberRepository.findByRoomIdAndUserId(roomId, userId);
         if (existingMember.isPresent()) {
             RoomMember member = existingMember.get();
-            if (member.isOnline()) {
-                throw new CustomException(ErrorCode.ALREADY_JOINED_ROOM);
-            }
-            member.updateOnlineStatus(true);
+            // TODO: Redis에서 온라인 여부 확인하도록 변경
+            // 현재는 기존 멤버 재입장 허용
             room.incrementParticipant();
             return member;
         }
@@ -162,14 +160,12 @@ public class RoomService {
         RoomMember member = roomMemberRepository.findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
 
-        if (!member.isOnline()) {
-            return;
-        }
+        // TODO: Redis에서 온라인 상태 확인하도록 변경
 
         if (member.isHost()) {
             handleHostLeaving(room, member);
         } else {
-            member.leave();
+            // TODO: Redis에서 제거하도록 변경
             room.decrementParticipant();
         }
 
@@ -177,6 +173,7 @@ public class RoomService {
     }
 
     private void handleHostLeaving(Room room, RoomMember hostMember) {
+        // TODO: Redis에서 온라인 멤버 조회하도록 변경
         List<RoomMember> onlineMembers = roomMemberRepository.findOnlineMembersByRoomId(room.getId());
         
         List<RoomMember> otherOnlineMembers = onlineMembers.stream()
@@ -185,7 +182,7 @@ public class RoomService {
 
         if (otherOnlineMembers.isEmpty()) {
             room.terminate();
-            hostMember.leave();
+            // TODO: Redis에서 제거하도록 변경
             room.decrementParticipant();
         } else {
             RoomMember newHost = otherOnlineMembers.stream()
@@ -197,7 +194,7 @@ public class RoomService {
 
             if (newHost != null) {
                 newHost.updateRole(RoomRole.HOST);
-                hostMember.leave();
+                // TODO: Redis에서 제거하도록 변경
                 room.decrementParticipant();
                 
                 log.info("새 방장 지정 - RoomId: {}, NewHostId: {}", 
@@ -261,7 +258,8 @@ public class RoomService {
         }
 
         room.terminate();
-        roomMemberRepository.disconnectAllMembers(roomId);
+        // TODO: Redis에서 모든 멤버 제거하도록 변경
+        // roomMemberRepository.disconnectAllMembers(roomId);
         
         log.info("방 종료 완료 - RoomId: {}, UserId: {}", roomId, userId);
     }
@@ -337,7 +335,7 @@ public class RoomService {
             throw new CustomException(ErrorCode.CANNOT_KICK_HOST);
         }
 
-        targetMember.leave();
+        // TODO: Redis에서 제거하도록 변경
         
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
