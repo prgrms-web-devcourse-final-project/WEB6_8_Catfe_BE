@@ -26,4 +26,17 @@ public class PauseInfo {
 
     @Column(name = "restart_at")
     private LocalDateTime restartAt;
+
+    public static PauseInfo of(LocalDateTime pausedAt, LocalDateTime restartAt) {
+        PauseInfo pauseInfo = new PauseInfo();
+        pauseInfo.pausedAt = pausedAt;
+        pauseInfo.restartAt = restartAt;
+        return pauseInfo;
+    }
+
+    // 양방향 연관관계 설정
+    void assignStudyRecord(StudyRecord studyRecord) {
+        this.studyRecord = studyRecord;
+    }
+
 }
