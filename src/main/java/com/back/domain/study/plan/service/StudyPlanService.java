@@ -197,7 +197,8 @@ public class StudyPlanService {
 
             case WEEKLY:
                 if (repeatRule.getByDay() != null && !repeatRule.getByDay().isEmpty()) {
-                    // string으로 요일을 뽑아낸 뒤 enum으로 변환
+                    // string으로 요일을 뽑아낸 뒤 enum으로 변환.
+                    // 비교해서 포함되지 않으면 false
                     DayOfWeek targetDayOfWeek = DayOfWeek.valueOf(targetDate.getDayOfWeek().name().substring(0, 3));
                     if (!repeatRule.getByDay().contains(targetDayOfWeek)) {
                         return false;
