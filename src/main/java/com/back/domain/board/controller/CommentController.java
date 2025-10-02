@@ -50,4 +50,20 @@ public class CommentController implements CommentControllerDocs {
                         response
                 ));
     }
+
+    // 댓글 삭제
+    @DeleteMapping("/{commentId}")
+    public ResponseEntity<RsData<Void>> deleteComment(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        commentService.deleteComment(postId, commentId, user.getUserId());
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success(
+                   "댓글이 삭제되었습니다.",
+                   null
+                ));
+    }
 }

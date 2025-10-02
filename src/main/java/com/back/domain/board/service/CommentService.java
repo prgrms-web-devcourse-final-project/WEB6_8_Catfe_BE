@@ -74,4 +74,28 @@ public class CommentService {
         // 응답 반환
         return CommentResponse.from(comment);
     }
+
+    /**
+     * 댓글 삭제 서비스
+     * 1. Post 조회
+     * 2. Comment 조회
+     * 3. 작성자 검증
+     * 4. Comment 삭제
+     */
+    public void deleteComment(Long postId, Long commentId, Long userId) {
+        // Post 조회
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+
+        // Comment 조회
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_NOT_FOUND));
+
+        // 작성자 검증
+        if (!comment.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.COMMENT_NO_PERMISSION);
+        }
+
+        commentRepository.delete(comment);
+    }
 }
