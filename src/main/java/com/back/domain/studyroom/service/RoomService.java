@@ -52,17 +52,17 @@ public class RoomService {
 
      * 기본 설정:
      - 상태: WAITING (대기 중)
-     - 카메라/오디오/화면공유: application.yml의 설정값 사용
+     - WebRTC: useWebRTC 파라미터에 따라 카메라/오디오/화면공유 통합 제어
      - 참가자 수: 0명에서 시작 후 방장 추가로 1명
      */
     @Transactional
     public Room createRoom(String title, String description, boolean isPrivate, 
-                          String password, int maxParticipants, Long creatorId) {
+                          String password, int maxParticipants, Long creatorId, boolean useWebRTC) {
         
         User creator = userRepository.findById(creatorId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        Room room = Room.create(title, description, isPrivate, password, maxParticipants, creator, null);
+        Room room = Room.create(title, description, isPrivate, password, maxParticipants, creator, null, useWebRTC);
         Room savedRoom = roomRepository.save(room);
 
         RoomMember hostMember = RoomMember.createHost(savedRoom, creator);
@@ -70,8 +70,8 @@ public class RoomService {
 
         // savedRoom.incrementParticipant();  // Redis로 이관 - DB 업데이트 제거
         
-        log.info("방 생성 완료 - RoomId: {}, Title: {}, CreatorId: {}", 
-                savedRoom.getId(), title, creatorId);
+        log.info("방 생성 완료 - RoomId: {}, Title: {}, CreatorId: {}, WebRTC: {}", 
+                savedRoom.getId(), title, creatorId, useWebRTC);
         
         return savedRoom;
     }
@@ -127,7 +127,7 @@ public class RoomService {
             // TODO: Redis에서 온라인 여부 확인하도록 변경
             // 현재는 기존 멤버 재입장 허용
             // room.incrementParticipant();  // Redis로 이관 - DB 업데이트 제거
-            room.incrementParticipant();
+
             return member;
         }
 

@@ -168,9 +168,11 @@ public class Room extends BaseEntity {
      * 방 생성을 위한 정적 팩토리 메서드
      새로운 방을 생성할 때 모든 기본값을 설정 해주는 초기 메서드
      기본 상태에서 방장이 임의로 변형하고 싶은 부분만 변경해서 사용 가능
+     * @param useWebRTC WebRTC 사용 여부 (true: 카메라/오디오/화면공유 전체 활성화, false: 전체 비활성화)
      */
     public static Room create(String title, String description, boolean isPrivate, 
-                             String password, int maxParticipants, User creator, RoomTheme theme) {
+                             String password, int maxParticipants, User creator, RoomTheme theme,
+                             boolean useWebRTC) {
         Room room = new Room();
         room.title = title;
         room.description = description;
@@ -178,9 +180,9 @@ public class Room extends BaseEntity {
         room.password = password;
         room.maxParticipants = maxParticipants;
         room.isActive = true;  // 생성 시 기본적으로 활성화
-        room.allowCamera = true;  // 기본적으로 카메라 허용
-        room.allowAudio = true;   // 기본적으로 오디오 허용
-        room.allowScreenShare = true;  // 기본적으로 화면 공유 허용
+        room.allowCamera = useWebRTC;  // WebRTC 사용 여부에 따라 설정
+        room.allowAudio = useWebRTC;   // WebRTC 사용 여부에 따라 설정
+        room.allowScreenShare = useWebRTC;  // WebRTC 사용 여부에 따라 설정
         room.status = RoomStatus.WAITING;  // 생성 시 대기 상태
         room.currentParticipants = 0;  // 생성 시 참가자 0명
         room.createdBy = creator;

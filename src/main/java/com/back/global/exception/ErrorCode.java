@@ -52,6 +52,10 @@ public enum ErrorCode {
     TODO_NOT_FOUND(HttpStatus.NOT_FOUND, "TODO_001", "존재하지 않는 할 일입니다."),
     TODO_FORBIDDEN(HttpStatus.FORBIDDEN, "TODO_002", "할 일에 대한 접근 권한이 없습니다."),
 
+    // ======================== 알림 관련 ========================
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION_001", "존재하지 않는 알림입니다."),
+    NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NOTIFICATION_002", "알림에 대한 접근 권한이 없습니다."),
+    NOTIFICATION_ALREADY_READ(HttpStatus.BAD_REQUEST, "NOTIFICATION_003", "이미 읽은 알림입니다."),
 
     // ======================== 메시지 관련 ========================
     MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MESSAGE_001", "존재하지 않는 메시지입니다."),
