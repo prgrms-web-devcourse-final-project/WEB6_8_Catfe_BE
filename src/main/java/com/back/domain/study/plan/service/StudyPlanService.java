@@ -261,7 +261,7 @@ public class StudyPlanService {
             RepeatRuleEmbeddable modifiedRule = exception.getModifiedRepeatRule();
             StudyPlanResponse.RepeatRuleResponse newRepeatRule = new StudyPlanResponse.RepeatRuleResponse();
             newRepeatRule.setFrequency(modifiedRule.getFrequency());
-            newRepeatRule.setIntervalValue(modifiedRule.getIntervalValue());
+            newRepeatRule.setIntervalValue(modifiedRule.getRepeatInterval());
             newRepeatRule.setByDay(modifiedRule.getByDay());
             newRepeatRule.setUntilDate(modifiedRule.getUntilDate());
 
@@ -470,7 +470,7 @@ public class StudyPlanService {
     private RepeatRuleEmbeddable createRepeatRuleEmbeddable(StudyPlanRequest.RepeatRuleRequest request, LocalDateTime startDate) {
         RepeatRuleEmbeddable embeddable = new RepeatRuleEmbeddable();
         embeddable.setFrequency(request.getFrequency());
-        embeddable.setIntervalValue(request.getIntervalValue());
+        embeddable.setRepeatInterval(request.getIntervalValue());
 
         // byDay 자동 설정 (오버로딩된 메서드 사용)
         getByDayInWeekly(request, startDate, embeddable);
