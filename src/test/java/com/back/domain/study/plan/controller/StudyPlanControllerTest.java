@@ -135,7 +135,7 @@ class StudyPlanControllerTest {
     }
 
     @Test
-    @DisplayName("단발성 계획 생성")
+    @DisplayName("단발성 계획 생성 - 하나에만 밀리초가 들어가도 되는가?!")
     void t1() throws Exception {
 
         ResultActions resultActions = mvc.perform(post("/api/plans")
@@ -144,8 +144,8 @@ class StudyPlanControllerTest {
                         .content("""
                     {
                         "subject": "단발성 계획",
-                        "startDate": "2025-09-26T10:46:00",
-                        "endDate": "2025-09-26T11:46:00",
+                        "startDate": "2025-10-03T17:00:00",
+                        "endDate": "2025-10-03T18:30:00.000",
                         "color": "RED"
                     }
                     """))
@@ -162,14 +162,14 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 생성되었습니다."))
                 .andExpect(jsonPath("$.data.subject").value("단발성 계획"))
                 .andExpect(jsonPath("$.data.color").value("RED"))
-                .andExpect(jsonPath("$.data.startDate").value("2025-09-26T10:46:00"))
-                .andExpect(jsonPath("$.data.endDate").value("2025-09-26T11:46:00"))
+                .andExpect(jsonPath("$.data.startDate").value("2025-10-03T17:00:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-10-03T18:30:00"))
                 .andExpect(jsonPath("$.data.repeatRule").doesNotExist());
 
     }
 
     @Test
-    @DisplayName("단발성 계획 생성 - 밀리초까지 전송받는 경우")
+    @DisplayName("단발성 계획 생성 - 밀리초까지도 둘 다 전송받는 경우")
     void t1_1() throws Exception {
 
         ResultActions resultActions = mvc.perform(post("/api/plans")
@@ -178,12 +178,22 @@ class StudyPlanControllerTest {
                         .content("""
                     {
                         "subject": "단발성 계획 - 밀리초 포함",
-                        "startDate": "2025-09-21T05:00:00.000Z",
-                        "endDate": "2025-09-21T07:00:00.000Z",
+                        "startDate": "2025-09-21T05:00:00.000",
+                        "endDate": "2025-09-21T07:00:00.000",
                         "color": "RED"
                     }
                     """))
                 .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk()) // 200 OK인지 확인
+                .andExpect(handler().handlerType(StudyPlanController.class))
+                .andExpect(handler().methodName("createStudyPlan"))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("학습 계획이 성공적으로 생성되었습니다."))
+                .andExpect(jsonPath("$.data.startDate").value("2025-09-21T05:00:00"))
+                .andExpect(jsonPath("$.data.endDate").value("2025-09-21T07:00:00"))
+                .andExpect(jsonPath("$.data.repeatRule").doesNotExist());
 
     }
 
