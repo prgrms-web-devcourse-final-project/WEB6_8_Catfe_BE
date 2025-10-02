@@ -7,6 +7,7 @@ import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -17,4 +18,10 @@ public class PostCategory extends BaseEntity {
 
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PostCategoryMapping> postCategoryMappings;
+
+    // -------------------- 생성자 --------------------
+    public PostCategory(String name) {
+        this.name = name;
+        this.postCategoryMappings = new ArrayList<>();
+    }
 }
