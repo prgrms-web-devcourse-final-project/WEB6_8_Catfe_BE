@@ -1,7 +1,7 @@
 package com.back.domain.board.service;
 
-import com.back.domain.board.dto.PostRequest;
-import com.back.domain.board.dto.PostResponse;
+import com.back.domain.board.dto.*;
+import com.back.domain.board.entity.Post;
 import com.back.domain.board.entity.PostCategory;
 import com.back.domain.board.repository.PostCategoryRepository;
 import com.back.domain.board.repository.PostRepository;
@@ -15,6 +15,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -94,5 +97,79 @@ class PostServiceTest {
         assertThatThrownBy(() -> postService.createPost(request, user.getId()))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.CATEGORY_NOT_FOUND.getMessage());
+    }
+
+    // ====================== 게시글 조회 테스트 ======================
+
+
+    @Test
+    @DisplayName("게시글 다건 조회 성공 - 페이징 + 카테고리")
+    void getPosts_success() {
+        // given
+        User user = User.createUser("writer3", "writer3@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "작성자3", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        PostCategory c1 = new PostCategory("공지사항");
+        PostCategory c2 = new PostCategory("자유게시판");
+        postCategoryRepository.saveAll(List.of(c1, c2));
+
+        Post post1 = new Post(user, "첫 번째 글", "내용1");
+        post1.updateCategories(List.of(c1));
+        postRepository.save(post1);
+
+        Post post2 = new Post(user, "두 번째 글", "내용2");
+        post2.updateCategories(List.of(c2));
+        postRepository.save(post2);
+
+        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // when
+        PageResponse<PostListResponse> response = postService.getPosts(null, null, null, pageable);
+
+        // then
+        assertThat(response.items()).hasSize(2);
+        assertThat(response.items().get(0).getTitle()).isEqualTo("두 번째 글");
+        assertThat(response.items().get(1).getTitle()).isEqualTo("첫 번째 글");
+    }
+
+    @Test
+    @DisplayName("게시글 단건 조회 성공")
+    void getPost_success() {
+        // given
+        User user = User.createUser("reader", "reader@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "독자", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        PostCategory category = new PostCategory("공지");
+        postCategoryRepository.save(category);
+
+        Post post = new Post(user, "조회용 제목", "조회용 내용");
+        post.updateCategories(List.of(category));
+        postRepository.save(post);
+
+        // when
+        PostDetailResponse response = postService.getPost(post.getId());
+
+        // then
+        assertThat(response.postId()).isEqualTo(post.getId());
+        assertThat(response.title()).isEqualTo("조회용 제목");
+        assertThat(response.content()).isEqualTo("조회용 내용");
+        assertThat(response.author().nickname()).isEqualTo("독자");
+        assertThat(response.categories()).extracting("name").containsExactly("공지");
+        assertThat(response.likeCount()).isZero();
+        assertThat(response.bookmarkCount()).isZero();
+        assertThat(response.commentCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("게시글 단건 조회 실패 - 존재하지 않는 게시글")
+    void getPost_fail_postNotFound() {
+        // when & then
+        assertThatThrownBy(() -> postService.getPost(999L))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.POST_NOT_FOUND.getMessage());
     }
 }
