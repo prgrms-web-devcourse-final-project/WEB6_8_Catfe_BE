@@ -46,36 +46,58 @@ public class NotificationController {
 
         Notification notification = switch (request.targetType()) {
             case "USER" -> {
-                User targetUser = userRepository.findById(request.targetId())
+                // 수신자 조회
+                User receiver = userRepository.findById(request.targetId())
                         .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+                // 발신자 조회
+                User actor = userRepository.findById(request.actorId())
+                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
                 yield notificationService.createPersonalNotification(
-                        targetUser,
+                        receiver,
+                        actor,
                         request.title(),
                         request.message(),
                         request.redirectUrl()
                 );
             }
             case "ROOM" -> {
+                // 스터디룸 조회
                 Room room = roomRepository.findById(request.targetId())
                         .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+
+                // 발신자 조회
+                User actor = userRepository.findById(request.actorId())
+                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
                 yield notificationService.createRoomNotification(
                         room,
+                        actor,
                         request.title(),
                         request.message(),
                         request.redirectUrl()
                 );
             }
             case "COMMUNITY" -> {
-                User targetUser = userRepository.findById(request.targetId())
+                // 수신자 조회 (리뷰/게시글 작성자)
+                User receiver = userRepository.findById(request.targetId())
                         .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+                // 발신자 조회 (댓글/좋아요 작성자)
+                User actor = userRepository.findById(request.actorId())
+                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
                 yield notificationService.createCommunityNotification(
-                        targetUser,
+                        receiver,
+                        actor,
                         request.title(),
                         request.message(),
                         request.redirectUrl()
                 );
             }
             case "SYSTEM" -> {
+                // 시스템 알림은 발신자 없음
                 yield notificationService.createSystemNotification(
                         request.title(),
                         request.message(),

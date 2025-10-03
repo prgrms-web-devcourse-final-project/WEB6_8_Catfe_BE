@@ -15,6 +15,7 @@ public record NotificationItemDto(
         NotificationType notificationType,
         String targetUrl,
         boolean isRead,
+        ActorDto actor,
         LocalDateTime createdAt
 ) {
     public static NotificationItemDto from(Notification notification, boolean isRead) {
@@ -25,6 +26,7 @@ public record NotificationItemDto(
                 notification.getType(),
                 notification.getTargetUrl(),
                 isRead,
+                ActorDto.from(notification.getActor()),
                 notification.getCreatedAt()
         );
     }
