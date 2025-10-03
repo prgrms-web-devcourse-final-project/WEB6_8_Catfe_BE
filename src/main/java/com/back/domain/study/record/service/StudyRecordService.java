@@ -72,7 +72,6 @@ public class StudyRecordService {
                 room,
                 request.getStartTime(),
                 request.getEndTime(),
-                request.getDuration(),
                 pauseInfos
         );
 
@@ -96,6 +95,15 @@ public class StudyRecordService {
                                            java.time.LocalDateTime pauseStart, java.time.LocalDateTime pauseEnd) {
         if (pauseStart.isBefore(studyStart) || pauseEnd.isAfter(studyEnd)) {
             throw new CustomException(ErrorCode.INVALID_TIME_RANGE);
+        }
+    }
+    // 프론트에서 계산한 학습 시간과 백엔드에서 계산한 학습 시간의 차이가 5초 이상이면 예외 발생
+    private void validateDurationDifference(Long frontDuration, Long backendDuration) {
+        long difference = Math.abs(frontDuration - backendDuration);
+
+        // 5초 이상 차이나면 예외 발생
+        if (difference > 5) {
+            throw new CustomException(ErrorCode.DURATION_MISMATCH);
         }
     }
 }

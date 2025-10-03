@@ -45,7 +45,6 @@ public class StudyRecord extends BaseEntity {
 
     public static StudyRecord create(User user, StudyPlan studyPlan, Room room,
                                      LocalDateTime startTime, LocalDateTime endTime,
-                                     Long providedDuration,
                                      List<PauseInfo> pauseInfos) {
         StudyRecord record = new StudyRecord();
         record.user = user;
@@ -58,8 +57,8 @@ public class StudyRecord extends BaseEntity {
         if (pauseInfos != null && !pauseInfos.isEmpty()) {
             pauseInfos.forEach(record::addPauseInfo);
         }
-        // 총 학습 시간 계산 및 검증
-        record.calculateDuration(providedDuration);
+        // 총 학습 시간 계산 (검증은 서비스에서)
+        record.calculateDuration();
 
         return record;
     }
@@ -71,7 +70,7 @@ public class StudyRecord extends BaseEntity {
     }
 
     // 실제 학습 시간 계산 (전체 시간 - 일시정지 시간)
-    private void calculateDuration(Long providedDuration) {
+    private void calculateDuration() {
         // 전체 시간 계산 (초)
         long totalSeconds = Duration.between(startTime, endTime).getSeconds();
 
@@ -81,12 +80,6 @@ public class StudyRecord extends BaseEntity {
                 .mapToLong(pause -> Duration.between(pause.getPausedAt(), pause.getRestartAt()).getSeconds())
                 .sum();
 
-        Long calculatedDuration = totalSeconds - pausedSeconds;
-        // 제공된 duration과 계산된 duration이 5초 이상 차이나면 예외 처리
-        if ( Math.abs(calculatedDuration - providedDuration) > 5) {
-            throw new CustomException(ErrorCode.DURATION_MISMATCH);
-        }
-
-        this.duration = calculatedDuration;
+        this.duration = totalSeconds - pausedSeconds;;
     }
 }
