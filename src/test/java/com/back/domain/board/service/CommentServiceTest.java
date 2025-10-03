@@ -1,7 +1,9 @@
 package com.back.domain.board.service;
 
+import com.back.domain.board.dto.CommentListResponse;
 import com.back.domain.board.dto.CommentRequest;
 import com.back.domain.board.dto.CommentResponse;
+import com.back.domain.board.dto.PageResponse;
 import com.back.domain.board.entity.Comment;
 import com.back.domain.board.entity.Post;
 import com.back.domain.board.repository.CommentRepository;
@@ -16,6 +18,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,6 +102,52 @@ class CommentServiceTest {
         // when & then
         assertThatThrownBy(() -> commentService.createComment(999L, request, user.getId()))
                 .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.POST_NOT_FOUND.getMessage());
+    }
+
+    // ====================== 댓글 조회 테스트 ======================
+
+    @Test
+    @DisplayName("댓글 목록 조회 성공 - 부모 + 자식 포함")
+    void getComments_success() {
+        // given: 유저 + 게시글
+        User user = User.createUser("writer", "writer@example.com", "pwd");
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        // 부모 댓글
+        Comment parent = new Comment(post, user, "부모 댓글", null);
+        commentRepository.save(parent);
+
+        // 자식 댓글
+        Comment child = new Comment(post, user, "자식 댓글", parent);
+        commentRepository.save(child);
+
+        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "createdAt"));
+
+        // when
+        PageResponse<CommentListResponse> response = commentService.getComments(post.getId(), pageable);
+
+        // then
+        assertThat(response.items()).hasSize(1); // 부모만 페이징 결과
+        CommentListResponse parentRes = response.items().getFirst();
+        assertThat(parentRes.getContent()).isEqualTo("부모 댓글");
+        assertThat(parentRes.getChildren()).hasSize(1);
+        assertThat(parentRes.getChildren().getFirst().getContent()).isEqualTo("자식 댓글");
+    }
+
+    @Test
+    @DisplayName("댓글 목록 조회 실패 - 게시글 없음")
+    void getComments_fail_postNotFound() {
+        Pageable pageable = PageRequest.of(0, 10);
+
+        assertThatThrownBy(() ->
+                commentService.getComments(999L, pageable)
+        ).isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.POST_NOT_FOUND.getMessage());
     }
 
@@ -200,6 +251,7 @@ class CommentServiceTest {
         ).isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.COMMENT_NO_PERMISSION.getMessage());
     }
+
     // ====================== 댓글 삭제 테스트 ======================
 
     @Test
