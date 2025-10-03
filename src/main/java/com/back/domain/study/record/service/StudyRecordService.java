@@ -17,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -80,7 +82,24 @@ public class StudyRecordService {
         return StudyRecordResponseDto.from(saved);
     }
     // ===================== 조회 =====================
+    // 날짜별 학습 기록 조회
+    public List<StudyRecordResponseDto> getStudyRecordsByDate(Long userId, LocalDate date) {
+        // 유저 조회 및 권한 확인
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        // 오전 4시 기준 하루의 시작과 끝 설정
+        LocalDateTime startOfDay = date.atTime(4, 0, 0);
+        LocalDateTime endOfDay = date.plusDays(1).atTime(4, 0, 0);
+
+        // startTime이 해당 날짜 범위 내에 있는 기록 조회
+        List<StudyRecord> records = studyRecordRepository
+                .findByUserIdAndStartTimeBetween(userId, startOfDay, endOfDay);
+
+        return records.stream()
+                .map(StudyRecordResponseDto::from)
+                .collect(Collectors.toList());
+    }
 
     // ===================== 유틸 =====================
     // 시간 범위 검증
