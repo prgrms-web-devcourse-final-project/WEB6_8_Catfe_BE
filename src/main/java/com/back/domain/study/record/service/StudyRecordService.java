@@ -28,6 +28,7 @@ public class StudyRecordService {
     private final RoomRepository roomRepository;
     private final UserRepository userRepository;
 
+    // ===================== 생성 =====================
     // 학습 기록 생성 (종료 시 한 번에 기록)
     @Transactional
     public StudyRecordResponseDto createStudyRecord(Long userId, StudyRecordRequestDto request) {
@@ -50,7 +51,18 @@ public class StudyRecordService {
 
         // 일시정지 정보를 엔티티로 생성
         List<PauseInfo> pauseInfos = request.getPauseInfos().stream()
-                .map(dto -> PauseInfo.of(dto.getPausedAt(), dto.getRestartAt()))
+                .map(dto -> {
+                    // 일시정지 시간 범위 검증
+                    validateTimeRange(dto.getPausedAt(), dto.getRestartAt());
+                    // 일시정지가 학습 시간 내에 있는지 검증
+                    validatePauseInStudyRange(
+                            request.getStartTime(),
+                            request.getEndTime(),
+                            dto.getPausedAt(),
+                            dto.getRestartAt()
+                    );
+                    return PauseInfo.of(dto.getPausedAt(), dto.getRestartAt());
+                })
                 .collect(Collectors.toList());
 
         // 학습 기록 생성 (시작, 종료, 일시정지 정보 모두 포함)
@@ -60,13 +72,30 @@ public class StudyRecordService {
                 room,
                 request.getStartTime(),
                 request.getEndTime(),
+                request.getDuration(),
                 pauseInfos
         );
 
         // 저장
         StudyRecord saved = studyRecordRepository.save(record);
-        StudyRecordResponseDto response = StudyRecordResponseDto.from(saved);
+        return StudyRecordResponseDto.from(saved);
+    }
+    // ===================== 조회 =====================
 
-        return response;
+
+    // ===================== 유틸 =====================
+    // 시간 범위 검증
+    private void validateTimeRange(java.time.LocalDateTime startTime, java.time.LocalDateTime endTime) {
+        if (startTime.isAfter(endTime) || startTime.isEqual(endTime)) {
+            throw new CustomException(ErrorCode.INVALID_TIME_RANGE);
+        }
+    }
+
+    // 일시정지 시간이 학습 시간 내에 있는지 검증
+    private void validatePauseInStudyRange(java.time.LocalDateTime studyStart, java.time.LocalDateTime studyEnd,
+                                           java.time.LocalDateTime pauseStart, java.time.LocalDateTime pauseEnd) {
+        if (pauseStart.isBefore(studyStart) || pauseEnd.isAfter(studyEnd)) {
+            throw new CustomException(ErrorCode.INVALID_TIME_RANGE);
+        }
     }
 }

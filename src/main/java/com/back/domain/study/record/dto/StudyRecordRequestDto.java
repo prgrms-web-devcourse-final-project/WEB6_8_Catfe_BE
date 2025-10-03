@@ -14,6 +14,7 @@ public class StudyRecordRequestDto {
     private Long roomId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private Long duration;
     private List<PauseInfoRequestDto> pauseInfos = new ArrayList<>();
 
     @Getter

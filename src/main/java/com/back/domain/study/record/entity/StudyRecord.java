@@ -4,6 +4,8 @@ import com.back.domain.study.plan.entity.StudyPlan;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.user.entity.User;
 import com.back.global.entity.BaseEntity;
+import com.back.global.exception.CustomException;
+import com.back.global.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,13 +25,15 @@ public class StudyRecord extends BaseEntity {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "plan_id")
+    @JoinColumn(name = "plan_id", nullable = false)
     private StudyPlan studyPlan;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id")
     private Room room;
 
+    // 초 단위
+    @Column(nullable = false)
     private Long duration;
 
     private LocalDateTime startTime;
@@ -41,6 +45,7 @@ public class StudyRecord extends BaseEntity {
 
     public static StudyRecord create(User user, StudyPlan studyPlan, Room room,
                                      LocalDateTime startTime, LocalDateTime endTime,
+                                     Long providedDuration,
                                      List<PauseInfo> pauseInfos) {
         StudyRecord record = new StudyRecord();
         record.user = user;
@@ -53,8 +58,8 @@ public class StudyRecord extends BaseEntity {
         if (pauseInfos != null && !pauseInfos.isEmpty()) {
             pauseInfos.forEach(record::addPauseInfo);
         }
-        // 총 학습 시간 계산
-        record.calculateDuration();
+        // 총 학습 시간 계산 및 검증
+        record.calculateDuration(providedDuration);
 
         return record;
     }
@@ -66,7 +71,7 @@ public class StudyRecord extends BaseEntity {
     }
 
     // 실제 학습 시간 계산 (전체 시간 - 일시정지 시간)
-    private void calculateDuration() {
+    private void calculateDuration(Long providedDuration) {
         // 전체 시간 계산 (초)
         long totalSeconds = Duration.between(startTime, endTime).getSeconds();
 
@@ -76,6 +81,12 @@ public class StudyRecord extends BaseEntity {
                 .mapToLong(pause -> Duration.between(pause.getPausedAt(), pause.getRestartAt()).getSeconds())
                 .sum();
 
-        this.duration = totalSeconds - pausedSeconds;
+        Long calculatedDuration = totalSeconds - pausedSeconds;
+        // 제공된 duration과 계산된 duration이 5초 이상 차이나면 예외 처리
+        if ( Math.abs(calculatedDuration - providedDuration) > 5) {
+            throw new CustomException(ErrorCode.DURATION_MISMATCH);
+        }
+
+        this.duration = calculatedDuration;
     }
 }
