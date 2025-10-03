@@ -9,14 +9,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/records")
+@RequestMapping("/api/plans/records")
 public class StudyRecordController {
     private final StudyRecordService studyRecordService;
 
@@ -29,5 +29,15 @@ public class StudyRecordController {
         Long userId = user.getUserId();
         StudyRecordResponseDto response = studyRecordService.createStudyRecord(userId, request);
         return ResponseEntity.ok(RsData.success("학습 기록이 생성되었습니다.", response));
+    }
+
+    @GetMapping("date/{date}")
+    public ResponseEntity<RsData<List<StudyRecordResponseDto>>> getDailyStudyRecord(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable("date") LocalDate date
+    ) {
+        Long userId = user.getUserId();
+        List<StudyRecordResponseDto> response = studyRecordService.getStudyRecordsByDate(userId, date);
+        return ResponseEntity.ok(RsData.success("일별 학습 기록 조회 성공", response));
     }
 }
