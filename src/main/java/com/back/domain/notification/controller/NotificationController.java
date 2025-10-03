@@ -36,13 +36,35 @@ public class NotificationController {
     private final UserRepository userRepository;
     private final RoomRepository roomRepository;
 
-    @Operation(summary = "알림 전송", description = "USER/ROOM/COMMUNITY/SYSTEM 타입별 알림 생성 및 전송")
+    @Operation(
+            summary = "알림 전송",
+            description = "USER/ROOM/COMMUNITY/SYSTEM 타입별 알림 생성 및 전송\n\n" +
+                    "- USER: 개인 알림 (actorId, targetId 필수)\n" +
+                    "- ROOM: 스터디룸 알림 (actorId, targetId(roomId) 필수)\n" +
+                    "- COMMUNITY: 커뮤니티 알림 (actorId, targetId 필수)\n" +
+                    "- SYSTEM: 시스템 전체 알림 (actorId, targetId 불필요)"
+    )
     @PostMapping
     public ResponseEntity<RsData<NotificationResponse>> createNotification(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody NotificationCreateRequest request) {
 
         log.info("알림 전송 요청 - 타입: {}, 제목: {}", request.targetType(), request.title());
+
+        // targetType 검증
+        if (!isValidTargetType(request.targetType())) {
+            throw new CustomException(ErrorCode.NOTIFICATION_INVALID_TARGET_TYPE);
+        }
+
+        // SYSTEM이 아닌 경우 필수 필드 검증
+        if (!"SYSTEM".equals(request.targetType())) {
+            if (request.actorId() == null) {
+                throw new CustomException(ErrorCode.NOTIFICATION_MISSING_ACTOR);
+            }
+            if (request.targetId() == null) {
+                throw new CustomException(ErrorCode.NOTIFICATION_MISSING_TARGET);
+            }
+        }
 
         Notification notification = switch (request.targetType()) {
             case "USER" -> {
@@ -97,14 +119,14 @@ public class NotificationController {
                 );
             }
             case "SYSTEM" -> {
-                // 시스템 알림은 발신자 없음
+                // 시스템 알림은 발신자/수신자 없음
                 yield notificationService.createSystemNotification(
                         request.title(),
                         request.message(),
                         request.redirectUrl()
                 );
             }
-            default -> throw new IllegalArgumentException("유효하지 않은 알림 타입입니다: " + request.targetType());
+            default -> throw new CustomException(ErrorCode.NOTIFICATION_INVALID_TARGET_TYPE);
         };
 
         NotificationResponse response = NotificationResponse.from(notification);
@@ -112,7 +134,12 @@ public class NotificationController {
         return ResponseEntity.ok(RsData.success("알림 전송 성공", response));
     }
 
-    @Operation(summary = "알림 목록 조회", description = "사용자의 알림 목록 조회 (페이징)")
+    @Operation(
+            summary = "알림 목록 조회",
+            description = "사용자의 알림 목록 조회 (페이징)\n\n" +
+                    "- unreadOnly=true: 읽지 않은 알림만\n" +
+                    "- unreadOnly=false: 모든 알림"
+    )
     @GetMapping
     public ResponseEntity<RsData<NotificationListResponse>> getNotifications(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -143,7 +170,11 @@ public class NotificationController {
         return ResponseEntity.ok(RsData.success("알림 목록 조회 성공", response));
     }
 
-    @Operation(summary = "알림 읽음 처리", description = "특정 알림을 읽음 상태로 변경")
+    @Operation(
+            summary = "알림 읽음 처리",
+            description = "특정 알림을 읽음 상태로 변경\n\n" +
+                    "이미 읽은 알림일 경우 NOTIFICATION_ALREADY_READ 에러 반환"
+    )
     @PutMapping("/{notificationId}/read")
     public ResponseEntity<RsData<NotificationResponse>> markAsRead(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -157,12 +188,19 @@ public class NotificationController {
         notificationService.markAsRead(notificationId, user);
 
         Notification notification = notificationService.getNotification(notificationId);
-        NotificationResponse response = NotificationResponse.from(notification);
+        boolean isRead = notificationService.isNotificationRead(notificationId, user.getId());
+
+        // readAt 조회 (NotificationRead에서)
+        NotificationResponse response = NotificationResponse.from(notification, isRead,
+                isRead ? java.time.LocalDateTime.now() : null);
 
         return ResponseEntity.ok(RsData.success("알림 읽음 처리 성공", response));
     }
 
-    @Operation(summary = "모든 알림 읽음 처리", description = "사용자의 읽지 않은 모든 알림을 읽음 상태로 변경")
+    @Operation(
+            summary = "모든 알림 읽음 처리",
+            description = "사용자의 읽지 않은 모든 알림을 읽음 상태로 변경"
+    )
     @PutMapping("/read-all")
     public ResponseEntity<RsData<Void>> markAllAsRead(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -175,5 +213,15 @@ public class NotificationController {
         notificationService.markMultipleAsRead(userDetails.getUserId(), user);
 
         return ResponseEntity.ok(RsData.success("전체 알림 읽음 처리 성공"));
+    }
+
+    // ==================== 헬퍼 메서드 ====================
+
+    private boolean isValidTargetType(String targetType) {
+        return targetType != null &&
+                (targetType.equals("USER") ||
+                        targetType.equals("ROOM") ||
+                        targetType.equals("COMMUNITY") ||
+                        targetType.equals("SYSTEM"));
     }
 }
