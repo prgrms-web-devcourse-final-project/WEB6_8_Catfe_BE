@@ -92,9 +92,9 @@ public class StudyRecordService {
         LocalDateTime startOfDay = date.atTime(4, 0, 0);
         LocalDateTime endOfDay = date.plusDays(1).atTime(4, 0, 0);
 
-        // startTime이 해당 날짜 범위 내에 있는 기록 조회
+        // 시작~종료 시간을 포함하는 일자의 학습 기록 조회
         List<StudyRecord> records = studyRecordRepository
-                .findByUserIdAndStartTimeBetween(userId, startOfDay, endOfDay);
+                .findByUserIdAndDateRange(userId, startOfDay, endOfDay);
 
         return records.stream()
                 .map(StudyRecordResponseDto::from)
