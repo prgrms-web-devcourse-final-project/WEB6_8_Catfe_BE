@@ -3,7 +3,9 @@ package com.back.domain.studyroom.controller;
 import com.back.domain.studyroom.dto.*;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomMember;
+import com.back.domain.studyroom.entity.RoomRole;
 import com.back.domain.studyroom.service.RoomService;
+import com.back.domain.user.entity.User;
 import com.back.global.common.dto.RsData;
 import com.back.global.security.user.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -316,5 +318,45 @@ public class RoomController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success("인기 방 목록 조회 완료", response));
+    }
+
+    @PutMapping("/{roomId}/members/{userId}/role")
+    @Operation(
+        summary = "멤버 역할 변경",
+        description = "방 멤버의 역할을 변경합니다. 방장만 실행 가능합니다. VISITOR를 포함한 모든 사용자의 역할을 변경할 수 있으며, HOST로 변경 시 기존 방장은 자동으로 MEMBER로 강등됩니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "역할 변경 성공"),
+        @ApiResponse(responseCode = "400", description = "자신의 역할은 변경 불가"),
+        @ApiResponse(responseCode = "403", description = "방장 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방 또는 사용자"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<ChangeRoleResponse>> changeUserRole(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
+            @Parameter(description = "대상 사용자 ID", required = true) @PathVariable Long userId,
+            @Valid @RequestBody ChangeRoleRequest request) {
+
+        Long currentUserId = currentUser.getUserId();
+
+        // 변경 전 역할 조회
+        RoomRole oldRole = roomService.getUserRoomRole(roomId, userId);
+
+        // 역할 변경
+        roomService.changeUserRole(roomId, userId, request.getNewRole(), currentUserId);
+
+        // 사용자 정보 조회
+        User targetUser = roomService.getUserById(userId);
+
+        ChangeRoleResponse response = ChangeRoleResponse.of(
+                userId, 
+                targetUser.getNickname(), 
+                oldRole, 
+                request.getNewRole()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("역할 변경 완료", response));
     }
 }

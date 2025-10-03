@@ -290,7 +290,7 @@ class RoomChatApiControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("ROOM_012"))
+                .andExpect(jsonPath("$.code").value("ROOM_013"))
                 .andExpect(jsonPath("$.message").value("채팅 삭제 권한이 없습니다. 방장 또는 부방장만 가능합니다."));
     }
 
@@ -364,7 +364,7 @@ class RoomChatApiControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("ROOM_013"))
+                .andExpect(jsonPath("$.code").value("ROOM_014"))
                 .andExpect(jsonPath("$.message").value("삭제 확인 메시지가 일치하지 않습니다."));
     }
 
