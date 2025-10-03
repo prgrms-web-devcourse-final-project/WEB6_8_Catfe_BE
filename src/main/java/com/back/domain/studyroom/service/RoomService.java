@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  - 방 생성, 입장, 퇴장 로직 처리
@@ -40,7 +41,7 @@ public class RoomService {
     private final RoomMemberRepository roomMemberRepository;
     private final UserRepository userRepository;
     private final StudyRoomProperties properties;
-    private final com.back.global.websocket.service.WebSocketSessionManager sessionManager;
+    private final RoomRedisService roomRedisService;
 
     /**
      * 방 생성 메서드
@@ -82,13 +83,13 @@ public class RoomService {
      * 입장 검증 과정:
      * 1. 방 존재 및 활성 상태 확인 (비관적 락으로 동시성 제어)
      * 2. 방 상태가 입장 가능한지 확인 (WAITING, ACTIVE)
-     * 3. 정원 초과 여부 확인
+     * 3. 정원 초과 여부 확인 (Redis 기반)
      * 4. 비공개 방인 경우 비밀번호 확인
      * 5. 이미 참여 중인지 확인 (재입장 처리)
 
-     * 멤버 등록: (현재는 visitor로 등록이지만 추후 역할 부여가 안된 인원을 visitor로 띄우는 식으로 저장 데이터 줄일 예정)
-     * - 신규 사용자: VISITOR 역할로 등록
-     * - 기존 사용자: 온라인 상태로 변경
+     * 멤버 등록:
+     * - 신규 사용자 (DB에 없음): VISITOR로 입장 → DB 저장 안함, Redis에만 등록
+     * - 기존 멤버 (DB에 있음): 저장된 역할로 재입장 → Redis에만 등록
      * 
      * 동시성 제어: 비관적 락(PESSIMISTIC_WRITE)으로 정원 초과 방지
      */
@@ -107,10 +108,15 @@ public class RoomService {
             throw new CustomException(ErrorCode.ROOM_TERMINATED);
         }
 
+        // Redis에서 현재 온라인 사용자 수 조회
+        long currentOnlineCount = roomRedisService.getRoomUserCount(roomId);
+
+        // 정원 확인 (Redis 기반)
+        if (currentOnlineCount >= room.getMaxParticipants()) {
+            throw new CustomException(ErrorCode.ROOM_FULL);
+        }
+
         if (!room.canJoin()) {
-            if (room.isFull()) {
-                throw new CustomException(ErrorCode.ROOM_FULL);
-            }
             throw new CustomException(ErrorCode.ROOM_INACTIVE);
         }
 
@@ -123,35 +129,41 @@ public class RoomService {
 
         Optional<RoomMember> existingMember = roomMemberRepository.findByRoomIdAndUserId(roomId, userId);
         if (existingMember.isPresent()) {
+            // 기존 멤버 재입장: DB에 있는 역할 그대로 사용
             RoomMember member = existingMember.get();
-            // TODO: Redis에서 온라인 여부 확인하도록 변경
-            // 현재는 기존 멤버 재입장 허용
-            // room.incrementParticipant();  // Redis로 이관 - DB 업데이트 제거
-
+            
+            // Redis에 온라인 등록
+            roomRedisService.enterRoom(userId, roomId);
+            
+            log.info("기존 멤버 재입장 - RoomId: {}, UserId: {}, Role: {}", 
+                    roomId, userId, member.getRole());
+            
             return member;
         }
 
-        RoomMember newMember = RoomMember.createVisitor(room, user);
-        RoomMember savedMember = roomMemberRepository.save(newMember);
-
-        // room.incrementParticipant();  // Redis로 이관 - DB 업데이트 제거
+        // 신규 입장자: VISITOR로 입장 (DB 저장 안함!)
+        RoomMember visitorMember = RoomMember.createVisitor(room, user);
         
-        log.info("방 입장 완료 - RoomId: {}, UserId: {}, Role: {}", 
-                roomId, userId, newMember.getRole());
+        // Redis에만 온라인 등록
+        roomRedisService.enterRoom(userId, roomId);
         
-        return savedMember;
+        log.info("신규 입장 (VISITOR) - RoomId: {}, UserId: {}, DB 저장 안함", roomId, userId);
+        
+        // 메모리상 객체 반환 (DB에 저장되지 않음)
+        return visitorMember;
     }
 
     /**
      * 방 나가기 메서드
      * 
-     * 🚪 퇴장 처리:
-     * - 일반 멤버: 단순 오프라인 처리 및 참가자 수 감소
-     * - 방장: 특별 처리 로직 실행 (handleHostLeaving)
+     *  퇴장 처리:
+     * - VISITOR: Redis에서만 제거 (DB에 없음)
+     * - MEMBER 이상: Redis에서 제거 + DB 멤버십은 유지 (재입장 시 역할 유지)
+     * - 방장: Redis에서 제거 + DB 멤버십 유지 + 방은 계속 존재
      * 
-     * 🔄 방장 퇴장 시 처리:
-     * - 다른 멤버가 없으면 → 방 자동 종료
-     * - 다른 멤버가 있으면 → 새 방장 자동 위임
+     *  방은 참가자 0명이어도 유지:
+     * - 방장이 오프라인이어도 다른 사람들이 입장 가능
+     * - 방 종료는 오직 방장만 명시적으로 가능
      */
     @Transactional
     public void leaveRoom(Long roomId, Long userId) {
@@ -159,50 +171,10 @@ public class RoomService {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        RoomMember member = roomMemberRepository.findByRoomIdAndUserId(roomId, userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
-
-        // TODO: Redis에서 온라인 상태 확인하도록 변경
-
-        if (member.isHost()) {
-            handleHostLeaving(room, member);
-        } else {
-            // TODO: Redis에서 제거하도록 변경
-            // room.decrementParticipant();  // Redis로 이관 - DB 업데이트 제거
-        }
+        // Redis에서 퇴장 처리 (모든 사용자)
+        roomRedisService.exitRoom(userId, roomId);
 
         log.info("방 퇴장 완료 - RoomId: {}, UserId: {}", roomId, userId);
-    }
-
-    private void handleHostLeaving(Room room, RoomMember hostMember) {
-        // TODO: Redis에서 온라인 멤버 조회하도록 변경
-        List<RoomMember> onlineMembers = roomMemberRepository.findOnlineMembersByRoomId(room.getId());
-        
-        List<RoomMember> otherOnlineMembers = onlineMembers.stream()
-                .filter(m -> !m.getId().equals(hostMember.getId()))
-                .toList();
-
-        if (otherOnlineMembers.isEmpty()) {
-            room.terminate();
-            // TODO: Redis에서 제거하도록 변경
-            // room.decrementParticipant();  // Redis로 이관 - DB 업데이트 제거
-        } else {
-            RoomMember newHost = otherOnlineMembers.stream()
-                    .filter(m -> m.getRole() == RoomRole.SUB_HOST)
-                    .findFirst()
-                    .orElse(otherOnlineMembers.stream()
-                            .min((m1, m2) -> m1.getJoinedAt().compareTo(m2.getJoinedAt()))
-                            .orElse(null));
-
-            if (newHost != null) {
-                newHost.updateRole(RoomRole.HOST);
-                // TODO: Redis에서 제거하도록 변경
-                // room.decrementParticipant();  // Redis로 이관 - DB 업데이트 제거
-                
-                log.info("새 방장 지정 - RoomId: {}, NewHostId: {}", 
-                        room.getId(), newHost.getUser().getId());
-            }
-        }
     }
 
     public Page<Room> getJoinableRooms(Pageable pageable) {
@@ -260,35 +232,93 @@ public class RoomService {
         }
 
         room.terminate();
-        // TODO: Redis에서 모든 멤버 제거하도록 변경
-        // roomMemberRepository.disconnectAllMembers(roomId);
         
-        log.info("방 종료 완료 - RoomId: {}, UserId: {}", roomId, userId);
+        // Redis에서 모든 온라인 사용자 제거
+        Set<Long> onlineUserIds = roomRedisService.getRoomUsers(roomId);
+        for (Long onlineUserId : onlineUserIds) {
+            roomRedisService.exitRoom(onlineUserId, roomId);
+        }
+        
+        log.info("방 종료 완료 - RoomId: {}, UserId: {}, 퇴장 처리: {}명", 
+                roomId, userId, onlineUserIds.size());
     }
 
+    /**
+     * 멤버 역할 변경
+     * 1. 방장만 역할 변경 가능
+     * 2. VISITOR → 모든 역할 승격 가능 (HOST 포함)
+     * 3. HOST로 변경 시:
+     *    - 대상자가 DB에 없으면 DB에 저장
+     *    - 기존 방장은 자동으로 MEMBER로 강등
+     *    - 본인은 방장으로 변경 불가
+     * 4. 방장 자신의 역할은 변경 불가
+     * @param roomId 방 ID
+     * @param targetUserId 대상 사용자 ID
+     * @param newRole 새 역할
+     * @param requesterId 요청자 ID (방장)
+     */
     @Transactional
     public void changeUserRole(Long roomId, Long targetUserId, RoomRole newRole, Long requesterId) {
         
+        // 1. 요청자가 방장인지 확인
         RoomMember requester = roomMemberRepository.findByRoomIdAndUserId(roomId, requesterId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
 
-        if (!requester.canManageRoom()) {
+        if (!requester.isHost()) {
             throw new CustomException(ErrorCode.NOT_ROOM_MANAGER);
         }
 
-        RoomMember targetMember = roomMemberRepository.findByRoomIdAndUserId(roomId, targetUserId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
-
-        if (targetMember.isHost()) {
-            throw new CustomException(ErrorCode.CANNOT_CHANGE_HOST_ROLE);
+        // 2. 본인을 변경하려는 경우 (방장 → 다른 역할 불가)
+        if (targetUserId.equals(requesterId)) {
+            throw new CustomException(ErrorCode.CANNOT_CHANGE_OWN_ROLE);
         }
 
-        targetMember.updateRole(newRole);
+        // 3. 대상자 확인 (DB 조회 - VISITOR는 DB에 없을 수 있음)
+        Optional<RoomMember> targetMemberOpt = roomMemberRepository.findByRoomIdAndUserId(roomId, targetUserId);
         
-        log.info("멤버 권한 변경 완료 - RoomId: {}, TargetUserId: {}, NewRole: {}, RequesterId: {}", 
-                roomId, targetUserId, newRole, requesterId);
+        // 4. HOST로 변경하는 경우 - 기존 방장 강등
+        if (newRole == RoomRole.HOST) {
+            // 기존 방장을 MEMBER로 강등
+            requester.updateRole(RoomRole.MEMBER);
+            log.info("기존 방장 강등 - RoomId: {}, UserId: {}, MEMBER로 변경", roomId, requesterId);
+        }
+
+        // 5. 대상자 처리
+        if (targetMemberOpt.isPresent()) {
+            // 기존 멤버 - 역할만 업데이트
+            RoomMember targetMember = targetMemberOpt.get();
+            targetMember.updateRole(newRole);
+            
+            log.info("멤버 권한 변경 - RoomId: {}, TargetUserId: {}, NewRole: {}", 
+                    roomId, targetUserId, newRole);
+        } else {
+            // VISITOR → 승격 시 DB에 저장
+            Room room = roomRepository.findById(roomId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+            
+            User targetUser = userRepository.findById(targetUserId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+            
+            // DB에 저장 (처음으로!)
+            RoomMember newMember = RoomMember.create(room, targetUser, newRole);
+            roomMemberRepository.save(newMember);
+            
+            log.info("VISITOR 승격 (DB 저장) - RoomId: {}, UserId: {}, NewRole: {}", 
+                    roomId, targetUserId, newRole);
+        }
     }
 
+    /**
+     * 방 멤버 목록 조회 (Redis + DB 조합)
+     * 1. Redis에서 온라인 사용자 ID 조회
+     * 2. DB에서 해당 사용자들의 멤버십 조회 (IN 절)
+     * 3. DB에 없는 사용자 = VISITOR
+     * 4. User 정보와 조합하여 반환
+     * 
+     * @param roomId 방 ID
+     * @param userId 요청자 ID (권한 체크용)
+     * @return 온라인 멤버 목록 (VISITOR 포함)
+     */
     public List<RoomMember> getRoomMembers(Long roomId, Long userId) {
         
         Room room = roomRepository.findById(roomId)
@@ -301,13 +331,57 @@ public class RoomService {
             }
         }
 
-        return roomMemberRepository.findOnlineMembersByRoomId(roomId);
+        // 1. Redis에서 온라인 사용자 ID 조회
+        Set<Long> onlineUserIds = roomRedisService.getRoomUsers(roomId);
+        
+        if (onlineUserIds.isEmpty()) {
+            return List.of();
+        }
+
+        // 2. DB에서 멤버십 조회 (MEMBER 이상만 DB에 있음)
+        List<RoomMember> dbMembers = roomMemberRepository.findByRoomIdAndUserIdIn(roomId, onlineUserIds);
+        
+        // 3. DB에 있는 userId Set 생성
+        Set<Long> dbUserIds = dbMembers.stream()
+                .map(m -> m.getUser().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        
+        // 4. DB에 없는 userId = VISITOR들
+        Set<Long> visitorUserIds = onlineUserIds.stream()
+                .filter(id -> !dbUserIds.contains(id))
+                .collect(java.util.stream.Collectors.toSet());
+        
+        // 5. VISITOR User 정보 조회 (일괄 조회)
+        if (!visitorUserIds.isEmpty()) {
+            List<User> visitorUsers = userRepository.findAllById(visitorUserIds);
+            
+            // 6. VISITOR RoomMember 객체 생성 (메모리상)
+            List<RoomMember> visitorMembers = visitorUsers.stream()
+                    .map(user -> RoomMember.createVisitor(room, user))
+                    .collect(java.util.stream.Collectors.toList());
+            
+            // 7. DB 멤버 + VISITOR 합치기
+            List<RoomMember> allMembers = new java.util.ArrayList<>(dbMembers);
+            allMembers.addAll(visitorMembers);
+            
+            return allMembers;
+        }
+        
+        return dbMembers;
     }
 
     public RoomRole getUserRoomRole(Long roomId, Long userId) {
         return roomMemberRepository.findByRoomIdAndUserId(roomId, userId)
                 .map(RoomMember::getRole)
                 .orElse(RoomRole.VISITOR);
+    }
+
+    /**
+     * 사용자 정보 조회 (역할 변경 응답용)
+     */
+    public User getUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
     /**
@@ -337,11 +411,8 @@ public class RoomService {
             throw new CustomException(ErrorCode.CANNOT_KICK_HOST);
         }
 
-        // TODO: Redis에서 제거하도록 변경
-        
-        Room room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-        // room.decrementParticipant();  // Redis로 이관 - DB 업데이트 제거
+        // Redis에서 제거 (강제 퇴장)
+        roomRedisService.exitRoom(targetUserId, roomId);
         
         log.info("멤버 추방 완료 - RoomId: {}, TargetUserId: {}, RequesterId: {}", 
                 roomId, targetUserId, requesterId);
@@ -353,7 +424,7 @@ public class RoomService {
      * RoomResponse 생성 (Redis에서 실시간 참가자 수 조회)
      */
     public com.back.domain.studyroom.dto.RoomResponse toRoomResponse(Room room) {
-        long onlineCount = sessionManager.getRoomOnlineUserCount(room.getId());
+        long onlineCount = roomRedisService.getRoomUserCount(room.getId());
         return com.back.domain.studyroom.dto.RoomResponse.from(room, onlineCount);
     }
 
@@ -365,7 +436,7 @@ public class RoomService {
                 .map(Room::getId)
                 .collect(java.util.stream.Collectors.toList());
         
-        java.util.Map<Long, Long> participantCounts = sessionManager.getBulkRoomOnlineUserCounts(roomIds);
+        java.util.Map<Long, Long> participantCounts = roomRedisService.getBulkRoomOnlineUserCounts(roomIds);
         
         return rooms.stream()
                 .map(room -> com.back.domain.studyroom.dto.RoomResponse.from(
@@ -381,7 +452,7 @@ public class RoomService {
     public com.back.domain.studyroom.dto.RoomDetailResponse toRoomDetailResponse(
             Room room, 
             java.util.List<com.back.domain.studyroom.entity.RoomMember> members) {
-        long onlineCount = sessionManager.getRoomOnlineUserCount(room.getId());
+        long onlineCount = roomRedisService.getRoomUserCount(room.getId());
         
         java.util.List<com.back.domain.studyroom.dto.RoomMemberResponse> memberResponses = members.stream()
                 .map(com.back.domain.studyroom.dto.RoomMemberResponse::from)
@@ -394,7 +465,7 @@ public class RoomService {
      * MyRoomResponse 생성 (Redis에서 실시간 참가자 수 조회)
      */
     public com.back.domain.studyroom.dto.MyRoomResponse toMyRoomResponse(Room room, RoomRole myRole) {
-        long onlineCount = sessionManager.getRoomOnlineUserCount(room.getId());
+        long onlineCount = roomRedisService.getRoomUserCount(room.getId());
         return com.back.domain.studyroom.dto.MyRoomResponse.of(room, onlineCount, myRole);
     }
 
@@ -408,7 +479,7 @@ public class RoomService {
                 .map(Room::getId)
                 .collect(java.util.stream.Collectors.toList());
         
-        java.util.Map<Long, Long> participantCounts = sessionManager.getBulkRoomOnlineUserCounts(roomIds);
+        java.util.Map<Long, Long> participantCounts = roomRedisService.getBulkRoomOnlineUserCounts(roomIds);
         
         return rooms.stream()
                 .map(room -> {

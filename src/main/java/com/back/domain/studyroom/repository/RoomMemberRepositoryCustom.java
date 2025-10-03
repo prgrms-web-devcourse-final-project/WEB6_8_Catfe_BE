@@ -65,6 +65,15 @@ public interface RoomMemberRepositoryCustom {
     boolean existsByRoomIdAndUserId(Long roomId, Long userId);
 
     /**
+     * 여러 사용자의 멤버십 일괄 조회 (IN 절)
+     * Redis에서 온라인 사용자 목록을 받아서 DB 멤버십 조회 시 사용
+     * @param roomId 방 ID
+     * @param userIds 사용자 ID 목록
+     * @return 멤버십 목록 (MEMBER 이상만 DB에 있음)
+     */
+    List<RoomMember> findByRoomIdAndUserIdIn(Long roomId, java.util.Set<Long> userIds);
+
+    /**
      * 특정 역할의 멤버 수 조회
      * TODO: Redis 기반으로 변경 예정
      */
