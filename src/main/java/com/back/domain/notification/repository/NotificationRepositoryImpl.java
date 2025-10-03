@@ -4,9 +4,6 @@ import com.back.domain.notification.entity.Notification;
 import com.back.domain.notification.entity.NotificationType;
 import com.back.domain.notification.entity.QNotification;
 import com.back.domain.notification.entity.QNotificationRead;
-import com.back.domain.studyroom.entity.QRoomMember;
-import com.querydsl.core.types.dsl.BooleanExpression;
-import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,30 +17,21 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
 
     private final JPAQueryFactory queryFactory;
 
+    /**
+     * 특정 유저의 알림 목록 조회 (개인 알림 + 시스템 알림)
+     * - 수신자가 해당 유저인 알림
+     * - 또는 시스템 알림 (모든 유저에게 표시)
+     */
     @Override
     public Page<Notification> findByUserIdOrSystemType(Long userId, Pageable pageable) {
         QNotification notification = QNotification.notification;
-        QRoomMember roomMember = QRoomMember.roomMember;
-
-        // user_id가 일치하는 알림 (PERSONAL + COMMUNITY)
-        BooleanExpression condition = notification.user.id.eq(userId)
-                // 시스템 알림 (모두에게)
-                .or(notification.type.eq(NotificationType.SYSTEM))
-                // 내가 멤버인 스터디룸의 알림
-                .or(
-                        notification.type.eq(NotificationType.ROOM)
-                                .and(notification.room.id.in(
-                                        JPAExpressions
-                                                // 서브쿼리 : 내가 멤버인 방 ID들
-                                                .select(roomMember.room.id)
-                                                .from(roomMember)
-                                                .where(roomMember.user.id.eq(userId))
-                                ))
-                );
 
         List<Notification> content = queryFactory
                 .selectFrom(notification)
-                .where(condition)
+                .where(
+                        notification.receiver.id.eq(userId)
+                                .or(notification.type.eq(NotificationType.SYSTEM))
+                )
                 .orderBy(notification.createdAt.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -52,29 +40,24 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
         Long total = queryFactory
                 .select(notification.count())
                 .from(notification)
-                .where(condition)
+                .where(
+                        notification.receiver.id.eq(userId)
+                                .or(notification.type.eq(NotificationType.SYSTEM))
+                )
                 .fetchOne();
 
         return new PageImpl<>(content, pageable, total != null ? total : 0L);
     }
 
+    /**
+     * 특정 유저의 읽지 않은 알림 개수 조회
+     * - NotificationRead 테이블에 읽음 기록이 없는 알림만 카운트
+     * - LEFT JOIN으로 읽음 기록 확인 후, 읽음 기록이 null인 경우만 집계
+     */
     @Override
     public long countUnreadByUserId(Long userId) {
         QNotification notification = QNotification.notification;
         QNotificationRead notificationRead = QNotificationRead.notificationRead;
-        QRoomMember roomMember = QRoomMember.roomMember;
-
-        BooleanExpression notificationCondition = notification.user.id.eq(userId)
-                .or(notification.type.eq(NotificationType.SYSTEM))
-                .or(
-                        notification.type.eq(NotificationType.ROOM)
-                                .and(notification.room.id.in(
-                                        JPAExpressions
-                                                .select(roomMember.room.id)
-                                                .from(roomMember)
-                                                .where(roomMember.user.id.eq(userId))
-                                ))
-                );
 
         Long count = queryFactory
                 .select(notification.count())
@@ -83,7 +66,8 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
                 .on(notification.id.eq(notificationRead.notification.id)
                         .and(notificationRead.user.id.eq(userId)))
                 .where(
-                        notificationCondition,
+                        notification.receiver.id.eq(userId)  // ✨ user → receiver
+                                .or(notification.type.eq(NotificationType.SYSTEM)),
                         notificationRead.id.isNull()
                 )
                 .fetchOne();
@@ -91,23 +75,15 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
         return count != null ? count : 0L;
     }
 
+    /**
+     * 특정 유저의 읽지 않은 알림 목록 조회 (페이징)
+     * - NotificationRead 테이블에 읽음 기록이 없는 알림만 조회
+     * - LEFT JOIN 후 읽음 기록이 null인 알림만 반환
+     */
     @Override
     public Page<Notification> findUnreadByUserId(Long userId, Pageable pageable) {
         QNotification notification = QNotification.notification;
         QNotificationRead notificationRead = QNotificationRead.notificationRead;
-        QRoomMember roomMember = QRoomMember.roomMember;
-
-        BooleanExpression notificationCondition = notification.user.id.eq(userId)
-                .or(notification.type.eq(NotificationType.SYSTEM))
-                .or(
-                        notification.type.eq(NotificationType.ROOM)
-                                .and(notification.room.id.in(
-                                        JPAExpressions
-                                                .select(roomMember.room.id)
-                                                .from(roomMember)
-                                                .where(roomMember.user.id.eq(userId))
-                                ))
-                );
 
         List<Notification> content = queryFactory
                 .selectFrom(notification)
@@ -115,7 +91,8 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
                 .on(notification.id.eq(notificationRead.notification.id)
                         .and(notificationRead.user.id.eq(userId)))
                 .where(
-                        notificationCondition,
+                        notification.receiver.id.eq(userId)
+                                .or(notification.type.eq(NotificationType.SYSTEM)),
                         notificationRead.id.isNull()
                 )
                 .orderBy(notification.createdAt.desc())
@@ -130,7 +107,8 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
                 .on(notification.id.eq(notificationRead.notification.id)
                         .and(notificationRead.user.id.eq(userId)))
                 .where(
-                        notificationCondition,
+                        notification.receiver.id.eq(userId)
+                                .or(notification.type.eq(NotificationType.SYSTEM)),
                         notificationRead.id.isNull()
                 )
                 .fetchOne();

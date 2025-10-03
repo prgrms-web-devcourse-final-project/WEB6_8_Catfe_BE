@@ -15,7 +15,6 @@ public record NotificationListResponse(
         long unreadCount
 ) {
 
-    // 페이지 정보 DTO
     public record PageableDto(
             int page,
             int size,

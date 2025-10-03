@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long>, NotificationRepositoryCustom {
+    // 특정 스터디룸의 알림 조회
     Page<Notification> findByRoomIdOrderByCreatedAtDesc(Long roomId, Pageable pageable);
+
+    // 특정 타입의 알림 조회
     List<Notification> findByType(NotificationType type);
 }

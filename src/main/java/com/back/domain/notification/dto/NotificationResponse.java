@@ -6,7 +6,7 @@ import com.back.domain.notification.entity.NotificationType;
 import java.time.LocalDateTime;
 
 /**
- * 알림 응답 DTO
+ * 알림 상세 응답 DTO
  */
 public record NotificationResponse(
         Long notificationId,
@@ -15,6 +15,7 @@ public record NotificationResponse(
         NotificationType notificationType,
         String targetUrl,
         boolean isRead,
+        ActorDto actor,
         LocalDateTime createdAt,
         LocalDateTime readAt
 ) {
@@ -25,9 +26,10 @@ public record NotificationResponse(
                 notification.getContent(),
                 notification.getType(),
                 notification.getTargetUrl(),
-                false, // 읽음 여부는 NotificationListResponse에서 처리
+                false,
+                ActorDto.from(notification.getActor()),
                 notification.getCreatedAt(),
-                null   // readAt은 NotificationRead에서 가져와야 함
+                null
         );
     }
 
@@ -39,6 +41,7 @@ public record NotificationResponse(
                 notification.getType(),
                 notification.getTargetUrl(),
                 isRead,
+                ActorDto.from(notification.getActor()),
                 notification.getCreatedAt(),
                 readAt
         );

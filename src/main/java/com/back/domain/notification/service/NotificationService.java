@@ -30,63 +30,56 @@ public class NotificationService {
 
     // 개인 알림 생성 및 전송
     @Transactional
-    public Notification createPersonalNotification(User user, String title, String content, String targetUrl) {
+    public Notification createPersonalNotification(
+            User receiver,
+            User actor,
+            String title,
+            String content,
+            String targetUrl) {
 
         // DB에 알림 저장
-        Notification notification = Notification.createPersonalNotification(user, title, content, targetUrl);
+        Notification notification = Notification.createPersonalNotification(
+                receiver, actor, title, content, targetUrl);
         notificationRepository.save(notification);
 
         // WebSocket으로 실시간 전송
-        NotificationWebSocketDto dto = NotificationWebSocketDto.from(
-                notification.getId(),
-                notification.getTitle(),
-                notification.getContent(),
-                notification.getType(),
-                notification.getTargetUrl(),
-                notification.getCreatedAt()
-        );
-        webSocketService.sendNotificationToUser(user.getId(), dto);
+        NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
+        webSocketService.sendNotificationToUser(receiver.getId(), dto);
 
-        log.info("개인 알림 생성 - 유저 ID: {}, 알림 ID: {}", user.getId(), notification.getId());
+        log.info("개인 알림 생성 - 수신자 ID: {}, 발신자 ID: {}, 알림 ID: {}",
+                receiver.getId(), actor.getId(), notification.getId());
         return notification;
     }
 
     // 스터디룸 알림 생성 및 전송
     @Transactional
-    public Notification createRoomNotification(Room room, String title, String content, String targetUrl) {
+    public Notification createRoomNotification(
+            Room room,
+            User actor,
+            String title,
+            String content,
+            String targetUrl) {
 
-        Notification notification = Notification.createRoomNotification(room, title, content, targetUrl);
+        Notification notification = Notification.createRoomNotification(
+                room, actor, title, content, targetUrl);
         notificationRepository.save(notification);
 
-        NotificationWebSocketDto dto = NotificationWebSocketDto.from(
-                notification.getId(),
-                notification.getTitle(),
-                notification.getContent(),
-                notification.getType(),
-                notification.getTargetUrl(),
-                notification.getCreatedAt()
-        );
+        NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
         webSocketService.sendNotificationToRoom(room.getId(), dto);
 
-        log.info("스터디룸 알림 생성 - 룸 ID: {}, 알림 ID: {}", room.getId(), notification.getId());
+        log.info("스터디룸 알림 생성 - 룸 ID: {}, 발신자 ID: {}, 알림 ID: {}",
+                room.getId(), actor.getId(), notification.getId());
         return notification;
     }
 
-    // 시스템 전체 알림 생성 및 브로드캐스트
+    // 시스템 전체 알림 생성 및 브로드캐스트 (발신자 없음)
     @Transactional
     public Notification createSystemNotification(String title, String content, String targetUrl) {
 
         Notification notification = Notification.createSystemNotification(title, content, targetUrl);
         notificationRepository.save(notification);
 
-        NotificationWebSocketDto dto = NotificationWebSocketDto.from(
-                notification.getId(),
-                notification.getTitle(),
-                notification.getContent(),
-                notification.getType(),
-                notification.getTargetUrl(),
-                notification.getCreatedAt()
-        );
+        NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
         webSocketService.broadcastSystemNotification(dto);
 
         log.info("시스템 알림 생성 - 알림 ID: {}", notification.getId());
@@ -95,22 +88,22 @@ public class NotificationService {
 
     // 커뮤니티 알림 생성 및 전송
     @Transactional
-    public Notification createCommunityNotification(User user, String title, String content, String targetUrl) {
+    public Notification createCommunityNotification(
+            User receiver,
+            User actor,
+            String title,
+            String content,
+            String targetUrl) {
 
-        Notification notification = Notification.createCommunityNotification(user, title, content, targetUrl);
+        Notification notification = Notification.createCommunityNotification(
+                receiver, actor, title, content, targetUrl);
         notificationRepository.save(notification);
 
-        NotificationWebSocketDto dto = NotificationWebSocketDto.from(
-                notification.getId(),
-                notification.getTitle(),
-                notification.getContent(),
-                notification.getType(),
-                notification.getTargetUrl(),
-                notification.getCreatedAt()
-        );
-        webSocketService.sendNotificationToUser(user.getId(), dto);
+        NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
+        webSocketService.sendNotificationToUser(receiver.getId(), dto);
 
-        log.info("커뮤니티 알림 생성 - 유저 ID: {}, 알림 ID: {}", user.getId(), notification.getId());
+        log.info("커뮤니티 알림 생성 - 수신자 ID: {}, 발신자 ID: {}, 알림 ID: {}",
+                receiver.getId(), actor.getId(), notification.getId());
         return notification;
     }
 
@@ -160,9 +153,6 @@ public class NotificationService {
         NotificationRead notificationRead = NotificationRead.create(notification, user);
         notificationReadRepository.save(notificationRead);
 
-        // 4. 알림 상태 업데이트 (선택적)
-        notification.markAsRead();
-
         log.info("알림 읽음 처리 - 알림 ID: {}, 유저 ID: {}", notificationId, user.getId());
     }
 
@@ -175,7 +165,6 @@ public class NotificationService {
             if (!notificationReadRepository.existsByNotificationIdAndUserId(notification.getId(), user.getId())) {
                 NotificationRead notificationRead = NotificationRead.create(notification, user);
                 notificationReadRepository.save(notificationRead);
-                notification.markAsRead();
             }
         }
 
