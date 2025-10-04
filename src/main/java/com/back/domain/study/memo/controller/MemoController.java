@@ -54,7 +54,6 @@ public class MemoController {
             @PathVariable Long memoId
     ) {
         Long userId = user.getUserId();
-        memoService.deleteMemo(userId, memoId);
         MemoResponseDto response = memoService.deleteMemo(userId, memoId);
         return ResponseEntity.ok(RsData.success("메모가 삭제되었습니다.", response));
     }
