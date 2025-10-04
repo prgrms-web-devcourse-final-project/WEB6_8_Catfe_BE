@@ -9,11 +9,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 방 상태 관리를 위한 Redis 전용 서비스
- * 
- * @deprecated RoomParticipantService를 사용하세요.
- *             이 서비스는 WebSocketSessionManager의 Wrapper일 뿐이며,
- *             RoomParticipantService가 더 직접적이고 명확합니다.
+ * 방 상태 관리를 위한 Redis 전용 서비스 (곧 사라질 예정인 파일)
+ * (현재는 일단 유지 시킨 상황, 에러 방지용)
+ * @deprecated RoomParticipantService를 사용.
+ *  현재는 WebSocketSessionManager의 Wrapper일 뿐이며,
+ *  RoomParticipantService에 원래 로직이 옮겨졋습니다.
  * 
  * @see com.back.global.websocket.service.RoomParticipantService 실제 사용 서비스
  * @see com.back.global.websocket.service.WebSocketSessionManager WebSocket 세션 관리
