@@ -315,7 +315,7 @@ class StudyRecordControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(1)))
                 .andExpect(jsonPath("$.data[0].startTime").value("2025-10-02T23:00:00"))
-                .andExpect(jsonPath("$.data[0].endTime").value("2025-10-03T02:00:00"))
+                .andExpect(jsonPath("$.data[0].endTime").value("2025-10-03T05:00:00"))
                 .andExpect(jsonPath("$.data[0].duration").value(21600));
     }
 
