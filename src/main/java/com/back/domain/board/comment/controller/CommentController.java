@@ -3,6 +3,7 @@ package com.back.domain.board.comment.controller;
 import com.back.domain.board.comment.dto.CommentListResponse;
 import com.back.domain.board.comment.dto.CommentRequest;
 import com.back.domain.board.comment.dto.CommentResponse;
+import com.back.domain.board.comment.dto.ReplyResponse;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.comment.service.CommentService;
 import com.back.global.common.dto.RsData;
@@ -84,6 +85,23 @@ public class CommentController implements CommentControllerDocs {
                 .body(RsData.success(
                         "댓글이 삭제되었습니다.",
                         null
+                ));
+    }
+
+    // 대댓글 생성
+    @PostMapping("/{commentId}/replies")
+    public ResponseEntity<RsData<ReplyResponse>> createReply(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @RequestBody @Valid CommentRequest request,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        ReplyResponse response = commentService.createReply(postId, commentId, request, user.getUserId());
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(RsData.success(
+                        "대댓글이 생성되었습니다.",
+                        response
                 ));
     }
 }
