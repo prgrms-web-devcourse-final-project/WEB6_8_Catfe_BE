@@ -52,6 +52,7 @@ class NotificationRepositoryTest {
 
     private User user1;
     private User user2;
+    private User actor;
     private Room room1;
     private Room room2;
 
@@ -68,7 +69,12 @@ class NotificationRepositoryTest {
                 .username("유저2")
                 .password("password123")
                 .build();
-        userRepository.saveAll(List.of(user1, user2));
+        actor = User.builder()
+                .email("actor@test.com")
+                .username("발신자")
+                .password("password123")
+                .build();
+        userRepository.saveAll(List.of(user1, user2, actor));
 
         // 테스트 스터디룸 생성
         room1 = Room.builder()
@@ -102,7 +108,7 @@ class NotificationRepositoryTest {
         void t1() {
             // given
             Notification personalNotification = Notification.createPersonalNotification(
-                    user1, "개인 알림", "내용", "/target"
+                    user1, actor, "개인 알림", "내용", "/target"
             );
             notificationRepository.save(personalNotification);
 
@@ -147,10 +153,10 @@ class NotificationRepositoryTest {
             // given
             // user1이 속한 room1, room2의 알림
             Notification roomNotification1 = Notification.createRoomNotification(
-                    room1, "스터디룸1 알림", "내용", "/room/1"
+                    room1, actor, "스터디룸1 알림", "내용", "/room/1"
             );
             Notification roomNotification2 = Notification.createRoomNotification(
-                    room2, "스터디룸2 알림", "내용", "/room/2"
+                    room2, actor, "스터디룸2 알림", "내용", "/room/2"
             );
             notificationRepository.saveAll(List.of(roomNotification1, roomNotification2));
 
@@ -179,7 +185,7 @@ class NotificationRepositoryTest {
             roomRepository.save(otherRoom);
 
             Notification otherRoomNotification = Notification.createRoomNotification(
-                    otherRoom, "다른 방 알림", "내용", "/room/other"
+                    otherRoom, actor, "다른 방 알림", "내용", "/room/other"
             );
             notificationRepository.save(otherRoomNotification);
 
@@ -198,16 +204,16 @@ class NotificationRepositoryTest {
         void t5() {
             // given
             Notification personal = Notification.createPersonalNotification(
-                    user1, "개인", "내용", "/p"
+                    user1, actor, "개인", "내용", "/p"
             );
             Notification system = Notification.createSystemNotification(
                     "시스템", "내용", "/s"
             );
             Notification room = Notification.createRoomNotification(
-                    room1, "스터디룸", "내용", "/r"
+                    room1, actor, "스터디룸", "내용", "/r"
             );
             Notification community = Notification.createCommunityNotification(
-                    user1, "커뮤니티", "내용", "/c"
+                    user1, actor, "커뮤니티", "내용", "/c"
             );
             notificationRepository.saveAll(List.of(personal, system, room, community));
 
@@ -234,14 +240,14 @@ class NotificationRepositoryTest {
         void t6() throws InterruptedException {
             // given
             Notification old = Notification.createPersonalNotification(
-                    user1, "오래된 알림", "내용", "/old"
+                    user1, actor, "오래된 알림", "내용", "/old"
             );
             notificationRepository.save(old);
 
             Thread.sleep(100); // 시간 차이를 위한 대기
 
             Notification recent = Notification.createPersonalNotification(
-                    user1, "최근 알림", "내용", "/recent"
+                    user1, actor, "최근 알림", "내용", "/recent"
             );
             notificationRepository.save(recent);
 
@@ -263,7 +269,7 @@ class NotificationRepositoryTest {
             // given
             for (int i = 1; i <= 15; i++) {
                 Notification notification = Notification.createPersonalNotification(
-                        user1, "알림 " + i, "내용", "/target"
+                        user1, actor, "알림 " + i, "내용", "/target"
                 );
                 notificationRepository.save(notification);
             }
@@ -290,10 +296,10 @@ class NotificationRepositoryTest {
         void t1() {
             // given
             Notification notification1 = Notification.createPersonalNotification(
-                    user1, "알림1", "내용", "/1"
+                    user1, actor, "알림1", "내용", "/1"
             );
             Notification notification2 = Notification.createPersonalNotification(
-                    user1, "알림2", "내용", "/2"
+                    user1, actor, "알림2", "내용", "/2"
             );
             notificationRepository.saveAll(List.of(notification1, notification2));
 
@@ -309,10 +315,10 @@ class NotificationRepositoryTest {
         void t2() {
             // given
             Notification notification1 = Notification.createPersonalNotification(
-                    user1, "알림1", "내용", "/1"
+                    user1, actor, "알림1", "내용", "/1"
             );
             Notification notification2 = Notification.createPersonalNotification(
-                    user1, "알림2", "내용", "/2"
+                    user1, actor, "알림2", "내용", "/2"
             );
             notificationRepository.saveAll(List.of(notification1, notification2));
 
@@ -348,7 +354,7 @@ class NotificationRepositoryTest {
         void t4() {
             // given
             Notification roomNotification = Notification.createRoomNotification(
-                    room1, "스터디룸 알림", "내용", "/room"
+                    room1, actor, "스터디룸 알림", "내용", "/room"
             );
             notificationRepository.save(roomNotification);
 
@@ -369,10 +375,10 @@ class NotificationRepositoryTest {
         void t1() {
             // given
             Notification unread = Notification.createPersonalNotification(
-                    user1, "읽지 않음", "내용", "/unread"
+                    user1, actor, "읽지 않음", "내용", "/unread"
             );
             Notification read = Notification.createPersonalNotification(
-                    user1, "읽음", "내용", "/read"
+                    user1, actor, "읽음", "내용", "/read"
             );
             notificationRepository.saveAll(List.of(unread, read));
 
@@ -396,13 +402,13 @@ class NotificationRepositoryTest {
         void t2() {
             // given
             Notification personal = Notification.createPersonalNotification(
-                    user1, "개인", "내용", "/p"
+                    user1, actor, "개인", "내용", "/p"
             );
             Notification system = Notification.createSystemNotification(
                     "시스템", "내용", "/s"
             );
             Notification room = Notification.createRoomNotification(
-                    room1, "스터디룸", "내용", "/r"
+                    room1, actor, "스터디룸", "내용", "/r"
             );
             notificationRepository.saveAll(List.of(personal, system, room));
 
@@ -421,14 +427,14 @@ class NotificationRepositoryTest {
         void t3() throws InterruptedException {
             // given
             Notification old = Notification.createPersonalNotification(
-                    user1, "오래된", "내용", "/old"
+                    user1, actor, "오래된", "내용", "/old"
             );
             notificationRepository.save(old);
 
             Thread.sleep(100);
 
             Notification recent = Notification.createPersonalNotification(
-                    user1, "최근", "내용", "/recent"
+                    user1, actor, "최근", "내용", "/recent"
             );
             notificationRepository.save(recent);
 
@@ -453,10 +459,10 @@ class NotificationRepositoryTest {
         void t1() {
             // given
             Notification notification1 = Notification.createRoomNotification(
-                    room1, "방1 알림", "내용", "/1"
+                    room1, actor, "방1 알림", "내용", "/1"
             );
             Notification notification2 = Notification.createRoomNotification(
-                    room2, "방2 알림", "내용", "/2"
+                    room2, actor, "방2 알림", "내용", "/2"
             );
             notificationRepository.saveAll(List.of(notification1, notification2));
 
@@ -482,7 +488,7 @@ class NotificationRepositoryTest {
                     "시스템2", "내용", "/2"
             );
             Notification personal = Notification.createPersonalNotification(
-                    user1, "개인", "내용", "/p"
+                    user1, actor, "개인", "내용", "/p"
             );
             notificationRepository.saveAll(List.of(system1, system2, personal));
 

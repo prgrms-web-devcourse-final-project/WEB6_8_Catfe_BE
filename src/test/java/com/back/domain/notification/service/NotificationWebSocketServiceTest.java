@@ -5,7 +5,9 @@ import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.verify;
 
 import com.back.domain.notification.dto.NotificationWebSocketDto;
+import com.back.domain.notification.entity.Notification;
 import com.back.domain.notification.entity.NotificationType;
+import com.back.domain.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -15,8 +17,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-
-import java.time.LocalDateTime;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationWebSocketServiceTest {
@@ -28,17 +28,30 @@ class NotificationWebSocketServiceTest {
     private NotificationWebSocketService webSocketService;
 
     private NotificationWebSocketDto notificationDto;
+    private User receiver;
+    private User actor;
 
     @BeforeEach
     void setUp() {
-        notificationDto = NotificationWebSocketDto.from(
-                1L,
-                "테스트 알림",
-                "알림 내용",
-                NotificationType.PERSONAL,
-                "/target",
-                LocalDateTime.now()
+        receiver = User.builder()
+                .id(1L)
+                .email("receiver@test.com")
+                .username("수신자")
+                .password("password123")
+                .build();
+
+        actor = User.builder()
+                .id(2L)
+                .email("actor@test.com")
+                .username("발신자")
+                .password("password123")
+                .build();
+
+        Notification notification = Notification.createPersonalNotification(
+                receiver, actor, "테스트 알림", "알림 내용", "/target"
         );
+
+        notificationDto = NotificationWebSocketDto.from(notification);
     }
 
     @Nested
@@ -87,14 +100,10 @@ class NotificationWebSocketServiceTest {
         void t1() {
             // given
             String expectedDestination = "/topic/notifications/system";
-            NotificationWebSocketDto systemDto = NotificationWebSocketDto.from(
-                    2L,
-                    "시스템 알림",
-                    "시스템 공지",
-                    NotificationType.SYSTEM,
-                    "/system",
-                    LocalDateTime.now()
+            Notification systemNotification = Notification.createSystemNotification(
+                    "시스템 알림", "시스템 공지", "/system"
             );
+            NotificationWebSocketDto systemDto = NotificationWebSocketDto.from(systemNotification);
 
             // when
             webSocketService.broadcastSystemNotification(systemDto);
@@ -131,22 +140,14 @@ class NotificationWebSocketServiceTest {
             // given
             Long roomId = 100L;
             String expectedDestination = "/topic/room/100/notifications";
-            NotificationWebSocketDto roomDto = NotificationWebSocketDto.from(
-                    3L,
-                    "스터디룸 알림",
-                    "새 공지사항",
-                    NotificationType.ROOM,
-                    "/room/100",
-                    LocalDateTime.now()
-            );
 
             // when
-            webSocketService.sendNotificationToRoom(roomId, roomDto);
+            webSocketService.sendNotificationToRoom(roomId, notificationDto);
 
             // then
             verify(messagingTemplate).convertAndSend(
                     eq(expectedDestination),
-                    eq(roomDto)
+                    eq(notificationDto)
             );
         }
 
