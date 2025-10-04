@@ -348,7 +348,7 @@ class CommentServiceTest {
                 .hasMessage(ErrorCode.COMMENT_NO_PERMISSION.getMessage());
     }
 
-    // ====================== 대댓글 생성 테스트 ======================
+    // ====================== 대댓글 테스트 ======================
 
     @Test
     @DisplayName("대댓글 생성 성공")
@@ -444,5 +444,56 @@ class CommentServiceTest {
         assertThatThrownBy(() -> commentService.createReply(post.getId(), 999L, request, user.getId()))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.COMMENT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("대댓글 수정 성공")
+    void updateReply_success() {
+        // given
+        User user = User.createUser("writer", "writer@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "작성자", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment reply = new Comment(post, user, "대댓글", parent);
+        commentRepository.saveAll(List.of(parent, reply));
+
+        CommentRequest updateRequest = new CommentRequest("수정된 대댓글 내용");
+
+        // when
+        CommentResponse updated = commentService.updateComment(post.getId(), reply.getId(), updateRequest, user.getId());
+
+        // then
+        assertThat(updated.content()).isEqualTo("수정된 대댓글 내용");
+        assertThat(updated.commentId()).isEqualTo(reply.getId());
+        assertThat(updated.author().nickname()).isEqualTo("작성자");
+    }
+
+    @Test
+    @DisplayName("대댓글 삭제 성공")
+    void deleteReply_success() {
+        // given
+        User user = User.createUser("writer", "writer@example.com", "encodedPwd");
+        user.setUserProfile(new UserProfile(user, "작성자", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment reply = new Comment(post, user, "삭제할 대댓글", parent);
+        commentRepository.saveAll(List.of(parent, reply));
+
+        // when
+        commentService.deleteComment(post.getId(), reply.getId(), user.getId());
+
+        // then
+        boolean exists = commentRepository.findById(reply.getId()).isPresent();
+        assertThat(exists).isFalse();
     }
 }

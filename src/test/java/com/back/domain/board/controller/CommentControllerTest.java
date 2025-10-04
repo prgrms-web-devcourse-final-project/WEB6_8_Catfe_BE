@@ -583,7 +583,7 @@ class CommentControllerTest {
                 .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
     }
 
-    // ====================== 대댓글 생성 테스트 ======================
+    // ====================== 대댓글 테스트 ======================
 
     @Test
     @DisplayName("대댓글 생성 성공 → 201 Created")
@@ -824,5 +824,61 @@ class CommentControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTH_001"))
                 .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+    }
+
+    @Test
+    @DisplayName("대댓글 수정 성공 → 200 OK")
+    void updateReply_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "이몽룡", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment reply = new Comment(post, user, "대댓글", parent);
+        commentRepository.saveAll(List.of(parent, reply));
+
+        String accessToken = generateAccessToken(user);
+        CommentRequest request = new CommentRequest("수정된 대댓글 내용");
+
+        // when & then
+        mvc.perform(put("/api/posts/{postId}/comments/{commentId}", post.getId(), reply.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").value("수정된 대댓글 내용"));
+    }
+
+    @Test
+    @DisplayName("대댓글 삭제 성공 → 200 OK")
+    void deleteReply_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "이몽룡", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment reply = new Comment(post, user, "대댓글", parent);
+        commentRepository.saveAll(List.of(parent, reply));
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(delete("/api/posts/{postId}/comments/{commentId}", post.getId(), reply.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("댓글이 삭제되었습니다."));
     }
 }
