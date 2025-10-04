@@ -44,34 +44,4 @@ public class PostListResponse {
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
-
-    /**
-     * 작성자 응답 DTO
-     */
-    @Getter
-    public static class AuthorResponse {
-        private final Long id;
-        private final String nickname;
-
-        @QueryProjection
-        public AuthorResponse(Long userId, String nickname) {
-            this.id = userId;
-            this.nickname = nickname;
-        }
-    }
-
-    /**
-     * 카테고리 응답 DTO
-     */
-    @Getter
-    public static class CategoryResponse {
-        private final Long id;
-        private final String name;
-
-        @QueryProjection
-        public CategoryResponse(Long id, String name) {
-            this.id = id;
-            this.name = name;
-        }
-    }
 }

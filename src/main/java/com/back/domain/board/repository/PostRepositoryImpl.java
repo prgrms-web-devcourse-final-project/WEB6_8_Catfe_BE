@@ -1,24 +1,21 @@
 package com.back.domain.board.repository;
 
-import com.back.domain.board.dto.PostListResponse;
-import com.back.domain.board.dto.QPostListResponse;
-import com.back.domain.board.dto.QPostListResponse_AuthorResponse;
-import com.back.domain.board.dto.QPostListResponse_CategoryResponse;
+import com.back.domain.board.dto.*;
 import com.back.domain.board.entity.*;
 import com.back.domain.user.entity.QUser;
+import com.back.domain.user.entity.QUserProfile;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.Expression;
+import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.core.types.dsl.PathBuilder;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -29,6 +26,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
 
     /**
      * 게시글 다건 검색
+     * - 총 쿼리 수 : 3회 (Post + Category + count)
      *
      * @param keyword    검색 키워드
      * @param searchType 검색 타입(title/content/author/전체)
@@ -37,37 +35,41 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
      */
     @Override
     public Page<PostListResponse> searchPosts(String keyword, String searchType, Long categoryId, Pageable pageable) {
-        // 검색 조건 생성
+        // 1. 검색 조건 생성
         BooleanBuilder where = buildWhere(keyword, searchType, categoryId);
 
-        // 정렬 조건 생성
+        // 2. 정렬 조건 생성 (엔티티 필드 기반)
         List<OrderSpecifier<?>> orders = buildOrderSpecifiers(pageable);
 
-        // 메인 게시글 쿼리 실행
+        // 3. 게시글 메인 조회
         List<PostListResponse> results = fetchPosts(where, orders, pageable);
 
-        // 카테고리 조회 후 DTO에 주입
+        // 4. 카테고리 조회 후 결과 DTO에 매핑
         injectCategories(results);
 
-        // 전체 카운트 조회
+        // 5. 정렬 후처리 (통계 필드 기반)
+        results = sortInMemoryIfNeeded(results, pageable);
+
+        // 6. 전체 게시글 개수 카운트 쿼리
         long total = countPosts(where, categoryId);
 
-        // 결과를 Page로 감싸서 반환
+        // 7. Page 객체로 반환
         return new PageImpl<>(results, pageable, total);
     }
 
+    // -------------------- 내부 메서드 --------------------
+
     /**
      * 검색 조건 생성
-     * - keyword + searchType(title/content/author)에 따라 동적 조건 추가
-     * - categoryId가 주어지면 카테고리 필터 조건 추가
+     * - title/content/author 기반 동적 필터
+     * - categoryId가 존재하면 categoryMapping join 기반 추가 조건
      */
     private BooleanBuilder buildWhere(String keyword, String searchType, Long categoryId) {
         QPost post = QPost.post;
         QPostCategoryMapping categoryMapping = QPostCategoryMapping.postCategoryMapping;
-
         BooleanBuilder where = new BooleanBuilder();
 
-        // 검색 조건 추가
+        // 키워드 필터링
         if (keyword != null && !keyword.isBlank()) {
             switch (searchType) {
                 case "title" -> where.and(post.title.containsIgnoreCase(keyword));
@@ -90,80 +92,92 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
     }
 
     /**
-     * 정렬 처리 빌더
-     * - Pageable의 Sort 정보 기반으로 OrderSpecifier 생성
-     * - likeCount/bookmarkCount/commentCount -> countDistinct() 기준 정렬
-     * - 그 외 속성 -> Post 엔티티 필드 기준 정렬
+     * 정렬 처리 (DB 정렬)
+     * - title, createdAt, updatedAt 등 엔티티 필드
      */
     private List<OrderSpecifier<?>> buildOrderSpecifiers(Pageable pageable) {
         QPost post = QPost.post;
-        QPostLike postLike = QPostLike.postLike;
-        QPostBookmark postBookmark = QPostBookmark.postBookmark;
-        QComment comment = QComment.comment;
-
         List<OrderSpecifier<?>> orders = new ArrayList<>();
-        PathBuilder<Post> entityPath = new PathBuilder<>(Post.class, post.getMetadata());
+        var entityPath = new com.querydsl.core.types.dsl.PathBuilder<>(Post.class, post.getMetadata());
 
-        // 정렬 조건 추가
         for (Sort.Order order : pageable.getSort()) {
-            Order direction = order.isAscending() ? Order.ASC : Order.DESC;
             String prop = order.getProperty();
-            switch (prop) {
-                case "likeCount" -> orders.add(new OrderSpecifier<>(direction, postLike.id.countDistinct()));
-                case "bookmarkCount" -> orders.add(new OrderSpecifier<>(direction, postBookmark.id.countDistinct()));
-                case "commentCount" -> orders.add(new OrderSpecifier<>(direction, comment.id.countDistinct()));
-                default ->
-                        orders.add(new OrderSpecifier<>(direction, entityPath.getComparable(prop, Comparable.class)));
-            }
-        }
 
+            // 통계 필드는 메모리 정렬에서 처리
+            if (prop.equals("likeCount") || prop.equals("bookmarkCount") || prop.equals("commentCount")) {
+                continue;
+            }
+
+            Order direction = order.isAscending() ? Order.ASC : Order.DESC;
+            orders.add(new OrderSpecifier<>(direction, entityPath.getComparable(prop, Comparable.class)));
+        }
         return orders;
     }
 
     /**
-     * 게시글 조회 (메인 쿼리)
-     * - Post + User join
-     * - 좋아요, 북마크, 댓글 countDistinct() 집계
-     * - groupBy(post.id, user.id, userProfie.nickname)
-     * - Pageable offset/limit 적용
+     * 게시글 조회
+     * - Post + User + UserProfile join (N+1 방지)
+     * - like/bookmark/comment count는 각각 서브쿼리로 계산
+     *   → 한 번의 SQL 안에서 처리 (쿼리 1회)
      */
     private List<PostListResponse> fetchPosts(BooleanBuilder where, List<OrderSpecifier<?>> orders, Pageable pageable) {
         QPost post = QPost.post;
         QUser user = QUser.user;
-        QPostLike postLike = QPostLike.postLike;
-        QPostBookmark postBookmark = QPostBookmark.postBookmark;
+        QUserProfile profile = QUserProfile.userProfile;
+        QPostLike like = QPostLike.postLike;
+        QPostBookmark bookmark = QPostBookmark.postBookmark;
         QComment comment = QComment.comment;
 
+        // 서브쿼리로 통계 계산
+        Expression<Long> likeCount = ExpressionUtils.as(
+                JPAExpressions.select(like.count())
+                        .from(like)
+                        .where(like.post.eq(post)),
+                "likeCount"
+        );
+
+        Expression<Long> bookmarkCount = ExpressionUtils.as(
+                JPAExpressions.select(bookmark.count())
+                        .from(bookmark)
+                        .where(bookmark.post.eq(post)),
+                "bookmarkCount"
+        );
+
+        Expression<Long> commentCount = ExpressionUtils.as(
+                JPAExpressions.select(comment.count())
+                        .from(comment)
+                        .where(comment.post.eq(post)),
+                "commentCount"
+        );
+
+        // 메인 쿼리
         return queryFactory
                 .select(new QPostListResponse(
                         post.id,
-                        new QPostListResponse_AuthorResponse(user.id, user.userProfile.nickname),
+                        new QAuthorResponse(user.id, profile.nickname), // 작성자 정보 (N+1 방지 join)
                         post.title,
-                        Expressions.constant(Collections.emptyList()),   // 카테고리는 나중에 주입
-                        postLike.id.countDistinct(),
-                        postBookmark.id.countDistinct(),
-                        comment.id.countDistinct(),
+                        Expressions.constant(Collections.emptyList()), // categories는 별도 주입
+                        likeCount,
+                        bookmarkCount,
+                        commentCount,
                         post.createdAt,
                         post.updatedAt
                 ))
                 .from(post)
                 .leftJoin(post.user, user)
-                .leftJoin(post.postLikes, postLike)
-                .leftJoin(post.postBookmarks, postBookmark)
-                .leftJoin(post.comments, comment)
+                .leftJoin(user.userProfile, profile) // UserProfile join으로 N+1 방지
                 .where(where)
-                .groupBy(post.id, user.id, user.userProfile.nickname)
                 .orderBy(orders.toArray(new OrderSpecifier[0]))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
-                .fetch();
+                .fetch(); // 쿼리 1회 (서브쿼리 포함)
     }
 
     /**
-     * 카테고리 일괄 조회 & 매핑
-     * - postId 목록을 모아 IN 쿼리 실행
-     * - 결과를 Map<postId, List<CategoryResponse>>로 변환
-     * - 각 PostListResponse DTO에 categories 주입
+     * 카테고리 일괄 조회
+     * - Post ID 목록 기반으로 categoryMapping 테이블 IN 쿼리 1회 실행
+     * - Map<postId, List<CategoryResponse>>로 매핑 후 DTO에 주입
+     * - N+1 방지 (게시글별 조회 X)
      */
     private void injectCategories(List<PostListResponse> results) {
         if (results.isEmpty()) return;
@@ -179,27 +193,54 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         List<Tuple> categoryTuples = queryFactory
                 .select(
                         categoryMapping.post.id,
-                        new QPostListResponse_CategoryResponse(categoryMapping.category.id, categoryMapping.category.name)
+                        new QCategoryResponse(categoryMapping.category.id, categoryMapping.category.name)
                 )
                 .from(categoryMapping)
                 .where(categoryMapping.post.id.in(postIds))
                 .fetch();
 
-        // Map<postId, List<CategoryResponse>>로 변환
-        Map<Long, List<PostListResponse.CategoryResponse>> categoryMap = categoryTuples.stream()
+        // 매핑 편의를 위해 변환
+        Map<Long, List<CategoryResponse>> categoryMap = categoryTuples.stream()
                 .collect(Collectors.groupingBy(
                         tuple -> Objects.requireNonNull(tuple.get(categoryMapping.post.id)),
-                        Collectors.mapping(t -> t.get(1, PostListResponse.CategoryResponse.class), Collectors.toList())
+                        Collectors.mapping(t -> t.get(1, CategoryResponse.class), Collectors.toList())
                 ));
 
         // categories 주입
-        results.forEach(r -> r.setCategories(categoryMap.getOrDefault(r.getPostId(), List.of())));
+        results.forEach(r ->
+                r.setCategories(categoryMap.getOrDefault(r.getPostId(), List.of()))
+        );
     }
 
     /**
-     * 전체 게시글 개수 조회
-     * - 조건에 맞는 게시글 총 개수를 가져옴
-     * - categoryId 필터가 있으면 postCategoryMapping join 포함
+     * 통계 기반 정렬 처리 (메모리)
+     * - likeCount / bookmarkCount / commentCount 등 통계 필드
+     * - DB에서는 서브쿼리 필드 정렬 불가 → Java 단에서 정렬
+     * - 데이터량이 페이지 단위(20~50건)라면 CPU 부하는 무시 가능
+     */
+    private List<PostListResponse> sortInMemoryIfNeeded(List<PostListResponse> results, Pageable pageable) {
+        if (results.isEmpty() || !pageable.getSort().isSorted()) return results;
+
+        for (Sort.Order order : pageable.getSort()) {
+            Comparator<PostListResponse> comparator = null;
+            switch (order.getProperty()) {
+                case "likeCount" -> comparator = Comparator.comparing(PostListResponse::getLikeCount);
+                case "bookmarkCount" -> comparator = Comparator.comparing(PostListResponse::getBookmarkCount);
+                case "commentCount" -> comparator = Comparator.comparing(PostListResponse::getCommentCount);
+            }
+            if (comparator != null) {
+                if (order.isDescending()) comparator = comparator.reversed();
+                results.sort(comparator);
+            }
+        }
+        return results;
+    }
+
+    /**
+     * 전체 게시글 개수 카운트
+     * - 페이지네이션 total 계산용
+     * - categoryId가 있으면 mapping join 포함
+     * - 단순 count 쿼리 1회 실행
      */
     private long countPosts(BooleanBuilder where, Long categoryId) {
         QPost post = QPost.post;
@@ -216,7 +257,6 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         }
 
         Long total = countQuery.where(where).fetchOne();
-
         return total != null ? total : 0L;
     }
 }
