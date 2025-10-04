@@ -3,6 +3,7 @@ package com.back.domain.board.comment.controller;
 import com.back.domain.board.comment.dto.CommentListResponse;
 import com.back.domain.board.comment.dto.CommentRequest;
 import com.back.domain.board.comment.dto.CommentResponse;
+import com.back.domain.board.comment.dto.ReplyResponse;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.global.common.dto.RsData;
 import com.back.global.security.user.CustomUserDetails;
@@ -507,6 +508,159 @@ public interface CommentControllerDocs {
     ResponseEntity<RsData<Void>> deleteComment(
             @PathVariable Long postId,
             @PathVariable Long commentId,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "대댓글 생성",
+            description = "로그인한 사용자가 특정 게시글의 댓글에 대댓글을 작성합니다. (대댓글은 1단계까지만 허용됩니다.)"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "대댓글 생성 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "대댓글이 생성되었습니다.",
+                                      "data": {
+                                        "replyId": 45,
+                                        "postId": 101,
+                                        "parentId": 25,
+                                        "author": {
+                                          "id": 7,
+                                          "nickname": "이몽룡"
+                                        },
+                                        "content": "저도 동의합니다!",
+                                        "createdAt": "2025-09-22T13:30:00",
+                                        "updatedAt": "2025-09-22T13:30:00"
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 또는 depth 제한 초과",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "필드 누락", value = """
+                                            {
+                                              "success": false,
+                                              "code": "COMMON_400",
+                                              "message": "잘못된 요청입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "부모 댓글 불일치", value = """
+                                            {
+                                              "success": false,
+                                              "code": "COMMENT_003",
+                                              "message": "부모 댓글이 해당 게시글에 속하지 않습니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "depth 초과", value = """
+                                            {
+                                              "success": false,
+                                              "code": "COMMENT_004",
+                                              "message": "대댓글은 한 단계까지만 작성할 수 있습니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패 (토큰 없음/잘못됨/만료)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "토큰 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_001",
+                                              "message": "인증이 필요합니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "잘못된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_002",
+                                              "message": "유효하지 않은 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "만료된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_004",
+                                              "message": "만료된 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 사용자 / 게시글 / 댓글",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "존재하지 않는 사용자", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_001",
+                                              "message": "존재하지 않는 사용자입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "존재하지 않는 게시글", value = """
+                                            {
+                                              "success": false,
+                                              "code": "POST_001",
+                                              "message": "존재하지 않는 게시글입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "존재하지 않는 댓글", value = """
+                                            {
+                                              "success": false,
+                                              "code": "COMMENT_001",
+                                              "message": "존재하지 않는 댓글입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ResponseEntity<RsData<ReplyResponse>> createReply(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @RequestBody CommentRequest request,
             @AuthenticationPrincipal CustomUserDetails user
     );
 }
