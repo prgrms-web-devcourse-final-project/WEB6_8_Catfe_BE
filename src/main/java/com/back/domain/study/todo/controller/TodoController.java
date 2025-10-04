@@ -42,7 +42,7 @@ public class TodoController {
             "date만 제공시 해당 날짜, startDate와 endDate 제공시 기간별, 아무것도 없으면 전체 조회")
     public ResponseEntity<RsData<List<TodoResponseDto>>> getTodos(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+            @RequestParam(required = true) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         List<TodoResponseDto> response = todoService.getTodosByDate(userDetails.getUserId(), date);
 
