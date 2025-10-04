@@ -41,6 +41,7 @@ db_dev.mv.db
 db_dev.trace.db
 .env
 .env.*
+env.prod
 
 ### Terraform ###
 /infra/terraform/.terraform
