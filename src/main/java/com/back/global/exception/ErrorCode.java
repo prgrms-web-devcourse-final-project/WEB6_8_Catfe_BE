@@ -32,9 +32,10 @@ public enum ErrorCode {
     NOT_ROOM_MANAGER(HttpStatus.FORBIDDEN, "ROOM_009", "방 관리자 권한이 필요합니다."),
     CANNOT_KICK_HOST(HttpStatus.BAD_REQUEST, "ROOM_010", "방장은 추방할 수 없습니다."),
     CANNOT_CHANGE_HOST_ROLE(HttpStatus.BAD_REQUEST, "ROOM_011", "방장의 권한은 변경할 수 없습니다."),
-    CHAT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "ROOM_012", "채팅 삭제 권한이 없습니다. 방장 또는 부방장만 가능합니다."),
-    INVALID_DELETE_CONFIRMATION(HttpStatus.BAD_REQUEST, "ROOM_013", "삭제 확인 메시지가 일치하지 않습니다."),
-    CHAT_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ROOM_014", "채팅 삭제 중 오류가 발생했습니다."),
+    CANNOT_CHANGE_OWN_ROLE(HttpStatus.BAD_REQUEST, "ROOM_012", "자신의 역할은 변경할 수 없습니다."),
+    CHAT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "ROOM_013", "채팅 삭제 권한이 없습니다. 방장 또는 부방장만 가능합니다."),
+    INVALID_DELETE_CONFIRMATION(HttpStatus.BAD_REQUEST, "ROOM_014", "삭제 확인 메시지가 일치하지 않습니다."),
+    CHAT_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ROOM_015", "채팅 삭제 중 오류가 발생했습니다."),
 
     // ======================== 스터디 플래너 관련 ========================
     PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "PLAN_001", "존재하지 않는 학습 계획입니다."),
@@ -88,6 +89,10 @@ public enum ErrorCode {
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_001", "존재하지 않는 게시글입니다."),
     POST_NO_PERMISSION(HttpStatus.FORBIDDEN, "POST_002", "게시글 작성자만 수정/삭제할 수 있습니다."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_003", "존재하지 않는 카테고리입니다."),
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_001", "존재하지 않는 댓글입니다."),
+    COMMENT_NO_PERMISSION(HttpStatus.FORBIDDEN, "COMMENT_002", "댓글 작성자만 수정/삭제할 수 있습니다."),
+    COMMENT_PARENT_MISMATCH(HttpStatus.BAD_REQUEST, "COMMENT_003", "부모 댓글이 해당 게시글에 속하지 않습니다."),
+    COMMENT_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "COMMENT_004", "대댓글은 한 단계까지만 작성할 수 있습니다."),
 
     // ======================== 공통 에러 ========================
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON_400", "잘못된 요청입니다."),

@@ -11,6 +11,7 @@ import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import com.back.global.websocket.service.RoomParticipantService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,9 @@ class RoomServiceTest {
     @Mock
     private StudyRoomProperties properties;
 
+    @Mock
+    private RoomParticipantService roomParticipantService;
+
     @InjectMocks
     private RoomService roomService;
 
@@ -71,7 +75,7 @@ class RoomServiceTest {
         userProfile.setNickname("테스트유저");
         testUser.setUserProfile(userProfile);
 
-        // 테스트 방 생성
+        // 테스트 방 생성 (WebRTC 사용)
         testRoom = Room.create(
                 "테스트 방",
                 "테스트 설명",
@@ -79,7 +83,8 @@ class RoomServiceTest {
                 null,
                 10,
                 testUser,
-                null
+                null,
+                true  // useWebRTC
         );
 
         // 테스트 멤버 생성
@@ -101,7 +106,8 @@ class RoomServiceTest {
                 false,
                 null,
                 10,
-                1L
+                1L,
+                true  // useWebRTC
         );
 
         // then
@@ -125,7 +131,8 @@ class RoomServiceTest {
                 false,
                 null,
                 10,
-                999L
+                999L,
+                true  // useWebRTC
         ))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
@@ -138,14 +145,16 @@ class RoomServiceTest {
         given(roomRepository.findByIdWithLock(1L)).willReturn(Optional.of(testRoom));
         given(userRepository.findById(2L)).willReturn(Optional.of(testUser));
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.empty());
-        given(roomMemberRepository.save(any(RoomMember.class))).willReturn(testMember);
+        given(roomParticipantService.getParticipantCount(1L)).willReturn(0L); // Redis 카운트
 
         // when
         RoomMember joinedMember = roomService.joinRoom(1L, null, 2L);
 
         // then
         assertThat(joinedMember).isNotNull();
-        verify(roomMemberRepository, times(1)).save(any(RoomMember.class));
+        assertThat(joinedMember.getRole()).isEqualTo(RoomRole.VISITOR);
+        verify(roomParticipantService, times(1)).enterRoom(2L, 1L); // Redis 입장 확인
+        verify(roomMemberRepository, never()).save(any(RoomMember.class)); // DB 저장 안됨!
     }
 
     @Test
@@ -171,9 +180,11 @@ class RoomServiceTest {
                 "1234",
                 10,
                 testUser,
-                null
+                null,
+                true  // useWebRTC
         );
         given(roomRepository.findByIdWithLock(1L)).willReturn(Optional.of(privateRoom));
+        given(roomParticipantService.getParticipantCount(1L)).willReturn(0L); // Redis 카운트
 
         // when & then
         assertThatThrownBy(() -> roomService.joinRoom(1L, "wrong", 1L))
@@ -185,15 +196,13 @@ class RoomServiceTest {
     @DisplayName("방 나가기 - 성공")
     void leaveRoom_Success() {
         // given
-        // TODO: Redis 통합 후 온라인 상태 체크 추가 예정
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
-        given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(testMember));
 
         // when
         roomService.leaveRoom(1L, 1L);
 
         // then
-        verify(roomMemberRepository, times(1)).findByRoomIdAndUserId(1L, 1L);
+        verify(roomParticipantService, times(1)).exitRoom(1L, 1L); // Redis 퇴장 확인
     }
 
     @Test
@@ -242,7 +251,8 @@ class RoomServiceTest {
                 "1234",
                 10,
                 testUser,
-                null
+                null,
+                true  // useWebRTC
         );
         given(roomRepository.findById(1L)).willReturn(Optional.of(privateRoom));
         given(roomMemberRepository.existsByRoomIdAndUserId(1L, 2L)).willReturn(false);
@@ -303,7 +313,7 @@ class RoomServiceTest {
     void terminateRoom_Success() {
         // given
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
-        // disconnectAllMembers는 더 이상 호출되지 않음 (Redis로 이관 예정)
+        given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of()); // 온라인 사용자 없음
 
         // when
         roomService.terminateRoom(1L, 1L);
@@ -311,7 +321,6 @@ class RoomServiceTest {
         // then
         assertThat(testRoom.getStatus()).isEqualTo(RoomStatus.TERMINATED);
         assertThat(testRoom.isActive()).isFalse();
-        // verify 제거: disconnectAllMembers는 더 이상 호출되지 않음
     }
 
     @Test
@@ -365,13 +374,12 @@ class RoomServiceTest {
         
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.of(targetMember));
-        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
 
         // when
         roomService.kickMember(1L, 2L, 1L);
 
         // then
-        verify(roomMemberRepository, times(1)).findByRoomIdAndUserId(1L, 2L);
+        verify(roomParticipantService, times(1)).exitRoom(2L, 1L); // Redis 퇴장 확인
     }
 
     @Test
@@ -386,5 +394,57 @@ class RoomServiceTest {
         assertThatThrownBy(() -> roomService.kickMember(1L, 2L, 1L))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_MANAGER);
+    }
+
+    @Test
+    @DisplayName("방 생성 - WebRTC 활성화")
+    void createRoom_WithWebRTC() {
+        // given
+        given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+        given(roomRepository.save(any(Room.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(roomMemberRepository.save(any(RoomMember.class))).willReturn(testMember);
+
+        // when
+        Room createdRoom = roomService.createRoom(
+                "WebRTC 방",
+                "화상 채팅 가능",
+                false,
+                null,
+                10,
+                1L,
+                true  // WebRTC 사용
+        );
+
+        // then
+        assertThat(createdRoom).isNotNull();
+        assertThat(createdRoom.isAllowCamera()).isTrue();
+        assertThat(createdRoom.isAllowAudio()).isTrue();
+        assertThat(createdRoom.isAllowScreenShare()).isTrue();
+    }
+
+    @Test
+    @DisplayName("방 생성 - WebRTC 비활성화")
+    void createRoom_WithoutWebRTC() {
+        // given
+        given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+        given(roomRepository.save(any(Room.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(roomMemberRepository.save(any(RoomMember.class))).willReturn(testMember);
+
+        // when
+        Room createdRoom = roomService.createRoom(
+                "채팅 전용 방",
+                "텍스트만 가능",
+                false,
+                null,
+                50,  // WebRTC 없으면 더 많은 인원 가능
+                1L,
+                false  // WebRTC 미사용
+        );
+
+        // then
+        assertThat(createdRoom).isNotNull();
+        assertThat(createdRoom.isAllowCamera()).isFalse();
+        assertThat(createdRoom.isAllowAudio()).isFalse();
+        assertThat(createdRoom.isAllowScreenShare()).isFalse();
     }
 }

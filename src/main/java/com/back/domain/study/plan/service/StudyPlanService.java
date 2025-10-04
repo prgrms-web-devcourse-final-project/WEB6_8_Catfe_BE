@@ -197,7 +197,9 @@ public class StudyPlanService {
 
             case WEEKLY:
                 if (repeatRule.getByDay() != null && !repeatRule.getByDay().isEmpty()) {
-                    String targetDayOfWeek = targetDate.getDayOfWeek().name().substring(0, 3);
+                    // string으로 요일을 뽑아낸 뒤 enum으로 변환.
+                    // 비교해서 포함되지 않으면 false
+                    DayOfWeek targetDayOfWeek = DayOfWeek.valueOf(targetDate.getDayOfWeek().name().substring(0, 3));
                     if (!repeatRule.getByDay().contains(targetDayOfWeek)) {
                         return false;
                     }
@@ -259,7 +261,7 @@ public class StudyPlanService {
             RepeatRuleEmbeddable modifiedRule = exception.getModifiedRepeatRule();
             StudyPlanResponse.RepeatRuleResponse newRepeatRule = new StudyPlanResponse.RepeatRuleResponse();
             newRepeatRule.setFrequency(modifiedRule.getFrequency());
-            newRepeatRule.setRepeatInterval(modifiedRule.getIntervalValue());
+            newRepeatRule.setIntervalValue(modifiedRule.getRepeatInterval());
             newRepeatRule.setByDay(modifiedRule.getByDay());
             newRepeatRule.setUntilDate(modifiedRule.getUntilDate());
 
@@ -468,7 +470,7 @@ public class StudyPlanService {
     private RepeatRuleEmbeddable createRepeatRuleEmbeddable(StudyPlanRequest.RepeatRuleRequest request, LocalDateTime startDate) {
         RepeatRuleEmbeddable embeddable = new RepeatRuleEmbeddable();
         embeddable.setFrequency(request.getFrequency());
-        embeddable.setIntervalValue(request.getIntervalValue());
+        embeddable.setRepeatInterval(request.getIntervalValue());
 
         // byDay 자동 설정 (오버로딩된 메서드 사용)
         getByDayInWeekly(request, startDate, embeddable);
