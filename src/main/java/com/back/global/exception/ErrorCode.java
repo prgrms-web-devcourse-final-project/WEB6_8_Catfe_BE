@@ -102,6 +102,7 @@ public enum ErrorCode {
     COMMENT_NO_PERMISSION(HttpStatus.FORBIDDEN, "COMMENT_002", "댓글 작성자만 수정/삭제할 수 있습니다."),
     COMMENT_PARENT_MISMATCH(HttpStatus.BAD_REQUEST, "COMMENT_003", "부모 댓글이 해당 게시글에 속하지 않습니다."),
     COMMENT_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "COMMENT_004", "대댓글은 한 단계까지만 작성할 수 있습니다."),
+    COMMENT_ALREADY_LIKED(HttpStatus.BAD_REQUEST, "COMMENT_005", "이미 좋아요한 댓글입니다."),
 
     // ======================== 공통 에러 ========================
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON_400", "잘못된 요청입니다."),

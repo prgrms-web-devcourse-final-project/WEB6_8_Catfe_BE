@@ -24,6 +24,9 @@ public class Comment extends BaseEntity {
 
     private String content;
 
+    // TODO: 추후 CommentRepositoryImpl#getCommentsByPostId 로직 개선 필요, ERD에도 반영할 것
+    private Long likeCount;
+
     // 해당 댓글의 부모 댓글
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_comment_id")
