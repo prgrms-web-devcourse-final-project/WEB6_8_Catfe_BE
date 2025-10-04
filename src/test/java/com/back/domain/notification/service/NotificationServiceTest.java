@@ -51,6 +51,7 @@ class NotificationServiceTest {
     private NotificationService notificationService;
 
     private User user;
+    private User actor;
     private Room room;
     private Notification notification;
 
@@ -63,6 +64,13 @@ class NotificationServiceTest {
                 .password("password123")
                 .build();
 
+        actor = User.builder()
+                .id(2L)
+                .email("actor@test.com")
+                .username("발신자")
+                .password("password123")
+                .build();
+
         room = Room.builder()
                 .id(1L)
                 .title("테스트룸")
@@ -71,7 +79,7 @@ class NotificationServiceTest {
                 .build();
 
         notification = Notification.createPersonalNotification(
-                user, "테스트 알림", "내용", "/target"
+                user, actor, "테스트 알림", "내용", "/target"
         );
         ReflectionTestUtils.setField(notification, "id", 1L);
     }
@@ -89,13 +97,14 @@ class NotificationServiceTest {
 
             // when
             Notification result = notificationService.createPersonalNotification(
-                    user, "테스트 알림", "내용", "/target"
+                    user, actor, "테스트 알림", "내용", "/target"
             );
 
             // then
             assertThat(result).isNotNull();
             assertThat(result.getType()).isEqualTo(NotificationType.PERSONAL);
-            assertThat(result.getUser()).isEqualTo(user);
+            assertThat(result.getReceiver()).isEqualTo(user);
+            assertThat(result.getActor()).isEqualTo(actor);
 
             verify(notificationRepository).save(any(Notification.class));
             verify(webSocketService).sendNotificationToUser(
@@ -109,20 +118,21 @@ class NotificationServiceTest {
         void t2() {
             // given
             Notification roomNotification = Notification.createRoomNotification(
-                    room, "룸 알림", "내용", "/room"
+                    room, actor, "룸 알림", "내용", "/room"
             );
             given(notificationRepository.save(any(Notification.class)))
                     .willReturn(roomNotification);
 
             // when
             Notification result = notificationService.createRoomNotification(
-                    room, "룸 알림", "내용", "/room"
+                    room, actor, "룸 알림", "내용", "/room"
             );
 
             // then
             assertThat(result).isNotNull();
             assertThat(result.getType()).isEqualTo(NotificationType.ROOM);
             assertThat(result.getRoom()).isEqualTo(room);
+            assertThat(result.getActor()).isEqualTo(actor);
 
             verify(notificationRepository).save(any(Notification.class));
             verify(webSocketService).sendNotificationToRoom(
@@ -149,7 +159,7 @@ class NotificationServiceTest {
             // then
             assertThat(result).isNotNull();
             assertThat(result.getType()).isEqualTo(NotificationType.SYSTEM);
-            assertThat(result.getUser()).isNull();
+            assertThat(result.getReceiver()).isNull();
             assertThat(result.getRoom()).isNull();
 
             verify(notificationRepository).save(any(Notification.class));
@@ -163,26 +173,61 @@ class NotificationServiceTest {
         void t4() {
             // given
             Notification communityNotification = Notification.createCommunityNotification(
-                    user, "커뮤니티 알림", "내용", "/community"
+                    user, actor, "커뮤니티 알림", "내용", "/community"
             );
             given(notificationRepository.save(any(Notification.class)))
                     .willReturn(communityNotification);
 
             // when
             Notification result = notificationService.createCommunityNotification(
-                    user, "커뮤니티 알림", "내용", "/community"
+                    user, actor, "커뮤니티 알림", "내용", "/community"
             );
 
             // then
             assertThat(result).isNotNull();
             assertThat(result.getType()).isEqualTo(NotificationType.COMMUNITY);
-            assertThat(result.getUser()).isEqualTo(user);
+            assertThat(result.getReceiver()).isEqualTo(user);
+            assertThat(result.getActor()).isEqualTo(actor);
 
             verify(notificationRepository).save(any(Notification.class));
             verify(webSocketService).sendNotificationToUser(
                     eq(user.getId()),
                     any(NotificationWebSocketDto.class)
             );
+        }
+
+        @Test
+        @DisplayName("자기 자신에게 개인 알림 전송 시 예외 발생")
+        void t5() {
+            // given
+            User sameUser = user;
+
+            // when & then
+            assertThatThrownBy(() ->
+                    notificationService.createPersonalNotification(
+                            sameUser, sameUser, "title", "content", "/url"
+                    )
+            ).isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOTIFICATION_FORBIDDEN);
+
+            verify(notificationRepository, never()).save(any(Notification.class));
+        }
+
+        @Test
+        @DisplayName("자기 자신에게 커뮤니티 알림 전송 시 예외 발생")
+        void t6() {
+            // given
+            User sameUser = user;
+
+            // when & then
+            assertThatThrownBy(() ->
+                    notificationService.createCommunityNotification(
+                            sameUser, sameUser, "title", "content", "/url"
+                    )
+            ).isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOTIFICATION_FORBIDDEN);
+
+            verify(notificationRepository, never()).save(any(Notification.class));
         }
     }
 
@@ -321,10 +366,11 @@ class NotificationServiceTest {
             given(notificationReadRepository.existsByNotificationIdAndUserId(1L, user.getId()))
                     .willReturn(true);
 
-            // when
-            notificationService.markAsRead(1L, user);
+            // when & then
+            assertThatThrownBy(() -> notificationService.markAsRead(1L, user))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOTIFICATION_ALREADY_READ);
 
-            // then
             verify(notificationRepository).findById(1L);
             verify(notificationReadRepository).existsByNotificationIdAndUserId(1L, user.getId());
             verify(notificationReadRepository, never()).save(any(NotificationRead.class));
@@ -351,7 +397,7 @@ class NotificationServiceTest {
         void t4() {
             // given
             Notification notification2 = Notification.createPersonalNotification(
-                    user, "알림2", "내용2", "/target2"
+                    user, actor, "알림2", "내용2", "/target2"
             );
             ReflectionTestUtils.setField(notification2, "id", 2L);
 
@@ -377,7 +423,7 @@ class NotificationServiceTest {
         void t5() {
             // given
             Notification notification2 = Notification.createPersonalNotification(
-                    user, "알림2", "내용2", "/target2"
+                    user, actor, "알림2", "내용2", "/target2"
             );
             ReflectionTestUtils.setField(notification2, "id", 2L);
 
