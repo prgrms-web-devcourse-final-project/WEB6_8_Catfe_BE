@@ -43,7 +43,7 @@ public enum ErrorCode {
     PLAN_EXCEPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "PLAN_003", "학습 계획의 예외가 존재하지 않습니다."),
     PLAN_ORIGINAL_REPEAT_NOT_FOUND(HttpStatus.NOT_FOUND, "PLAN_004", "해당 날짜에 원본 반복 계획을 찾을 수 없습니다."),
     INVALID_DATE_FORMAT(HttpStatus.BAD_REQUEST, "PLAN_005", "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD 형식을 사용해주세요)"),
-    PLAN_INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "PLAN_006", "시작 시간은 종료 시간보다 빨라야 합니다."),
+    INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "PLAN_006", "시작 시간은 종료 시간보다 빨라야 합니다."),
     PLAN_TIME_CONFLICT(HttpStatus.CONFLICT, "PLAN_007", "이미 존재하는 학습 계획과 시간이 겹칩니다. 기존 종료 시간과 겹치는 경우는 제외됩니다."),
     PLAN_CANNOT_UPDATE(HttpStatus.BAD_REQUEST, "PLAN_008", "수정 스위치 로직 탈출. 어떤 경우인지 파악이 필요합니다."),
     REPEAT_INVALID_UNTIL_DATE(HttpStatus.BAD_REQUEST, "REPEAT_001", "반복 계획의 종료 날짜는 시작 날짜 이전일 수 없습니다."),
@@ -52,6 +52,9 @@ public enum ErrorCode {
     // ======================== 투두 관련 ========================
     TODO_NOT_FOUND(HttpStatus.NOT_FOUND, "TODO_001", "존재하지 않는 할 일입니다."),
     TODO_FORBIDDEN(HttpStatus.FORBIDDEN, "TODO_002", "할 일에 대한 접근 권한이 없습니다."),
+
+    // ======================== 학습 기록 관련 ========================
+    DURATION_MISMATCH(HttpStatus.BAD_REQUEST, "RECORD_001", "받은 duration과 계산된 duration이 5초 이상 차이납니다."),
 
     // ======================== 알림 관련 ========================
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION_001", "존재하지 않는 알림입니다."),
