@@ -54,16 +54,24 @@ public class StudyRecordService {
         // 일시정지 정보를 엔티티로 생성
         List<PauseInfo> pauseInfos = request.getPauseInfos().stream()
                 .map(dto -> {
+                    LocalDateTime pausedAt = dto.getPausedAt();
+                    LocalDateTime restartAt = dto.getRestartAt();
+
+                    // 재시작 안 했으면 학습 종료 시간을 재시작 시간으로 간주
+                    if (restartAt == null) {
+                        restartAt = request.getEndTime();
+                    }
+
                     // 일시정지 시간 범위 검증
-                    validateTimeRange(dto.getPausedAt(), dto.getRestartAt());
+                    validateTimeRange(pausedAt, restartAt);
                     // 일시정지가 학습 시간 내에 있는지 검증
                     validatePauseInStudyRange(
                             request.getStartTime(),
                             request.getEndTime(),
-                            dto.getPausedAt(),
-                            dto.getRestartAt()
+                            pausedAt,
+                            restartAt
                     );
-                    return PauseInfo.of(dto.getPausedAt(), dto.getRestartAt());
+                    return PauseInfo.of(pausedAt, restartAt);
                 })
                 .collect(Collectors.toList());
 

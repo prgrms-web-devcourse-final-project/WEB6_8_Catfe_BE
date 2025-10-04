@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -118,9 +119,9 @@ class StudyRecordControllerTest {
     }
 
     @Test
-    @DisplayName("학습 기록 생성 - 단발성 계획")
+    @DisplayName("학습 기록 생성 - 일시정지 없음")
     void t1() throws Exception {
-        ResultActions resultActions = mvc.perform(post("/api/records")
+        ResultActions resultActions = mvc.perform(post("/api/plans/records")
                         .header("Authorization", "Bearer faketoken")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -147,9 +148,9 @@ class StudyRecordControllerTest {
                 .andExpect(jsonPath("$.data.pauseInfos", hasSize(0)));
     }
     @Test
-    @DisplayName("학습 기록 생성 - 일시정지 포함")
+    @DisplayName("학습 기록 생성 - 일시정지 있음")
     void t2() throws Exception {
-        ResultActions resultActions = mvc.perform(post("/api/records")
+        ResultActions resultActions = mvc.perform(post("/api/plans/records")
                         .header("Authorization", "Bearer faketoken")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -157,7 +158,7 @@ class StudyRecordControllerTest {
                                     "planId": %d,
                                     "startTime": "2025-10-03T14:00:00",
                                     "endTime": "2025-10-03T17:00:00",
-                                    "duration": 7200",
+                                    "duration": "7500",
                                     "pauseInfos": [
                                         {
                                             "pausedAt": "2025-10-03T15:00:00",
@@ -167,7 +168,7 @@ class StudyRecordControllerTest {
                                             "restartAt": "2025-10-03T16:10:00"
                                         },{
                                             "pausedAt": "2025-10-03T16:50:00",
-                                            "restartAt": "2025-10-03T17:00:00"
+                                            "restartAt": "2025-10-03T16:55:00"
                                         }
                                     ]
                                 }
@@ -178,7 +179,102 @@ class StudyRecordControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.startTime").value("2025-10-03T14:00:00"))
-                .andExpect(jsonPath("$.data.pauseInfos", hasSize(3)));
+                .andExpect(jsonPath("$.data.pauseInfos", hasSize(3)))
+                .andExpect(jsonPath("$.data.duration").value("7500"));
     }
-  
+
+    @Test
+    @DisplayName("학습 기록 생성 - 일시정지 + 마지막 재시작 없음")
+    void t2_1() throws Exception {
+        ResultActions resultActions = mvc.perform(post("/api/plans/records")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "planId": %d,
+                                    "startTime": "2025-10-03T14:00:00",
+                                    "endTime": "2025-10-03T17:00:00",
+                                    "duration": "7200",
+                                    "pauseInfos": [
+                                        {
+                                            "pausedAt": "2025-10-03T15:00:00",
+                                            "restartAt": "2025-10-03T15:30:00"
+                                        },{
+                                            "pausedAt": "2025-10-03T15:50:00",
+                                            "restartAt": "2025-10-03T16:10:00"
+                                        },{
+                                            "pausedAt": "2025-10-03T16:50:00"
+                                        }
+                                    ]
+                                }
+                                """.formatted(dailyPlan.getId())))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.startTime").value("2025-10-03T14:00:00"))
+                .andExpect(jsonPath("$.data.pauseInfos", hasSize(3)))
+                .andExpect(jsonPath("$.data.duration").value("7200"));
+    }
+
+    @Test
+    @DisplayName("학습 기록 조회 - 일시정지 없음")
+    void t3() throws Exception {
+        mvc.perform(post("/api/plans/records")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "planId": %d,
+                                    "startTime": "2025-10-03T10:00:00",
+                                    "endTime": "2025-10-03T12:00:00",
+                                    "duration": 7200,
+                                    "pauseInfos": []
+                                }
+                                """.formatted(singlePlan.getId())))
+                .andExpect(status().isOk());
+
+        // 조회
+        ResultActions resultActions = mvc.perform(get("/api/plans/records?date=2025-10-03")
+                        .header("Authorization", "Bearer faketoken"))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("일별 학습 기록 조회 성공"))
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].planId").value(singlePlan.getId()))
+                .andExpect(jsonPath("$.data[0].duration").value(7200));
+    }
+
+    @Test
+    @DisplayName("학습 기록 조회 - 전날 밤~당일 새벽 기록의 경우")
+    void t4() throws Exception {
+        mvc.perform(post("/api/plans/records")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                        "planId": %d,
+                        "startTime": "2025-10-02T23:00:00",
+                        "endTime": "2025-10-03T02:00:00",
+                        "duration": 10800,
+                        "pauseInfos": []
+                    }
+                    """.formatted(singlePlan.getId())))
+                .andExpect(status().isOk());
+
+        // 10월 2일로 조회 (04:00 기준이므로 이 기록이 포함되어야 함)
+        ResultActions resultActions = mvc.perform(get("/api/plans/records?date=2025-10-02")
+                        .header("Authorization", "Bearer faketoken"))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].startTime").value("2025-10-02T23:00:00"))
+                .andExpect(jsonPath("$.data[0].endTime").value("2025-10-03T02:00:00"));
+        }
 }
