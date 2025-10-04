@@ -11,6 +11,7 @@ import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import com.back.global.websocket.service.RoomParticipantService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,7 @@ class RoomServiceTest {
     private StudyRoomProperties properties;
 
     @Mock
-    private RoomRedisService roomRedisService;
+    private RoomParticipantService roomParticipantService;
 
     @InjectMocks
     private RoomService roomService;
@@ -144,7 +145,7 @@ class RoomServiceTest {
         given(roomRepository.findByIdWithLock(1L)).willReturn(Optional.of(testRoom));
         given(userRepository.findById(2L)).willReturn(Optional.of(testUser));
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.empty());
-        given(roomRedisService.getRoomUserCount(1L)).willReturn(0L); // Redis 카운트
+        given(roomParticipantService.getParticipantCount(1L)).willReturn(0L); // Redis 카운트
 
         // when
         RoomMember joinedMember = roomService.joinRoom(1L, null, 2L);
@@ -152,7 +153,7 @@ class RoomServiceTest {
         // then
         assertThat(joinedMember).isNotNull();
         assertThat(joinedMember.getRole()).isEqualTo(RoomRole.VISITOR);
-        verify(roomRedisService, times(1)).enterRoom(2L, 1L); // Redis 입장 확인
+        verify(roomParticipantService, times(1)).enterRoom(2L, 1L); // Redis 입장 확인
         verify(roomMemberRepository, never()).save(any(RoomMember.class)); // DB 저장 안됨!
     }
 
@@ -183,7 +184,7 @@ class RoomServiceTest {
                 true  // useWebRTC
         );
         given(roomRepository.findByIdWithLock(1L)).willReturn(Optional.of(privateRoom));
-        given(roomRedisService.getRoomUserCount(1L)).willReturn(0L); // Redis 카운트
+        given(roomParticipantService.getParticipantCount(1L)).willReturn(0L); // Redis 카운트
 
         // when & then
         assertThatThrownBy(() -> roomService.joinRoom(1L, "wrong", 1L))
@@ -201,7 +202,7 @@ class RoomServiceTest {
         roomService.leaveRoom(1L, 1L);
 
         // then
-        verify(roomRedisService, times(1)).exitRoom(1L, 1L); // Redis 퇴장 확인
+        verify(roomParticipantService, times(1)).exitRoom(1L, 1L); // Redis 퇴장 확인
     }
 
     @Test
@@ -312,7 +313,7 @@ class RoomServiceTest {
     void terminateRoom_Success() {
         // given
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
-        given(roomRedisService.getRoomUsers(1L)).willReturn(java.util.Set.of()); // 온라인 사용자 없음
+        given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of()); // 온라인 사용자 없음
 
         // when
         roomService.terminateRoom(1L, 1L);
@@ -378,7 +379,7 @@ class RoomServiceTest {
         roomService.kickMember(1L, 2L, 1L);
 
         // then
-        verify(roomRedisService, times(1)).exitRoom(2L, 1L); // Redis 퇴장 확인
+        verify(roomParticipantService, times(1)).exitRoom(2L, 1L); // Redis 퇴장 확인
     }
 
     @Test
