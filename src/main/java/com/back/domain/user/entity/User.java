@@ -1,6 +1,10 @@
 package com.back.domain.user.entity;
 
-import com.back.domain.board.entity.*;
+import com.back.domain.board.comment.entity.Comment;
+import com.back.domain.board.comment.entity.CommentLike;
+import com.back.domain.board.post.entity.Post;
+import com.back.domain.board.post.entity.PostBookmark;
+import com.back.domain.board.post.entity.PostLike;
 import com.back.domain.file.entity.FileAttachment;
 import com.back.domain.study.plan.entity.StudyPlan;
 import com.back.domain.study.todo.entity.Todo;

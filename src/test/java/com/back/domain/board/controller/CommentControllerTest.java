@@ -1,10 +1,10 @@
 package com.back.domain.board.controller;
 
-import com.back.domain.board.dto.CommentRequest;
-import com.back.domain.board.entity.Comment;
-import com.back.domain.board.entity.Post;
-import com.back.domain.board.repository.CommentRepository;
-import com.back.domain.board.repository.PostRepository;
+import com.back.domain.board.comment.dto.CommentRequest;
+import com.back.domain.board.comment.entity.Comment;
+import com.back.domain.board.post.entity.Post;
+import com.back.domain.board.comment.repository.CommentRepository;
+import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
