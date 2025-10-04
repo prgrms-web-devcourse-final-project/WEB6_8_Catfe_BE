@@ -557,7 +557,7 @@ public class StudyPlanService {
         }
 
         if (!startDate.isBefore(endDate)) {
-            throw new CustomException(ErrorCode.PLAN_INVALID_TIME_RANGE);
+            throw new CustomException(ErrorCode.INVALID_TIME_RANGE);
         }
     }
     //시간 겹침 검증 메서드 (최적화된 DB 쿼리 + 가상 인스턴스 검증 조합)
