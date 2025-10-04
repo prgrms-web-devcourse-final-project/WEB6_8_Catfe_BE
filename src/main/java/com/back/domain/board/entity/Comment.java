@@ -41,6 +41,13 @@ public class Comment extends BaseEntity {
         this.user = user;
         this.content = content;
     }
+
+    public Comment(Post post, User user, String content, Comment parent) {
+        this.post = post;
+        this.user = user;
+        this.content = content;
+        this.parent = parent;
+    }
     
     // -------------------- 비즈니스 메서드 --------------------
     // 댓글 업데이트

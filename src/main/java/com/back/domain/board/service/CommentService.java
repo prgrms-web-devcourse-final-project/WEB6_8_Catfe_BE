@@ -1,7 +1,9 @@
 package com.back.domain.board.service;
 
+import com.back.domain.board.dto.CommentListResponse;
 import com.back.domain.board.dto.CommentRequest;
 import com.back.domain.board.dto.CommentResponse;
+import com.back.domain.board.dto.PageResponse;
 import com.back.domain.board.entity.Comment;
 import com.back.domain.board.entity.Post;
 import com.back.domain.board.repository.CommentRepository;
@@ -11,6 +13,8 @@ import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +48,24 @@ public class CommentService {
         // Comment 저장 및 응답 반환
         commentRepository.save(comment);
         return CommentResponse.from(comment);
+    }
+
+    /**
+     * 댓글 다건 조회 서비스
+     * 1. Post 조회
+     * 2. 해당 Post의 댓글 전체 조회 (대댓글 포함, 페이징)
+     * 3. PageResponse 반환
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<CommentListResponse> getComments(Long postId, Pageable pageable) {
+        // Post 조회
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+
+        // 댓글 목록 조회
+        Page<CommentListResponse> comments = commentRepository.getCommentsByPostId(postId, pageable);
+
+        return PageResponse.from(comments);
     }
 
     /**
