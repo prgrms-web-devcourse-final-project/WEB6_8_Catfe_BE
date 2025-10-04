@@ -3,6 +3,7 @@ package com.back.domain.board.comment.service;
 import com.back.domain.board.comment.dto.CommentListResponse;
 import com.back.domain.board.comment.dto.CommentRequest;
 import com.back.domain.board.comment.dto.CommentResponse;
+import com.back.domain.board.comment.dto.ReplyResponse;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.comment.entity.Comment;
 import com.back.domain.board.post.entity.Post;
@@ -119,5 +120,45 @@ public class CommentService {
         }
 
         commentRepository.delete(comment);
+    }
+
+    /**
+     * 대댓글 생성 서비스
+     * 1. User 조회
+     * 2. Post 조회
+     * 3. 부모 Comment 조회
+     * 4. 부모 및 depth 검증
+     * 5. 자식 Comment 생성
+     * 6. Comment 저장 및 ReplyResponse 반환
+     */
+    public ReplyResponse createReply(Long postId, Long parentCommentId, CommentRequest request, Long userId) {
+        // User 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // Post 조회
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+
+        // 부모 Comment 조회
+        Comment parent = commentRepository.findById(parentCommentId)
+                .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_NOT_FOUND));
+
+        // 부모의 게시글 일치 검증
+        if (!parent.getPost().getId().equals(postId)) {
+            throw new CustomException(ErrorCode.COMMENT_PARENT_MISMATCH);
+        }
+
+        // depth 검증: 부모가 이미 대댓글이면 예외
+        if (parent.getParent() != null) {
+            throw new CustomException(ErrorCode.COMMENT_DEPTH_EXCEEDED);
+        }
+
+        // 자식 Comment 생성
+        Comment reply = new Comment(post, user, request.content(), parent);
+
+        // 저장 및 응답 반환
+        commentRepository.save(reply);
+        return ReplyResponse.from(reply);
     }
 }
