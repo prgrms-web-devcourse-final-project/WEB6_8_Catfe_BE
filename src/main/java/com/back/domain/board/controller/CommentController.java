@@ -1,12 +1,17 @@
 package com.back.domain.board.controller;
 
+import com.back.domain.board.dto.CommentListResponse;
 import com.back.domain.board.dto.CommentRequest;
 import com.back.domain.board.dto.CommentResponse;
+import com.back.domain.board.dto.PageResponse;
 import com.back.domain.board.service.CommentService;
 import com.back.global.common.dto.RsData;
 import com.back.global.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,6 +35,21 @@ public class CommentController implements CommentControllerDocs {
                 .status(HttpStatus.CREATED)
                 .body(RsData.success(
                         "댓글이 생성되었습니다.",
+                        response
+                ));
+    }
+
+    // 댓글 다건 조회
+    @GetMapping
+    public ResponseEntity<RsData<PageResponse<CommentListResponse>>> getComments(
+            @PathVariable Long postId,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        PageResponse<CommentListResponse> response = commentService.getComments(postId, pageable);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success(
+                        "댓글 목록이 조회되었습니다.",
                         response
                 ));
     }
@@ -62,8 +82,8 @@ public class CommentController implements CommentControllerDocs {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success(
-                   "댓글이 삭제되었습니다.",
-                   null
+                        "댓글이 삭제되었습니다.",
+                        null
                 ));
     }
 }
