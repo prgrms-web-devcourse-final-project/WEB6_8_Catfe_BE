@@ -289,7 +289,7 @@ class StudyRecordControllerTest {
                                     "planId": %d,
                                     "startTime": "2025-10-02T23:00:00",
                                     "endTime": "2025-10-03T05:00:00",
-                                    "duration": 25200,
+                                    "duration": 21600,
                                     "pauseInfos": []
                                 }
                                 """.formatted(singlePlan.getId())))
