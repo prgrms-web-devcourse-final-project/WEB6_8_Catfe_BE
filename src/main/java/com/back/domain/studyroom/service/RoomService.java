@@ -277,10 +277,10 @@ public class RoomService {
 
         // 3. 대상자 확인 (DB 조회 - VISITOR는 DB에 없을 수 있음)
         Optional<RoomMember> targetMemberOpt = roomMemberRepository.findByRoomIdAndUserId(roomId, targetUserId);
-        
+
         // 변경 전 역할 저장 (알림용)
         RoomRole oldRole = targetMemberOpt.map(RoomMember::getRole).orElse(RoomRole.VISITOR);
-        
+
         // 4. HOST로 변경하는 경우 - 기존 방장 강등
         if (newRole == RoomRole.HOST) {
             // 기존 방장을 MEMBER로 강등
@@ -462,7 +462,7 @@ public class RoomService {
         java.util.List<Long> roomIds = rooms.stream()
                 .map(Room::getId)
                 .collect(java.util.stream.Collectors.toList());
-        
+
         java.util.Map<Long, Long> participantCounts = roomIds.stream()
                 .collect(java.util.stream.Collectors.toMap(
                         roomId -> roomId,
@@ -509,7 +509,7 @@ public class RoomService {
         java.util.List<Long> roomIds = rooms.stream()
                 .map(Room::getId)
                 .collect(java.util.stream.Collectors.toList());
-        
+
         java.util.Map<Long, Long> participantCounts = roomIds.stream()
                 .collect(java.util.stream.Collectors.toMap(
                         roomId -> roomId,

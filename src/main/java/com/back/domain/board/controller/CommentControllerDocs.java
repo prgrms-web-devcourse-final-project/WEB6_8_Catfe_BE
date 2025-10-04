@@ -1,7 +1,9 @@
 package com.back.domain.board.controller;
 
+import com.back.domain.board.dto.CommentListResponse;
 import com.back.domain.board.dto.CommentRequest;
 import com.back.domain.board.dto.CommentResponse;
+import com.back.domain.board.dto.PageResponse;
 import com.back.global.common.dto.RsData;
 import com.back.global.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -140,6 +143,115 @@ public interface CommentControllerDocs {
             @PathVariable Long postId,
             @RequestBody CommentRequest request,
             @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "댓글 목록 조회",
+            description = "특정 게시글에 달린 댓글 목록을 조회합니다. " +
+                    "부모 댓글 기준으로 페이징되며, 각 댓글의 대댓글(children) 목록이 함께 포함됩니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "댓글 목록 조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "댓글 목록이 조회되었습니다.",
+                                      "data": {
+                                        "content": [
+                                          {
+                                            "commentId": 1,
+                                            "postId": 101,
+                                            "parentId": null,
+                                            "author": {
+                                              "id": 5,
+                                              "nickname": "홍길동"
+                                            },
+                                            "content": "부모 댓글",
+                                            "likeCount": 2,
+                                            "createdAt": "2025-09-22T11:30:00",
+                                            "updatedAt": "2025-09-22T11:30:00",
+                                            "children": [
+                                              {
+                                                "commentId": 2,
+                                                "postId": 101,
+                                                "parentId": 1,
+                                                "author": {
+                                                  "id": 5,
+                                                  "nickname": "홍길동"
+                                                },
+                                                "content": "자식 댓글",
+                                                "likeCount": 0,
+                                                "createdAt": "2025-09-22T11:35:00",
+                                                "updatedAt": "2025-09-22T11:35:00",
+                                                "children": []
+                                              }
+                                            ]
+                                          }
+                                        ],
+                                        "pageNumber": 0,
+                                        "pageSize": 10,
+                                        "totalElements": 1,
+                                        "totalPages": 1,
+                                        "last": true
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 (파라미터 오류)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_400",
+                                      "message": "잘못된 요청입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 게시글",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "POST_001",
+                                      "message": "존재하지 않는 게시글입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ResponseEntity<RsData<PageResponse<CommentListResponse>>> getComments(
+            @PathVariable Long postId,
+            Pageable pageable
     );
 
     @Operation(

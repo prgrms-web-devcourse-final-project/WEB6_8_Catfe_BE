@@ -207,6 +207,65 @@ class CommentControllerTest {
                 .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
     }
 
+    // ====================== 댓글 조회 테스트 ======================
+
+    @Test
+    @DisplayName("댓글 목록 조회 성공 → 200 OK")
+    void getComments_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "제목", "내용");
+        postRepository.save(post);
+
+        // 부모 댓글
+        Comment parent = new Comment(post, user, "부모 댓글", null);
+        commentRepository.save(parent);
+
+        // 자식 댓글
+        Comment child = new Comment(post, user, "자식 댓글", parent);
+        commentRepository.save(child);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(get("/api/posts/{postId}/comments", post.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.data.items[0].content").value("부모 댓글"))
+                .andExpect(jsonPath("$.data.items[0].children[0].content").value("자식 댓글"));
+    }
+
+    @Test
+    @DisplayName("댓글 목록 조회 실패 - 존재하지 않는 게시글 → 404 Not Found")
+    void getComments_postNotFound() throws Exception {
+        // given
+        User user = User.createUser("ghost", "ghost@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "유저", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(get("/api/posts/{postId}/comments", 999L)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POST_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 게시글입니다."));
+    }
+
     // ====================== 댓글 수정 테스트 ======================
 
     @Test
@@ -214,7 +273,7 @@ class CommentControllerTest {
     void updateComment_success() throws Exception {
         // given: 유저 + 게시글 + 댓글
         User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
-        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000,1,1), 1000));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
@@ -390,6 +449,7 @@ class CommentControllerTest {
                 .andExpect(jsonPath("$.code").value("AUTH_001"))
                 .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
     }
+
     // ====================== 댓글 삭제 테스트 ======================
 
     @Test

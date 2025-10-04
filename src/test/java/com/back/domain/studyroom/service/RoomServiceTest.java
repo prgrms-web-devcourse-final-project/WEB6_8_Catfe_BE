@@ -11,6 +11,7 @@ import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
+import com.back.global.websocket.service.RoomParticipantService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
