@@ -277,4 +277,46 @@ class StudyRecordControllerTest {
                 .andExpect(jsonPath("$.data[0].startTime").value("2025-10-02T23:00:00"))
                 .andExpect(jsonPath("$.data[0].endTime").value("2025-10-03T02:00:00"));
         }
+
+    @Test
+    @DisplayName("학습 기록 조회 - 전날 밤~당일 오전 4시 이후 끝난 기록의 경우")
+    void t5() throws Exception {
+        mvc.perform(post("/api/plans/records")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "planId": %d,
+                                    "startTime": "2025-10-02T23:00:00",
+                                    "endTime": "2025-10-03T05:00:00",
+                                    "duration": 25200,
+                                    "pauseInfos": []
+                                }
+                                """.formatted(singlePlan.getId())))
+                .andExpect(status().isOk());
+        // 10월 2일 조회
+        ResultActions resultActions = mvc.perform(get("/api/plans/records?date=2025-10-02")
+                        .header("Authorization", "Bearer faketoken"))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].startTime").value("2025-10-02T23:00:00"))
+                .andExpect(jsonPath("$.data[0].endTime").value("2025-10-03T05:00:00"))
+                .andExpect(jsonPath("$.data[0].duration").value(21600));
+
+        // 10월 3일 조회
+        resultActions = mvc.perform(get("/api/plans/records?date=2025-10-03")
+                        .header("Authorization", "Bearer faketoken"))
+                .andDo(print());
+
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].startTime").value("2025-10-02T23:00:00"))
+                .andExpect(jsonPath("$.data[0].endTime").value("2025-10-03T02:00:00"))
+                .andExpect(jsonPath("$.data[0].duration").value(21600));
+    }
+
 }

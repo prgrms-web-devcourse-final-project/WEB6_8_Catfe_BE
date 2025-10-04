@@ -64,6 +64,7 @@ public class StudyRecordService {
 
                     // 일시정지 시간 범위 검증
                     validateTimeRange(pausedAt, restartAt);
+
                     // 일시정지가 학습 시간 내에 있는지 검증
                     validatePauseInStudyRange(
                             request.getStartTime(),
@@ -84,6 +85,9 @@ public class StudyRecordService {
                 request.getEndTime(),
                 pauseInfos
         );
+
+        // 프론트 Duration과 백엔드 Duration 비교 검증
+        validateDurationDifference(request.getDuration(), record.getDuration());
 
         // 저장
         StudyRecord saved = studyRecordRepository.save(record);
