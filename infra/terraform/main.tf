@@ -213,6 +213,7 @@ docker network create common
 # redis 설치
 docker run -d \
   --name redis_1 \
+  --restart unless-stopped \
   --network common \
   -p 6379:6379 \
   -e TZ=Asia/Seoul \
