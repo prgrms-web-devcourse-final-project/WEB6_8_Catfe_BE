@@ -26,49 +26,63 @@ public class NotificationService {
     private final NotificationReadRepository notificationReadRepository;
     private final NotificationWebSocketService webSocketService;
 
+    // ==================== 검증 메서드 ====================
+
+    // 발신자와 수신자 검증
+    private void validateActorAndReceiver(User receiver, User actor) {
+        if (receiver.getId().equals(actor.getId())) {
+            log.debug("자기 자신에게 알림 전송 시도 - receiver: {}, actor: {}",
+                    receiver.getId(), actor.getId());
+            throw new CustomException(ErrorCode.NOTIFICATION_FORBIDDEN);
+        }
+    }
+
     // ==================== 알림 생성 및 전송 ====================
 
     // 개인 알림 생성 및 전송
     @Transactional
-    public Notification createPersonalNotification(User user, String title, String content, String targetUrl) {
+    public Notification createPersonalNotification(
+            User receiver,
+            User actor,
+            String title,
+            String content,
+            String targetUrl) {
+
+        // 자기 자신에게 알림 방지
+        validateActorAndReceiver(receiver, actor);
 
         // DB에 알림 저장
-        Notification notification = Notification.createPersonalNotification(user, title, content, targetUrl);
+        Notification notification = Notification.createPersonalNotification(
+                receiver, actor, title, content, targetUrl);
         notificationRepository.save(notification);
 
         // WebSocket으로 실시간 전송
-        NotificationWebSocketDto dto = NotificationWebSocketDto.from(
-                notification.getId(),
-                notification.getTitle(),
-                notification.getContent(),
-                notification.getType(),
-                notification.getTargetUrl(),
-                notification.getCreatedAt()
-        );
-        webSocketService.sendNotificationToUser(user.getId(), dto);
+        NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
+        webSocketService.sendNotificationToUser(receiver.getId(), dto);
 
-        log.info("개인 알림 생성 - 유저 ID: {}, 알림 ID: {}", user.getId(), notification.getId());
+        log.info("개인 알림 생성 - 수신자 ID: {}, 발신자 ID: {}, 알림 ID: {}",
+                receiver.getId(), actor.getId(), notification.getId());
         return notification;
     }
 
     // 스터디룸 알림 생성 및 전송
     @Transactional
-    public Notification createRoomNotification(Room room, String title, String content, String targetUrl) {
+    public Notification createRoomNotification(
+            Room room,
+            User actor,
+            String title,
+            String content,
+            String targetUrl) {
 
-        Notification notification = Notification.createRoomNotification(room, title, content, targetUrl);
+        Notification notification = Notification.createRoomNotification(
+                room, actor, title, content, targetUrl);
         notificationRepository.save(notification);
 
-        NotificationWebSocketDto dto = NotificationWebSocketDto.from(
-                notification.getId(),
-                notification.getTitle(),
-                notification.getContent(),
-                notification.getType(),
-                notification.getTargetUrl(),
-                notification.getCreatedAt()
-        );
+        NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
         webSocketService.sendNotificationToRoom(room.getId(), dto);
 
-        log.info("스터디룸 알림 생성 - 룸 ID: {}, 알림 ID: {}", room.getId(), notification.getId());
+        log.info("스터디룸 알림 생성 - 룸 ID: {}, 발신자 ID: {}, 알림 ID: {}",
+                room.getId(), actor.getId(), notification.getId());
         return notification;
     }
 
@@ -79,14 +93,7 @@ public class NotificationService {
         Notification notification = Notification.createSystemNotification(title, content, targetUrl);
         notificationRepository.save(notification);
 
-        NotificationWebSocketDto dto = NotificationWebSocketDto.from(
-                notification.getId(),
-                notification.getTitle(),
-                notification.getContent(),
-                notification.getType(),
-                notification.getTargetUrl(),
-                notification.getCreatedAt()
-        );
+        NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
         webSocketService.broadcastSystemNotification(dto);
 
         log.info("시스템 알림 생성 - 알림 ID: {}", notification.getId());
@@ -95,49 +102,47 @@ public class NotificationService {
 
     // 커뮤니티 알림 생성 및 전송
     @Transactional
-    public Notification createCommunityNotification(User user, String title, String content, String targetUrl) {
+    public Notification createCommunityNotification(
+            User receiver,
+            User actor,
+            String title,
+            String content,
+            String targetUrl) {
 
-        Notification notification = Notification.createCommunityNotification(user, title, content, targetUrl);
+        // 검증: 자기 자신에게 알림 방지
+        validateActorAndReceiver(receiver, actor);
+
+        Notification notification = Notification.createCommunityNotification(
+                receiver, actor, title, content, targetUrl);
         notificationRepository.save(notification);
 
-        NotificationWebSocketDto dto = NotificationWebSocketDto.from(
-                notification.getId(),
-                notification.getTitle(),
-                notification.getContent(),
-                notification.getType(),
-                notification.getTargetUrl(),
-                notification.getCreatedAt()
-        );
-        webSocketService.sendNotificationToUser(user.getId(), dto);
+        NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
+        webSocketService.sendNotificationToUser(receiver.getId(), dto);
 
-        log.info("커뮤니티 알림 생성 - 유저 ID: {}, 알림 ID: {}", user.getId(), notification.getId());
+        log.info("커뮤니티 알림 생성 - 수신자 ID: {}, 발신자 ID: {}, 알림 ID: {}",
+                receiver.getId(), actor.getId(), notification.getId());
         return notification;
     }
 
     // ==================== 알림 조회 ====================
 
-    // 특정 유저의 알림 목록 조회 (개인 알림 + 시스템 알림)
     public Page<Notification> getUserNotifications(Long userId, Pageable pageable) {
         return notificationRepository.findByUserIdOrSystemType(userId, pageable);
     }
 
-    // 특정 유저의 읽지 않은 알림 목록 조회
     public Page<Notification> getUnreadNotifications(Long userId, Pageable pageable) {
         return notificationRepository.findUnreadByUserId(userId, pageable);
     }
 
-    // 특정 유저의 읽지 않은 알림 개수 조회
     public long getUnreadCount(Long userId) {
         return notificationRepository.countUnreadByUserId(userId);
     }
 
-    // 알림 단건 조회
     public Notification getNotification(Long notificationId) {
         return notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
     }
 
-    // 특정 유저가 특정 알림을 읽었는지 확인
     public boolean isNotificationRead(Long notificationId, Long userId) {
         return notificationReadRepository.existsByNotificationIdAndUserId(notificationId, userId);
     }
@@ -147,21 +152,23 @@ public class NotificationService {
     // 알림 읽음 처리
     @Transactional
     public void markAsRead(Long notificationId, User user) {
-        // 1. 알림 존재 확인
+        // 알림 존재 확인
         Notification notification = getNotification(notificationId);
 
-        // 2. 이미 읽은 알림인지 확인
-        if (notificationReadRepository.existsByNotificationIdAndUserId(notificationId, user.getId())) {
-            log.debug("이미 읽은 알림 - 알림 ID: {}, 유저 ID: {}", notificationId, user.getId());
-            return;
+        // 알림 접근 권한 확인
+        if (!notification.isVisibleToUser(user.getId())) {
+            throw new CustomException(ErrorCode.NOTIFICATION_FORBIDDEN);
         }
 
-        // 3. 읽음 기록 생성
+        // 이미 읽은 알림인지 확인
+        if (notificationReadRepository.existsByNotificationIdAndUserId(notificationId, user.getId())) {
+            log.debug("이미 읽은 알림 - 알림 ID: {}, 유저 ID: {}", notificationId, user.getId());
+            throw new CustomException(ErrorCode.NOTIFICATION_ALREADY_READ);
+        }
+
+        // 읽음 기록 생성
         NotificationRead notificationRead = NotificationRead.create(notification, user);
         notificationReadRepository.save(notificationRead);
-
-        // 4. 알림 상태 업데이트 (선택적)
-        notification.markAsRead();
 
         log.info("알림 읽음 처리 - 알림 ID: {}, 유저 ID: {}", notificationId, user.getId());
     }
@@ -171,14 +178,15 @@ public class NotificationService {
     public void markMultipleAsRead(Long userId, User user) {
         Page<Notification> unreadNotifications = getUnreadNotifications(userId, Pageable.unpaged());
 
+        int count = 0;
         for (Notification notification : unreadNotifications) {
             if (!notificationReadRepository.existsByNotificationIdAndUserId(notification.getId(), user.getId())) {
                 NotificationRead notificationRead = NotificationRead.create(notification, user);
                 notificationReadRepository.save(notificationRead);
-                notification.markAsRead();
+                count++;
             }
         }
 
-        log.info("일괄 읽음 처리 - 유저 ID: {}, 처리 개수: {}", userId, unreadNotifications.getTotalElements());
+        log.info("일괄 읽음 처리 - 유저 ID: {}, 처리 개수: {}", userId, count);
     }
 }
