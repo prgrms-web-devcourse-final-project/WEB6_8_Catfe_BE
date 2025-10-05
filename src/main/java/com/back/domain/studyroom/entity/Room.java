@@ -188,6 +188,12 @@ public class Room extends BaseEntity {
         room.createdBy = creator;
         room.theme = theme;
         
+        // 컬렉션 필드 명시적 초기화 (null 방지)
+        room.roomMembers = new ArrayList<>();
+        room.roomChatMessages = new ArrayList<>();
+        room.roomParticipantHistories = new ArrayList<>();
+        room.studyRecords = new ArrayList<>();
+        
         return room;
     }
 
