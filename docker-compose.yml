@@ -15,10 +15,10 @@ services:
     container_name: local-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: catfe
-      MYSQL_USER: catfe_user
-      MYSQL_PASSWORD: catfe_pass
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: root_user
+      MYSQL_PASSWORD: root_pass
     ports:
       - "3306:3306"
     volumes:
