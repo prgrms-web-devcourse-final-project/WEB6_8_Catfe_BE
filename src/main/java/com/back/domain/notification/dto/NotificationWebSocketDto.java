@@ -1,5 +1,6 @@
 package com.back.domain.notification.dto;
 
+import com.back.domain.notification.entity.Notification;
 import com.back.domain.notification.entity.NotificationType;
 
 import java.time.LocalDateTime;
@@ -10,24 +11,18 @@ public record NotificationWebSocketDto(
         String message,
         NotificationType notificationType,
         String targetUrl,
+        ActorDto actor,
         LocalDateTime createdAt
 ) {
-
-    public static NotificationWebSocketDto from(
-            Long notificationId,
-            String title,
-            String content,
-            NotificationType type,
-            String targetUrl,
-            LocalDateTime createdAt) {
-
+    public static NotificationWebSocketDto from(Notification notification) {
         return new NotificationWebSocketDto(
-                notificationId,
-                title,
-                content,
-                type,
-                targetUrl,
-                createdAt
+                notification.getId(),
+                notification.getTitle(),
+                notification.getContent(),
+                notification.getType(),
+                notification.getTargetUrl(),
+                ActorDto.from(notification.getActor()),
+                notification.getCreatedAt()
         );
     }
 }

@@ -9,7 +9,11 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  build-and-test:
+  # --------------------------
+  # main 브랜치용 build & test
+  # --------------------------
+  build-and-test-main:
+    if: github.base_ref == 'main' # main 브랜치로 PR이 들어올 때만 실행
     runs-on: ubuntu-latest
 
     services:
@@ -17,6 +21,20 @@ jobs:
         image: redis:7
         ports:
           - 6379:6379
+
+      mysql:
+        image: mysql:8
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: root_pass
+          MYSQL_DATABASE: testdb
+        # MySQL 헬스체크, MySQL 실행 준비 중인 동안 스프링부트 실행을 방지
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -p$MYSQL_ROOT_PASSWORD"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
 
     steps:
       # 저장소 체크아웃
@@ -39,5 +57,37 @@ jobs:
         run: ./gradlew clean build -x test
 
       # Test 실행
+      - name: Run tests
+        run: ./gradlew test
+
+  # --------------------------
+  # dev 브랜치용 build & test
+  # --------------------------
+  build-and-test-dev:
+    if: github.base_ref == 'dev'  # dev 브랜치로 PR이 들어올 때만 실행
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Create .env file
+        run: echo "${{ secrets.DOT_ENV }}" > .env
+
+      - name: Build project
+        run: ./gradlew clean build -x test
+
       - name: Run tests
         run: ./gradlew test
