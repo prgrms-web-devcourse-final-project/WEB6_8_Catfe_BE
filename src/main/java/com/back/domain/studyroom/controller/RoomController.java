@@ -126,9 +126,140 @@ public class RoomController {
                 .body(RsData.success("방 퇴장 완료", null));
     }
 
-    @GetMapping
+    @GetMapping("/all")
+    @Operation(
+        summary = "모든 방 목록 조회", 
+        description = "공개 방과 비공개 방 전체를 조회합니다. 비공개 방은 제목과 방장 정보가 마스킹됩니다. 열린 방(WAITING, ACTIVE)이 우선 표시되고, 닫힌 방(PAUSED, TERMINATED)은 뒤로 밀립니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<Map<String, Object>>> getAllRooms(
+            @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Room> rooms = roomService.getAllRooms(pageable);
+
+        // 비공개 방 마스킹 포함한 변환
+        List<RoomResponse> roomList = roomService.toRoomResponseListWithMasking(rooms.getContent());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("rooms", roomList);
+        response.put("page", rooms.getNumber());
+        response.put("size", rooms.getSize());
+        response.put("totalElements", rooms.getTotalElements());
+        response.put("totalPages", rooms.getTotalPages());
+        response.put("hasNext", rooms.hasNext());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("모든 방 목록 조회 완료", response));
+    }
+
+    @GetMapping("/public")
     @Operation(
         summary = "공개 방 목록 조회", 
+        description = "공개 방 전체를 조회합니다. includeInactive=true로 설정하면 닫힌 방도 포함됩니다 (기본값: true). 열린 방이 우선 표시됩니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<Map<String, Object>>> getPublicRooms(
+            @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "닫힌 방 포함 여부") @RequestParam(defaultValue = "true") boolean includeInactive) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Room> rooms = roomService.getPublicRooms(includeInactive, pageable);
+
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("rooms", roomList);
+        response.put("page", rooms.getNumber());
+        response.put("size", rooms.getSize());
+        response.put("totalElements", rooms.getTotalElements());
+        response.put("totalPages", rooms.getTotalPages());
+        response.put("hasNext", rooms.hasNext());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("공개 방 목록 조회 완료", response));
+    }
+
+    @GetMapping("/private")
+    @Operation(
+        summary = "내 비공개 방 목록 조회", 
+        description = "내가 멤버로 등록된 비공개 방을 조회합니다. includeInactive=true로 설정하면 닫힌 방도 포함됩니다 (기본값: true). 열린 방이 우선 표시됩니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<Map<String, Object>>> getMyPrivateRooms(
+            @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "닫힌 방 포함 여부") @RequestParam(defaultValue = "true") boolean includeInactive) {
+
+        Long currentUserId = currentUser.getUserId();
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Room> rooms = roomService.getMyPrivateRooms(currentUserId, includeInactive, pageable);
+
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("rooms", roomList);
+        response.put("page", rooms.getNumber());
+        response.put("size", rooms.getSize());
+        response.put("totalElements", rooms.getTotalElements());
+        response.put("totalPages", rooms.getTotalPages());
+        response.put("hasNext", rooms.hasNext());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("내 비공개 방 목록 조회 완료", response));
+    }
+
+    @GetMapping("/my/hosting")
+    @Operation(
+        summary = "내가 호스트인 방 목록 조회", 
+        description = "내가 방장으로 있는 방을 조회합니다. 열린 방이 우선 표시되고, 닫힌 방은 뒤로 밀립니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<Map<String, Object>>> getMyHostingRooms(
+            @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") int size) {
+
+        Long currentUserId = currentUser.getUserId();
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Room> rooms = roomService.getMyHostingRooms(currentUserId, pageable);
+
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("rooms", roomList);
+        response.put("page", rooms.getNumber());
+        response.put("size", rooms.getSize());
+        response.put("totalElements", rooms.getTotalElements());
+        response.put("totalPages", rooms.getTotalPages());
+        response.put("hasNext", rooms.hasNext());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("내가 호스트인 방 목록 조회 완료", response));
+    }
+
+    @GetMapping
+    @Operation(
+        summary = "입장 가능한 공개 방 목록 조회 (기존)", 
         description = "입장 가능한 공개 스터디 룸 목록을 페이징하여 조회합니다. 최신 생성 순으로 정렬됩니다."
     )
     @ApiResponses({
@@ -260,6 +391,54 @@ public class RoomController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success("방 종료 완료", null));
+    }
+
+    @PutMapping("/{roomId}/pause")
+    @Operation(
+        summary = "방 일시정지", 
+        description = "방을 일시정지 상태로 변경합니다. 일시정지된 방은 입장할 수 없으며, 방 목록에서 뒤로 밀립니다. 방장만 실행 가능합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "일시정지 성공"),
+        @ApiResponse(responseCode = "400", description = "이미 종료되었거나 일시정지 불가능한 상태"),
+        @ApiResponse(responseCode = "403", description = "방장 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<Void>> pauseRoom(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId) {
+
+        Long currentUserId = currentUser.getUserId();
+
+        roomService.pauseRoom(roomId, currentUserId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("방 일시정지 완료", null));
+    }
+
+    @PutMapping("/{roomId}/activate")
+    @Operation(
+        summary = "방 활성화/재개", 
+        description = "일시정지된 방을 다시 활성화합니다. 활성화된 방은 다시 입장 가능하며, 방 목록 앞쪽에 표시됩니다. 방장만 실행 가능합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "활성화 성공"),
+        @ApiResponse(responseCode = "400", description = "이미 종료되었거나 활성화 불가능한 상태"),
+        @ApiResponse(responseCode = "403", description = "방장 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<Void>> activateRoom(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId) {
+
+        Long currentUserId = currentUser.getUserId();
+
+        roomService.activateRoom(roomId, currentUserId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("방 활성화 완료", null));
     }
 
     @GetMapping("/{roomId}/members")

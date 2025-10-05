@@ -1,6 +1,7 @@
 package com.back.domain.studyroom.service;
 
 import com.back.domain.studyroom.config.StudyRoomProperties;
+import com.back.domain.studyroom.dto.RoomResponse;
 import com.back.domain.studyroom.entity.*;
 import com.back.domain.studyroom.repository.*;
 import com.back.domain.user.entity.User;
@@ -183,6 +184,69 @@ public class RoomService {
         return roomRepository.findJoinablePublicRooms(pageable);
     }
 
+    /**
+     * 모든 방 조회 (공개 + 비공개 전체)
+     * 비공개 방은 정보 마스킹
+     */
+    public Page<Room> getAllRooms(Pageable pageable) {
+        return roomRepository.findAllRooms(pageable);
+    }
+
+    /**
+     * 공개 방 전체 조회
+     * @param includeInactive 닫힌 방 포함 여부 (기본: true)
+     */
+    public Page<Room> getPublicRooms(boolean includeInactive, Pageable pageable) {
+        return roomRepository.findPublicRoomsWithStatus(includeInactive, pageable);
+    }
+
+    /**
+     * 내가 멤버인 비공개 방 조회
+     * @param includeInactive 닫힌 방 포함 여부 (기본: true)
+     */
+    public Page<Room> getMyPrivateRooms(Long userId, boolean includeInactive, Pageable pageable) {
+        return roomRepository.findMyPrivateRooms(userId, includeInactive, pageable);
+    }
+
+    /**
+     * 내가 호스트인 방 조회
+     */
+    public Page<Room> getMyHostingRooms(Long userId, Pageable pageable) {
+        return roomRepository.findRoomsByHostId(userId, pageable);
+    }
+
+    /**
+     * 모든 방을 RoomResponse로 변환 (비공개 방 마스킹 포함)
+     * @param rooms 방 목록
+     * @return 마스킹된 RoomResponse 리스트
+     */
+    public java.util.List<RoomResponse> toRoomResponseListWithMasking(java.util.List<Room> rooms) {
+        java.util.List<Long> roomIds = rooms.stream()
+                .map(Room::getId)
+                .collect(java.util.stream.Collectors.toList());
+
+        // Redis에서 참가자 수 일괄 조회
+        java.util.Map<Long, Long> participantCounts = roomIds.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        roomId -> roomId,
+                        roomId -> roomParticipantService.getParticipantCount(roomId)
+                ));
+        
+        return rooms.stream()
+                .map(room -> {
+                    long count = participantCounts.getOrDefault(room.getId(), 0L);
+                    
+                    // 비공개 방이면 마스킹된 버전 반환
+                    if (room.isPrivate()) {
+                        return RoomResponse.fromMasked(room);
+                    }
+                    
+                    // 공개 방은 일반 버전 반환
+                    return RoomResponse.from(room, count);
+                })
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     public Room getRoomDetail(Long roomId, Long userId) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
@@ -243,6 +307,40 @@ public class RoomService {
         
         log.info("방 종료 완료 - RoomId: {}, UserId: {}, 퇴장 처리: {}명", 
                 roomId, userId, onlineUserIds.size());
+    }
+
+    /**
+     * 방 일시정지 (방장만 가능)
+     */
+    @Transactional
+    public void pauseRoom(Long roomId, Long userId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+
+        if (!room.isOwner(userId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_MANAGER);
+        }
+
+        room.pause();
+        
+        log.info("방 일시정지 완료 - RoomId: {}, UserId: {}", roomId, userId);
+    }
+
+    /**
+     * 방 재개/활성화 (방장만 가능)
+     */
+    @Transactional
+    public void activateRoom(Long roomId, Long userId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+
+        if (!room.isOwner(userId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_MANAGER);
+        }
+
+        room.activate();
+        
+        log.info("방 활성화 완료 - RoomId: {}, UserId: {}", roomId, userId);
     }
 
     /**
