@@ -25,7 +25,8 @@ public class Comment extends BaseEntity {
     private String content;
 
     // TODO: 추후 CommentRepositoryImpl#getCommentsByPostId 로직 개선 필요, ERD에도 반영할 것
-    private Long likeCount;
+    @Column(nullable = false)
+    private Long likeCount = 0L;
 
     // 해당 댓글의 부모 댓글
     @ManyToOne(fetch = FetchType.LAZY)
@@ -52,10 +53,22 @@ public class Comment extends BaseEntity {
         this.content = content;
         this.parent = parent;
     }
-    
+
     // -------------------- 비즈니스 메서드 --------------------
     // 댓글 업데이트
     public void update(String content) {
         this.content = content;
+    }
+
+    // 좋아요 수 증가
+    public void increaseLikeCount() {
+        this.likeCount++;
+    }
+
+    // 좋아요 수 감소
+    public void decreaseLikeCount() {
+        if (this.likeCount > 0) {
+            this.likeCount--;
+        }
     }
 }

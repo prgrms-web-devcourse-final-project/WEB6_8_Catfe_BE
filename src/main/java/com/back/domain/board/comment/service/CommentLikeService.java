@@ -26,7 +26,7 @@ public class CommentLikeService {
      * 1. User 조회
      * 2. Comment 조회
      * 3. 이미 존재하는 경우 예외 처리
-     * 4. CommentLike 저장 및 CommentLikeResponse 반환
+     * 4. CommentLike 저장 및 likeCount 증가
      */
     public CommentLikeResponse likeComment(Long commentId, Long userId) {
         // User 조회
@@ -42,8 +42,47 @@ public class CommentLikeService {
             throw new CustomException(ErrorCode.COMMENT_ALREADY_LIKED);
         }
 
+        // 좋아요 수 증가
+        comment.increaseLikeCount();
+
         // CommentLike 저장 및 응답 반환
         commentLikeRepository.save(new CommentLike(comment, user));
+        return CommentLikeResponse.from(comment);
+    }
+
+    /**
+     * 댓글 좋아요 취소 서비스
+     * 1. User 조회
+     * 2. Comment 조회
+     * 3. CommentLike 조회
+     * 4. 사용자 검증
+     * 5. CommentLike 삭제 및 likeCount 감소
+     */
+    public CommentLikeResponse cancelLikeComment(Long commentId, Long userId) {
+        // User 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // Comment 조회
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_NOT_FOUND));
+
+        // CommentLike 조회
+        CommentLike commentLike = commentLikeRepository.findByUserIdAndCommentId(userId, commentId)
+                .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_LIKE_NOT_FOUND));
+
+        // 사용자 검증
+        if (!commentLike.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.COMMENT_LIKE_NO_PERMISSION);
+        }
+
+        // CommentLike 삭제
+        commentLikeRepository.delete(commentLike);
+
+        // 좋아요 수 감소
+        comment.decreaseLikeCount();
+
+        // 응답 반환
         return CommentLikeResponse.from(comment);
     }
 }

@@ -7,10 +7,7 @@ import com.back.global.security.user.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/posts/{postId}/comments/{commentId}/like")
@@ -29,6 +26,21 @@ public class CommentLikeController {
         return ResponseEntity
                 .ok(RsData.success(
                 "댓글 좋아요가 등록되었습니다.",
+                        response
+                ));
+    }
+
+    // 댓글 좋아요 취소
+    @DeleteMapping
+    public ResponseEntity<RsData<CommentLikeResponse>> cancelLikeComment(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        CommentLikeResponse response = commentLikeService.cancelLikeComment(commentId, user.getUserId());
+        return ResponseEntity
+                .ok(RsData.success(
+                        "댓글 좋아요를 취소했습니다.",
                         response
                 ));
     }
