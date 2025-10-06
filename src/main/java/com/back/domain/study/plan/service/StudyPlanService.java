@@ -567,30 +567,39 @@ public class StudyPlanService {
                 if (existingException.isPresent()) {
                     StudyPlanException exception = existingException.get();
 
-                    // FROM_THIS_DATE 범위의 수정을 THIS_ONLY 삭제하는 경우
-                    if (exception.getApplyScope() == ApplyScope.FROM_THIS_DATE) {
-                        // 다음 날짜부터 수정 내용을 유지하기 위해 새 예외 생성
+                    // FROM_THIS_DATE 범위의 MODIFIED를 THIS_ONLY 삭제하는 경우
+                    if (exception.getApplyScope() == ApplyScope.FROM_THIS_DATE
+                            && exception.getExceptionType() == StudyPlanException.ExceptionType.MODIFIED) {
+
                         LocalDate nextDate = selectedDate.plusDays(1);
-                        StudyPlanException continuedException = new StudyPlanException();
-                        continuedException.setStudyPlan(studyPlan);
-                        continuedException.setExceptionDate(nextDate);
-                        continuedException.setExceptionType(StudyPlanException.ExceptionType.MODIFIED);
-                        continuedException.setApplyScope(ApplyScope.FROM_THIS_DATE);
 
-                        // 기존 수정 내용 복사
-                        continuedException.setModifiedSubject(exception.getModifiedSubject());
-                        if (exception.getModifiedStartDate() != null) {
-                            continuedException.setModifiedStartDate(
-                                    exception.getModifiedStartDate().plusDays(1));
-                        }
-                        if (exception.getModifiedEndDate() != null) {
-                            continuedException.setModifiedEndDate(
-                                    exception.getModifiedEndDate().plusDays(1));
-                        }
-                        continuedException.setModifiedColor(exception.getModifiedColor());
-                        continuedException.setModifiedRepeatRule(exception.getModifiedRepeatRule());
+                        // 다음 날에 이미 예외가 있는지 확인
+                        Optional<StudyPlanException> nextDayException = studyPlanExceptionRepository
+                                .findByPlanIdAndDate(studyPlan.getId(), nextDate);
 
-                        studyPlanExceptionRepository.save(continuedException);
+                        // 예외가 없을 때만 새로 생성
+                        if (!nextDayException.isPresent()) {
+                            StudyPlanException continuedException = new StudyPlanException();
+                            continuedException.setStudyPlan(studyPlan);
+                            continuedException.setExceptionDate(nextDate);
+                            continuedException.setExceptionType(StudyPlanException.ExceptionType.MODIFIED);
+                            continuedException.setApplyScope(ApplyScope.FROM_THIS_DATE);
+
+                            // 기존 수정 내용 복사
+                            continuedException.setModifiedSubject(exception.getModifiedSubject());
+                            if (exception.getModifiedStartDate() != null) {
+                                continuedException.setModifiedStartDate(
+                                        exception.getModifiedStartDate().plusDays(1));
+                            }
+                            if (exception.getModifiedEndDate() != null) {
+                                continuedException.setModifiedEndDate(
+                                        exception.getModifiedEndDate().plusDays(1));
+                            }
+                            continuedException.setModifiedColor(exception.getModifiedColor());
+                            continuedException.setModifiedRepeatRule(exception.getModifiedRepeatRule());
+
+                            studyPlanExceptionRepository.save(continuedException);
+                        }
                     }
 
                     // 현재 날짜는 삭제로 변경
