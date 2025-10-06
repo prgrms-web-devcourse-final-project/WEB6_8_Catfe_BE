@@ -172,6 +172,12 @@ resource "aws_iam_role_policy_attachment" "ec2_ssm" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
 }
 
+# EC2 역할에 AmazonEC2RoleforSSM 정책을 부착
+resource "aws_iam_role_policy_attachment" "s3_full_access" {
+  role = aws_iam_role.ec2_role_1.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+}
+
 # IAM 인스턴스 프로파일 생성
 resource "aws_iam_instance_profile" "instance_profile_1" {
   tags = {
@@ -181,6 +187,7 @@ resource "aws_iam_instance_profile" "instance_profile_1" {
   }
 
   role = aws_iam_role.ec2_role_1.name
+  name = "team5-instance-profile-1"
 }
 
 # EC2 실행마다 적용할 작업
