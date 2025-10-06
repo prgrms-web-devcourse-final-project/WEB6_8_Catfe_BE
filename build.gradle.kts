@@ -81,4 +81,6 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // application.yml 거치지않고 application-dev.yml 사용하도록
+    systemProperty("spring.config.name", "application-dev")
 }
