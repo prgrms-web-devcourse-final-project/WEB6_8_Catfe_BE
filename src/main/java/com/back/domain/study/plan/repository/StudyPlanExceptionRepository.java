@@ -38,5 +38,4 @@ public interface StudyPlanExceptionRepository extends JpaRepository<StudyPlanExc
     @Modifying
     @Query("DELETE FROM StudyPlanException spe WHERE spe.studyPlan.id = :planId AND spe.exceptionDate > :date")
     void deleteByStudyPlanIdAndExceptionDateAfter(@Param("planId") Long planId, @Param("date") LocalDate date);
-
 }

@@ -46,6 +46,7 @@ public enum ErrorCode {
     INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "PLAN_006", "시작 시간은 종료 시간보다 빨라야 합니다."),
     PLAN_TIME_CONFLICT(HttpStatus.CONFLICT, "PLAN_007", "이미 존재하는 학습 계획과 시간이 겹칩니다. 기존 종료 시간과 겹치는 경우는 제외됩니다."),
     PLAN_CANNOT_UPDATE(HttpStatus.BAD_REQUEST, "PLAN_008", "수정 스위치 로직 탈출. 어떤 경우인지 파악이 필요합니다."),
+    PLAN_TOO_MANY_EXCEPTIONS(HttpStatus.BAD_REQUEST, "PLAN_009", "변경사항이 비정상적으로 많아 요청이 거절되었습니다."),
     REPEAT_INVALID_UNTIL_DATE(HttpStatus.BAD_REQUEST, "REPEAT_001", "반복 계획의 종료 날짜는 시작 날짜 이전일 수 없습니다."),
     REPEAT_BYDAY_REQUIRED(HttpStatus.BAD_REQUEST, "REPEAT_002", "주간 반복 계획의 경우 요일(byDay) 정보가 필요합니다."),
 

@@ -571,29 +571,30 @@ public class StudyPlanService {
                     if (exception.getApplyScope() == ApplyScope.FROM_THIS_DATE
                             && exception.getExceptionType() == StudyPlanException.ExceptionType.MODIFIED) {
 
-                        LocalDate nextDate = selectedDate.plusDays(1);
+                        // 다음 빈 날짜 찾기
+                        LocalDate availableDate = findNextAvailableDateForException(
+                                studyPlan,
+                                selectedDate.plusDays(1)
+                        );
 
-                        // 다음 날에 이미 예외가 있는지 확인
-                        Optional<StudyPlanException> nextDayException = studyPlanExceptionRepository
-                                .findByPlanIdAndDate(studyPlan.getId(), nextDate);
-
-                        // 예외가 없을 때만 새로 생성
-                        if (!nextDayException.isPresent()) {
+                        // 빈 날짜가 있으면 FROM_THIS_DATE 예외 생성
+                        if (availableDate != null) {
                             StudyPlanException continuedException = new StudyPlanException();
                             continuedException.setStudyPlan(studyPlan);
-                            continuedException.setExceptionDate(nextDate);
+                            continuedException.setExceptionDate(availableDate);
                             continuedException.setExceptionType(StudyPlanException.ExceptionType.MODIFIED);
                             continuedException.setApplyScope(ApplyScope.FROM_THIS_DATE);
 
-                            // 기존 수정 내용 복사
+                            // 기존 수정 내용 복사 (날짜는 availableDate로 조정)
+                            long daysDiff = ChronoUnit.DAYS.between(selectedDate, availableDate);
                             continuedException.setModifiedSubject(exception.getModifiedSubject());
                             if (exception.getModifiedStartDate() != null) {
                                 continuedException.setModifiedStartDate(
-                                        exception.getModifiedStartDate().plusDays(1));
+                                        exception.getModifiedStartDate().plusDays(daysDiff));
                             }
                             if (exception.getModifiedEndDate() != null) {
                                 continuedException.setModifiedEndDate(
-                                        exception.getModifiedEndDate().plusDays(1));
+                                        exception.getModifiedEndDate().plusDays(daysDiff));
                             }
                             continuedException.setModifiedColor(exception.getModifiedColor());
                             continuedException.setModifiedRepeatRule(exception.getModifiedRepeatRule());
@@ -717,6 +718,43 @@ public class StudyPlanService {
                 embeddable.setByDay(request.getByDay());
             }
         }
+    }
+
+    // THIS_ONLY로 FROM_THIS_DATE 예외를 삭제할 때 다음 빈 날짜 찾기 (재귀탐색)
+    private LocalDate findNextAvailableDateForException(StudyPlan studyPlan, LocalDate startDate) {
+        LocalDate currentDate = startDate;
+        LocalDate untilDate = studyPlan.getRepeatRule().getUntilDate();
+
+        // untilDate가 있으면 그것을 최대 범위로, 없으면 1년
+        int maxDays = untilDate != null
+                ? (int) ChronoUnit.DAYS.between(startDate, untilDate) + 1
+                : 365;
+
+        int daysChecked = 0;
+
+        while (daysChecked < maxDays) {
+            // untilDate 체크
+            if (untilDate != null && currentDate.isAfter(untilDate)) {
+                return null;
+            }
+
+            // 해당 날짜에 반복이 발생하는지 확인
+            if (shouldRepeatOnDate(studyPlan, currentDate)) {
+                // 해당 날짜에 예외가 있는지 확인
+                Optional<StudyPlanException> exception = studyPlanExceptionRepository
+                        .findByPlanIdAndDate(studyPlan.getId(), currentDate);
+
+                if (!exception.isPresent()) {
+                    return currentDate; // 빈 날짜 찾음
+                }
+            }
+
+            currentDate = currentDate.plusDays(1);
+            daysChecked++;
+        }
+
+        // 1년 동안 빈 날짜를 찾지 못한 경우 예외 발생
+        throw new CustomException(ErrorCode.PLAN_TOO_MANY_EXCEPTIONS);
     }
 
 }
