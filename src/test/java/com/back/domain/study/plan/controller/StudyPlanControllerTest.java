@@ -1,10 +1,8 @@
 package com.back.domain.study.plan.controller;
 
 import com.back.domain.study.plan.dto.StudyPlanRequest;
-import com.back.domain.study.plan.entity.Color;
-import com.back.domain.study.plan.entity.Frequency;
-import com.back.domain.study.plan.entity.RepeatRule;
-import com.back.domain.study.plan.entity.StudyPlan;
+import com.back.domain.study.plan.entity.*;
+import com.back.domain.study.plan.repository.StudyPlanExceptionRepository;
 import com.back.domain.study.plan.repository.StudyPlanRepository;
 import com.back.domain.study.plan.service.StudyPlanService;
 import com.back.domain.user.entity.User;
@@ -32,6 +30,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -62,6 +61,9 @@ class StudyPlanControllerTest {
 
     @Autowired
     private StudyPlanRepository studyPlanRepository;
+
+    @Autowired
+    private StudyPlanExceptionRepository studyPlanExceptionRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -786,4 +788,71 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.data.plans[0].subject").value("매일 반복 계획"));
     }
 
+    @Test
+    @DisplayName("다음 날에 이미 예외가 있을 때 중복 생성 방지 테스트")
+    void t18() throws Exception {
+        // Given: 매일 반복되는 계획 생성
+        StudyPlan originalPlan = createDailyPlan();
+        Long planId = originalPlan.getId();
+
+        // When 1: 10월 7일을 FROM_THIS_DATE로 수정
+        mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}?applyScope=FROM_THIS_DATE", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                        "subject": "10월 7일부터 수정",
+                        "startDate": "2025-10-07T14:00:00",
+                        "endDate": "2025-10-07T15:00:00",
+                        "color": "RED"
+                    }
+                    """))
+                .andDo(print())
+                .andExpect(status().isOk());
+
+        // When 2: 10월 8일을 THIS_ONLY로 별도 수정 (다른 내용)
+        mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}?applyScope=THIS_ONLY", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                        "subject": "10월 8일만 특별 수정",
+                        "startDate": "2025-10-08T16:00:00",
+                        "endDate": "2025-10-08T17:00:00",
+                        "color": "GREEN"
+                    }
+                    """))
+                .andDo(print())
+                .andExpect(status().isOk());
+
+        // When 3: 10월 7일을 THIS_ONLY로 삭제
+        mvc.perform(MockMvcRequestBuilders.delete("/api/plans/{planId}?selectedDate=2025-10-07&applyScope=THIS_ONLY", planId)
+                        .header("Authorization", "Bearer faketoken"))
+                .andDo(print())
+                .andExpect(status().isOk());
+
+        // Then 1: 10월 7일은 삭제됨
+        mvc.perform(get("/api/plans/date/2025-10-07")
+                        .header("Authorization", "Bearer faketoken"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalCount").value(0));
+
+        // Then 2: 10월 8일은 기존에 설정한 "10월 8일만 특별 수정" 유지 (중복 생성되지 않음)
+        mvc.perform(get("/api/plans/date/2025-10-08")
+                        .header("Authorization", "Bearer faketoken"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalCount").value(1))
+                .andExpect(jsonPath("$.data.plans[0].subject").value("10월 8일만 특별 수정"))
+                .andExpect(jsonPath("$.data.plans[0].color").value("GREEN"))
+                .andExpect(jsonPath("$.data.plans[0].startDate").value("2025-10-08T16:00:00"));
+
+        // Then 3: DB에서 10월 8일 예외가 1개만 존재하는지 확인
+        List<StudyPlanException> exceptions = studyPlanExceptionRepository.findAll();
+        long oct8Exceptions = exceptions.stream()
+                .filter(e -> e.getExceptionDate().equals(LocalDate.of(2025, 10, 8)))
+                .count();
+        assertThat(oct8Exceptions).isEqualTo(1);
+    }
 }
