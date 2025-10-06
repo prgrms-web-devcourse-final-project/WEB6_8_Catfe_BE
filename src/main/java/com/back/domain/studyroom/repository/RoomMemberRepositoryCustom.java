@@ -93,4 +93,9 @@ public interface RoomMemberRepositoryCustom {
      */
     @Deprecated
     void disconnectAllMembers(Long roomId);
+
+    /**
+     * 스터디룸의 모든 멤버 User ID 조회 (알림 전송용)
+     */
+    List<Long> findUserIdsByRoomId(Long roomId);
 }

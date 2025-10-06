@@ -331,4 +331,20 @@ public class RoomMemberRepositoryImpl implements RoomMemberRepositoryCustom {
     public void disconnectAllMembers(Long roomId) {
         // Redis로 이관 예정 - 현재는 아무 동작 안함
     }
+
+    /**
+     * 스터디룸의 모든 멤버 User ID 조회 (알림 전송용)
+     * - 알림 대상자 조회
+     * - N+1 방지를 위해 User ID만 조회
+     * @param roomId 방 ID
+     * @return 멤버들의 User ID 목록
+     */
+    @Override
+    public List<Long> findUserIdsByRoomId(Long roomId) {
+        return queryFactory
+                .select(roomMember.user.id)
+                .from(roomMember)
+                .where(roomMember.room.id.eq(roomId))
+                .fetch();
+    }
 }
