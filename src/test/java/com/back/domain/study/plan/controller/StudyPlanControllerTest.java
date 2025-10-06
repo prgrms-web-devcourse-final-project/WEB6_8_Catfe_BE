@@ -675,4 +675,115 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.data", hasSize(0)));
     }
 
+    // 수정 후 삭제 시나리오 테스트
+    @Test
+    @DisplayName("반복 계획 수정(FROM_THIS_DATE) 후 삭제(THIS_ONLY) 시 중복 예외 발생 방지 테스트")
+    void t16() throws Exception {
+        // Given: 매일 반복되는 계획 생성 (10월 1일 ~ 12월 31일)
+        StudyPlan originalPlan = createDailyPlan();
+        Long planId = originalPlan.getId();
+
+        // When 1: 10월 7일 계획을 FROM_THIS_DATE로 수정
+        mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}?applyScope=FROM_THIS_DATE", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                        "subject": "수정된 반복 계획",
+                        "startDate": "2025-10-07T14:00:00",
+                        "endDate": "2025-10-07T15:00:00",
+                        "color": "RED"
+                    }
+                    """))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        // When 2: 같은 날짜(10월 7일)를 THIS_ONLY로 삭제
+        mvc.perform(MockMvcRequestBuilders.delete("/api/plans/{planId}?selectedDate=2025-10-07&applyScope=THIS_ONLY", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.deletedDate").value("2025-10-07"))
+                .andExpect(jsonPath("$.data.applyScope").value("THIS_ONLY"));
+
+        // Then: 10월 7일 조회 시 500 에러가 발생하지 않고 빈 결과 반환
+        mvc.perform(get("/api/plans/date/2025-10-07")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.totalCount").value(0))
+                .andExpect(jsonPath("$.data.plans", hasSize(0)));
+
+        // 10월 6일은 원본 그대로 조회되어야 함
+        mvc.perform(get("/api/plans/date/2025-10-06")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalCount").value(1))
+                .andExpect(jsonPath("$.data.plans[0].subject").value("매일 반복 계획"));
+
+        // 10월 8일은 수정된 내용으로 조회되어야 함
+        mvc.perform(get("/api/plans/date/2025-10-08")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalCount").value(1))
+                .andExpect(jsonPath("$.data.plans[0].subject").value("수정된 반복 계획"));
+    }
+
+    @Test
+    @DisplayName("반복 계획 수정(THIS_ONLY) 후 삭제(THIS_ONLY) 시에도 중복 예외 발생 방지")
+    void t17() throws Exception {
+        // Given: 매일 반복되는 계획 생성
+        StudyPlan originalPlan = createDailyPlan();
+        Long planId = originalPlan.getId();
+
+        // When 1: 10월 5일 계획을 THIS_ONLY로 수정
+        mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}?applyScope=THIS_ONLY", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                        "subject": "특정 날짜만 수정",
+                        "startDate": "2025-10-05T16:00:00",
+                        "endDate": "2025-10-05T17:00:00",
+                        "color": "GREEN"
+                    }
+                    """))
+                .andDo(print())
+                .andExpect(status().isOk());
+
+        // When 2: 같은 날짜를 THIS_ONLY로 삭제
+        mvc.perform(MockMvcRequestBuilders.delete("/api/plans/{planId}?selectedDate=2025-10-05&applyScope=THIS_ONLY", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        // Then: 10월 5일 조회 시 정상 동작
+        mvc.perform(get("/api/plans/date/2025-10-05")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalCount").value(0));
+
+        // 다른 날짜들은 영향받지 않아야 함
+        mvc.perform(get("/api/plans/date/2025-10-06")
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalCount").value(1))
+                .andExpect(jsonPath("$.data.plans[0].subject").value("매일 반복 계획"));
+    }
+
 }
