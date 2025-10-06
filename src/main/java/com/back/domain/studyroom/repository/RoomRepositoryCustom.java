@@ -47,4 +47,41 @@ public interface RoomRepositoryCustom {
      * 비관적 락으로 방 조회 (동시성 제어용)
      */
     Optional<Room> findByIdWithLock(Long roomId);
+
+    /**
+     * 모든 방 조회 (공개 + 비공개 전체)
+     * 정렬: 열린 방(WAITING, ACTIVE) 우선 → 최신순
+     * 비공개 방은 정보 마스킹하여 반환
+     * @param pageable 페이징 정보
+     * @return 페이징된 방 목록
+     */
+    Page<Room> findAllRooms(Pageable pageable);
+
+    /**
+     * 공개 방 전체 조회
+     * 정렬: 열린 방 우선 → 최신순
+     * @param includeInactive 닫힌 방(PAUSED, TERMINATED) 포함 여부
+     * @param pageable 페이징 정보
+     * @return 페이징된 공개 방 목록
+     */
+    Page<Room> findPublicRoomsWithStatus(boolean includeInactive, Pageable pageable);
+
+    /**
+     * 내가 멤버인 비공개 방 조회
+     * 정렬: 열린 방 우선 → 최신순
+     * @param userId 사용자 ID
+     * @param includeInactive 닫힌 방 포함 여부
+     * @param pageable 페이징 정보
+     * @return 페이징된 비공개 방 목록
+     */
+    Page<Room> findMyPrivateRooms(Long userId, boolean includeInactive, Pageable pageable);
+
+    /**
+     * 내가 호스트(방장)인 방 조회
+     * 정렬: 열린 방 우선 → 최신순
+     * @param userId 사용자 ID
+     * @param pageable 페이징 정보
+     * @return 페이징된 방 목록
+     */
+    Page<Room> findRoomsByHostId(Long userId, Pageable pageable);
 }

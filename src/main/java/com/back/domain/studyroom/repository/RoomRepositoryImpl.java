@@ -270,4 +270,157 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
 
         return Optional.ofNullable(foundRoom);
     }
+
+    /**
+     * 모든 방 조회 (공개 + 비공개 전체)
+     * 조회 조건:
+     * - 모든 방 (공개 + 비공개)
+     * 정렬:
+     * 1. 열린 방(WAITING, ACTIVE) 우선
+     * 2. 닫힌 방(PAUSED, TERMINATED) 뒤로
+     * 3. 최신 생성순
+     * 
+     * 비공개 방은 컨트롤러/서비스 레이어에서 정보 마스킹 합니당
+     */
+    @Override
+    public Page<Room> findAllRooms(Pageable pageable) {
+        List<Room> rooms = queryFactory
+                .selectFrom(room)
+                .leftJoin(room.createdBy, user).fetchJoin()
+                .orderBy(
+                        // 열린 방 우선 (0), 닫힌 방 뒤로 (1)
+                        room.status.when(RoomStatus.WAITING).then(0)
+                                .when(RoomStatus.ACTIVE).then(0)
+                                .otherwise(1).asc(),
+                        room.createdAt.desc()  // 최신순
+                )
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        // 전체 개수 조회
+        Long totalCount = queryFactory
+                .select(room.count())
+                .from(room)
+                .fetchOne();
+
+        return new PageImpl<>(rooms, pageable, totalCount != null ? totalCount : 0);
+    }
+
+    /**
+     * 공개 방 전체 조회
+     * 조회 조건:
+     * - isPrivate = false
+     * - includeInactive에 따라 닫힌 방 포함 여부 결정
+     * 정렬: 열린 방 우선 → 최신순
+     */
+    @Override
+    public Page<Room> findPublicRoomsWithStatus(boolean includeInactive, Pageable pageable) {
+        BooleanExpression whereClause = room.isPrivate.eq(false);
+
+        // 닫힌 방 제외 옵션
+        if (!includeInactive) {
+            whereClause = whereClause.and(
+                    room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE)
+            );
+        }
+
+        List<Room> rooms = queryFactory
+                .selectFrom(room)
+                .leftJoin(room.createdBy, user).fetchJoin()
+                .where(whereClause)
+                .orderBy(
+                        room.status.when(RoomStatus.WAITING).then(0)
+                                .when(RoomStatus.ACTIVE).then(0)
+                                .otherwise(1).asc(),
+                        room.createdAt.desc()
+                )
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        Long totalCount = queryFactory
+                .select(room.count())
+                .from(room)
+                .where(whereClause)
+                .fetchOne();
+
+        return new PageImpl<>(rooms, pageable, totalCount != null ? totalCount : 0);
+    }
+
+    /**
+     * 내가 멤버인 비공개 방 조회
+     * 조회 조건:
+     * - isPrivate = true
+     * - 내가 멤버로 등록된 방
+     * - includeInactive에 따라 닫힌 방 포함 여부 결정
+     * 정렬: 열린 방 우선 → 최신순
+     */
+    @Override
+    public Page<Room> findMyPrivateRooms(Long userId, boolean includeInactive, Pageable pageable) {
+        BooleanExpression whereClause = room.isPrivate.eq(true)
+                .and(roomMember.user.id.eq(userId));
+
+        // 닫힌 방 제외 옵션
+        if (!includeInactive) {
+            whereClause = whereClause.and(
+                    room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE)
+            );
+        }
+
+        List<Room> rooms = queryFactory
+                .selectFrom(room)
+                .leftJoin(room.createdBy, user).fetchJoin()
+                .join(room.roomMembers, roomMember)
+                .where(whereClause)
+                .orderBy(
+                        room.status.when(RoomStatus.WAITING).then(0)
+                                .when(RoomStatus.ACTIVE).then(0)
+                                .otherwise(1).asc(),
+                        room.createdAt.desc()
+                )
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        Long totalCount = queryFactory
+                .select(room.count())
+                .from(room)
+                .join(room.roomMembers, roomMember)
+                .where(whereClause)
+                .fetchOne();
+
+        return new PageImpl<>(rooms, pageable, totalCount != null ? totalCount : 0);
+    }
+
+    /**
+     * 내가 호스트(방장)인 방 조회
+     * 조회 조건:
+     * - room.createdBy.id = userId
+     * 정렬: 열린 방 우선 → 최신순
+     */
+    @Override
+    public Page<Room> findRoomsByHostId(Long userId, Pageable pageable) {
+        List<Room> rooms = queryFactory
+                .selectFrom(room)
+                .leftJoin(room.createdBy, user).fetchJoin()
+                .where(room.createdBy.id.eq(userId))
+                .orderBy(
+                        room.status.when(RoomStatus.WAITING).then(0)
+                                .when(RoomStatus.ACTIVE).then(0)
+                                .otherwise(1).asc(),
+                        room.createdAt.desc()
+                )
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        Long totalCount = queryFactory
+                .select(room.count())
+                .from(room)
+                .where(room.createdBy.id.eq(userId))
+                .fetchOne();
+
+        return new PageImpl<>(rooms, pageable, totalCount != null ? totalCount : 0);
+    }
 }
