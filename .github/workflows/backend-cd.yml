@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DOCKER_IMAGE_NAME: catfe-backend
-      DOT_ENV: ${{ secrets.DOT_ENV }}
+      DOT_ENV: ${{ secrets.DOT_ENV_PROD }}
       OWNER: ${{ github.repository_owner }}
     steps:
       - uses: actions/checkout@v4
@@ -77,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ makeTagAndRelease, buildImageAndPush ]
     env:
-      IMAGE_REPOSITORY: catfe_backend # 도커 이미지 명
+      IMAGE_REPOSITORY: catfe-backend # 도커 이미지 명
       CONTAINER_1_NAME: catfe_1 # 슬롯 1
       CONTAINER_2_NAME: catfe_2 # 슬롯 2
       CONTAINER_PORT: 8080 # 컨테이너 내부 포트
@@ -112,9 +112,6 @@ jobs:
           command: |
             set -Eeuo pipefail
             
-            # 1. EC2 인스턴스 아이디 확인
-            echo "INSTANCE_ID=${INSTANCE_ID}"
-            
             # 3. 실행 로그(라인 타임스탬프 부착)
             LOG="/tmp/ssm-$(date +%Y%m%d_%H%M%S).log"
             exec > >(awk '{ fflush(); print strftime("[%Y-%m-%d %H:%M:%S]"), $0 }' | tee -a "$LOG")
@@ -140,7 +137,7 @@ jobs:
             TOKEN=$(curl -s -X POST http://127.0.0.1:81/api/tokens \
               -H "Content-Type: application/json" \
               -d "{\"identity\": \"admin@npm.com\", \"secret\": \"${PASSWORD:-}\"}" | jq -r '.token')
-              
+            
               # 조회한 토큰과 도메인 검증
             [[ -n "${TOKEN}" && "${TOKEN}" != "null" ]] || { echo "NPM token issue failed"; exit 1; }
             [[ -n "${DOMAIN:-}" ]] || { echo "DOMAIN is empty"; exit 1; }
@@ -148,10 +145,10 @@ jobs:
             # 6. 대상 프록시 호스트 ID 조회(도메인 매칭)
             PROXY_ID=$(curl -s -X GET "http://127.0.0.1:81/api/nginx/proxy-hosts" \
               -H "Authorization: Bearer ${TOKEN}" \
-              | jq ".[] | select(.domain_names[]==\"${APP_1_DOMAIN}\") | .id")
-              
+              | jq ".[] | select(.domain_names[]==\"${DOMAIN}\") | .id")
+            
               # 조회한 프록시 호스트 ID 검증
-            [[ -n "${PROXY_ID}" && "${PROXY_ID}" != "null" ]] || { echo "Proxy host not found for ${APP_1_DOMAIN}"; exit 1; }
+            [[ -n "${PROXY_ID}" && "${PROXY_ID}" != "null" ]] || { echo "Proxy host not found for ${DOMAIN}"; exit 1; }
             
             # 현재 프록시가 바라보는 업스트림(컨테이너명) 조회
             CURRENT_HOST=$(curl -s -X GET "http://127.0.0.1:81/api/nginx/proxy-hosts/${PROXY_ID}" \
@@ -179,9 +176,9 @@ jobs:
             echo "🎨 role -> blue(now): ${BLUE}, green(next): ${GREEN}"
             
             # 8. Green 역할 컨테이너 
-            docker rm -f "${Green}" > /dev/null 2>&1 || true
-            echo "run new container -> ${Green}"
-            docker run -d --name "${Green}" \
+            docker rm -f "${GREEN}" > /dev/null 2>&1 || true
+            echo "run new container -> ${GREEN}"
+            docker run -d --name "${GREEN}" \
               --restart unless-stopped \
               --network "${NET}" \
               -e TZ=Asia/Seoul \
@@ -227,7 +224,6 @@ jobs:
             } || true
 
             echo "🏁 Blue/Green switch complete. now blue = ${GREEN}"
-            
             
             
             

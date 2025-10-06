@@ -214,6 +214,7 @@ docker network create common
 # redis 설치
 docker run -d \
   --name redis_1 \
+  --restart unless-stopped \
   --network common \
   -p 6379:6379 \
   -e TZ=Asia/Seoul \
@@ -345,7 +346,7 @@ resource "aws_db_instance" "mysql" {
 # EC2 역할에 AmazonS3FullAccess 정책을 부착
 resource "aws_iam_role_policy_attachment" "s3_full_access" {
   role = aws_iam_role.ec2_role_1.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonS3FullAccess"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
 
 # S3 접근 권한 추가
