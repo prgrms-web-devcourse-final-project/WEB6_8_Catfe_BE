@@ -14,6 +14,7 @@ public class MyRoomResponse {
     private Long roomId;
     private String title;
     private String description;
+    private Boolean isPrivate;  // 비공개 방 여부 (UI에서 🔒 아이콘 표시용)
     private int currentParticipants;
     private int maxParticipants;
     private RoomStatus status;
@@ -25,6 +26,7 @@ public class MyRoomResponse {
                 .roomId(room.getId())
                 .title(room.getTitle())
                 .description(room.getDescription() != null ? room.getDescription() : "")
+                .isPrivate(room.isPrivate())  // 비공개 방 여부
                 .currentParticipants((int) currentParticipants)  // Redis에서 조회한 실시간 값
                 .maxParticipants(room.getMaxParticipants())
                 .status(room.getStatus())
