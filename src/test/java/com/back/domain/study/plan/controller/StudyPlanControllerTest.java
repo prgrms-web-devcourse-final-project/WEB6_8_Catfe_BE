@@ -855,4 +855,69 @@ class StudyPlanControllerTest {
                 .count();
         assertThat(oct8Exceptions).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("버그 수정: 10.5 일괄 수정 → 10.6 단일 수정 → 10.5 단일 삭제 시 10.7~10.10 수정 유지")
+    void testBugFix_ModificationContinuesAfterSkippingException() throws Exception {
+        // Given: 매일 반복되는 계획 생성 (10.1~10.10)
+        StudyPlan originalPlan = createDailyPlan();
+        Long planId = originalPlan.getId();
+
+        // When 1: 10.5 FROM_THIS_DATE 수정
+        mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}?applyScope=FROM_THIS_DATE", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                        "subject": "빨간색",
+                        "startDate": "2025-10-05T14:00:00",
+                        "endDate": "2025-10-05T15:00:00",
+                        "color": "RED"
+                    }
+                    """))
+                .andExpect(status().isOk());
+
+        // When 2: 10.6 THIS_ONLY 수정
+        mvc.perform(MockMvcRequestBuilders.put("/api/plans/{planId}?applyScope=THIS_ONLY", planId)
+                        .header("Authorization", "Bearer faketoken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                        "subject": "초록색",
+                        "startDate": "2025-10-06T16:00:00",
+                        "endDate": "2025-10-06T17:00:00",
+                        "color": "GREEN"
+                    }
+                    """))
+                .andExpect(status().isOk());
+
+        // When 3: 10.5 THIS_ONLY 삭제
+        mvc.perform(MockMvcRequestBuilders.delete("/api/plans/{planId}?selectedDate=2025-10-05&applyScope=THIS_ONLY", planId)
+                        .header("Authorization", "Bearer faketoken"))
+                .andExpect(status().isOk());
+
+        // Then: 10.5 삭제됨
+        mvc.perform(get("/api/plans/date/2025-10-05")
+                        .header("Authorization", "Bearer faketoken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalCount").value(0));
+
+        // Then: 10.6 초록색 유지
+        mvc.perform(get("/api/plans/date/2025-10-06")
+                        .header("Authorization", "Bearer faketoken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.plans[0].subject").value("초록색"));
+
+        // Then: 10.7~10.10 빨간색 유지 (버그 수정 확인)
+        mvc.perform(get("/api/plans/date/2025-10-07")
+                        .header("Authorization", "Bearer faketoken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.plans[0].subject").value("빨간색"));
+
+        mvc.perform(get("/api/plans/date/2025-10-10")
+                        .header("Authorization", "Bearer faketoken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.plans[0].subject").value("빨간색"));
+    }
+
 }
