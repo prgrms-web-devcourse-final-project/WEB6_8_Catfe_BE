@@ -21,9 +21,9 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class CommentRepositoryImpl implements CommentRepositoryCustom {
-
     private final JPAQueryFactory queryFactory;
 
+    // TODO: Comment에 likeCount 필드 추가에 따른 로직 개선
     /**
      * 게시글 ID로 댓글 목록 조회
      * - 부모 댓글 페이징 + 자식 댓글 전체 조회
