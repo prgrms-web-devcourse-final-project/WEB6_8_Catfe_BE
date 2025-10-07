@@ -227,8 +227,9 @@ public class StudyPlanService {
         }
 
         // FROM_THIS_DATE 범위의 예외가 있는지 확인
+        // exceptionDate <= targetDate 이면서 가장 최근 것
         List<StudyPlanException> scopeExceptions = studyPlanExceptionRepository
-                .findByStudyPlanIdAndApplyScopeAndExceptionDateBefore(
+                .findByStudyPlanIdAndApplyScopeAndExceptionDateLessThanEqual(
                         planId,
                         ApplyScope.FROM_THIS_DATE,
                         targetDate
@@ -521,24 +522,105 @@ public class StudyPlanService {
                 if (selectedDate.equals(studyPlan.getStartDate().toLocalDate())) {
                     studyPlanRepository.delete(studyPlan); // CASCADE로 RepeatRule, Exception 모두 삭제
                 } else {
-                    // 중간 날짜부터 삭제하는 경우 = untilDate 수정
+                    // 기존 예외 확인
+                    Optional<StudyPlanException> existingException = studyPlanExceptionRepository
+                            .findByPlanIdAndDate(studyPlan.getId(), selectedDate);
+
+                    if (existingException.isPresent()) {
+                        // 기존 예외가 있다면 삭제 타입으로 변경
+                        StudyPlanException exception = existingException.get();
+                        exception.setExceptionType(StudyPlanException.ExceptionType.DELETED);
+                        exception.setApplyScope(ApplyScope.FROM_THIS_DATE);
+                        exception.setModifiedSubject(null);
+                        exception.setModifiedStartDate(null);
+                        exception.setModifiedEndDate(null);
+                        exception.setModifiedColor(null);
+                        exception.setModifiedRepeatRule(null);
+                        studyPlanExceptionRepository.save(exception);
+                    } else {
+                        // 예외가 없다면 새로 생성
+                        StudyPlanException exception = new StudyPlanException();
+                        exception.setStudyPlan(studyPlan);
+                        exception.setExceptionDate(selectedDate);
+                        exception.setExceptionType(StudyPlanException.ExceptionType.DELETED);
+                        exception.setApplyScope(ApplyScope.FROM_THIS_DATE);
+                        studyPlanExceptionRepository.save(exception);
+                    }
+
+                    // untilDate 수정 (기존 로직)
                     RepeatRule repeatRule = studyPlan.getRepeatRule();
                     LocalDate newUntilDate = selectedDate.minusDays(1);
                     repeatRule.setUntilDate(newUntilDate);
                     studyPlanRepository.save(studyPlan);
-                    // 변경된 untilDate 이후의 모든 예외 기록 삭제
-                    studyPlanExceptionRepository.deleteByStudyPlanIdAndExceptionDateAfter(studyPlan.getId(), newUntilDate);
+
+                    // 변경된 untilDate 이후의 다른 예외 기록들 삭제 (selectedDate의 예외는 제외)
+                    studyPlanExceptionRepository.deleteByStudyPlanIdAndExceptionDateAfter(
+                            studyPlan.getId(), selectedDate);
                 }
                 break;
 
             case THIS_ONLY:
-                // 선택한 날짜만 삭제 - 예외 생성
-                StudyPlanException exception = new StudyPlanException();
-                exception.setStudyPlan(studyPlan);
-                exception.setExceptionDate(selectedDate);
-                exception.setExceptionType(StudyPlanException.ExceptionType.DELETED);
-                exception.setApplyScope(THIS_ONLY);
-                studyPlanExceptionRepository.save(exception);
+                // 기존 예외가 있는지 확인
+                Optional<StudyPlanException> existingException = studyPlanExceptionRepository
+                        .findByPlanIdAndDate(studyPlan.getId(), selectedDate);
+
+                if (existingException.isPresent()) {
+                    StudyPlanException exception = existingException.get();
+
+                    // FROM_THIS_DATE 범위의 MODIFIED를 THIS_ONLY 삭제하는 경우
+                    if (exception.getApplyScope() == ApplyScope.FROM_THIS_DATE
+                            && exception.getExceptionType() == StudyPlanException.ExceptionType.MODIFIED) {
+
+                        // 다음 빈 날짜 찾기
+                        LocalDate availableDate = findNextAvailableDateForException(
+                                studyPlan,
+                                selectedDate.plusDays(1)
+                        );
+
+                        // 빈 날짜가 있으면 FROM_THIS_DATE 예외 생성
+                        if (availableDate != null) {
+                            StudyPlanException continuedException = new StudyPlanException();
+                            continuedException.setStudyPlan(studyPlan);
+                            continuedException.setExceptionDate(availableDate);
+                            continuedException.setExceptionType(StudyPlanException.ExceptionType.MODIFIED);
+                            continuedException.setApplyScope(ApplyScope.FROM_THIS_DATE);
+
+                            // 기존 수정 내용 복사 (날짜는 availableDate로 조정)
+                            long daysDiff = ChronoUnit.DAYS.between(selectedDate, availableDate);
+                            continuedException.setModifiedSubject(exception.getModifiedSubject());
+                            if (exception.getModifiedStartDate() != null) {
+                                continuedException.setModifiedStartDate(
+                                        exception.getModifiedStartDate().plusDays(daysDiff));
+                            }
+                            if (exception.getModifiedEndDate() != null) {
+                                continuedException.setModifiedEndDate(
+                                        exception.getModifiedEndDate().plusDays(daysDiff));
+                            }
+                            continuedException.setModifiedColor(exception.getModifiedColor());
+                            continuedException.setModifiedRepeatRule(exception.getModifiedRepeatRule());
+
+                            studyPlanExceptionRepository.save(continuedException);
+                        }
+                    }
+
+                    // 현재 날짜는 삭제로 변경
+                    exception.setExceptionType(StudyPlanException.ExceptionType.DELETED);
+                    exception.setApplyScope(THIS_ONLY);
+                    exception.setModifiedSubject(null);
+                    exception.setModifiedStartDate(null);
+                    exception.setModifiedEndDate(null);
+                    exception.setModifiedColor(null);
+                    exception.setModifiedRepeatRule(null);
+                    studyPlanExceptionRepository.save(exception);
+                } else {
+                    // 새로운 예외 생성 (기존 로직 유지)
+                    StudyPlanException exception = new StudyPlanException();
+                    exception.setStudyPlan(studyPlan);
+                    exception.setExceptionDate(selectedDate);
+                    exception.setExceptionType(StudyPlanException.ExceptionType.DELETED);
+                    exception.setApplyScope(THIS_ONLY);
+                    studyPlanExceptionRepository.save(exception);
+                }
                 break;
         }
     }
@@ -636,6 +718,43 @@ public class StudyPlanService {
                 embeddable.setByDay(request.getByDay());
             }
         }
+    }
+
+    // THIS_ONLY로 FROM_THIS_DATE 예외를 삭제할 때 다음 빈 날짜 찾기 (재귀탐색)
+    private LocalDate findNextAvailableDateForException(StudyPlan studyPlan, LocalDate startDate) {
+        LocalDate currentDate = startDate;
+        LocalDate untilDate = studyPlan.getRepeatRule().getUntilDate();
+
+        // untilDate가 있으면 그것을 최대 범위로, 없으면 1년
+        int maxDays = untilDate != null
+                ? (int) ChronoUnit.DAYS.between(startDate, untilDate) + 1
+                : 365;
+
+        int daysChecked = 0;
+
+        while (daysChecked < maxDays) {
+            // untilDate 체크
+            if (untilDate != null && currentDate.isAfter(untilDate)) {
+                return null;
+            }
+
+            // 해당 날짜에 반복이 발생하는지 확인
+            if (shouldRepeatOnDate(studyPlan, currentDate)) {
+                // 해당 날짜에 예외가 있는지 확인
+                Optional<StudyPlanException> exception = studyPlanExceptionRepository
+                        .findByPlanIdAndDate(studyPlan.getId(), currentDate);
+
+                if (!exception.isPresent()) {
+                    return currentDate; // 빈 날짜 찾음
+                }
+            }
+
+            currentDate = currentDate.plusDays(1);
+            daysChecked++;
+        }
+
+        // 1년 동안 빈 날짜를 찾지 못한 경우 예외 발생
+        throw new CustomException(ErrorCode.PLAN_TOO_MANY_EXCEPTIONS);
     }
 
 }

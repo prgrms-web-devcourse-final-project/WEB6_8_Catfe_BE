@@ -15,15 +15,12 @@ import java.util.Optional;
 
 @Repository
 public interface StudyPlanExceptionRepository extends JpaRepository<StudyPlanException, Long> {
-    // FROM_THIS_DATE 범위의 예외들 중 특정 날짜 이전의 예외 조회
-    @Query("SELECT spe FROM StudyPlanException spe WHERE spe.studyPlan.id = :planId " +
-            "AND spe.applyScope = :applyScope " +
-            "AND spe.exceptionDate <= :targetDate " +
-            "ORDER BY spe.exceptionDate DESC")
-    List<StudyPlanException> findByStudyPlanIdAndApplyScopeAndExceptionDateBefore(
-            @Param("planId") Long planId,
-            @Param("applyScope") ApplyScope applyScope,
-            @Param("targetDate") LocalDate targetDate);
+    // FROM_THIS_DATE 범위의 예외들 중 특정 날짜 이전의 예외 조회 (메서드 이름으로 쿼리 생성)
+    List<StudyPlanException> findByStudyPlanIdAndApplyScopeAndExceptionDateLessThanEqual(
+            Long studyPlanId,
+            ApplyScope applyScope,
+            LocalDate exceptionDate
+    );
 // 특정 계획의 특정 기간 동안(start~end)의 예외를 조회
     @Query("SELECT spe FROM StudyPlanException spe WHERE spe.studyPlan.id = :planId " +
             "AND spe.exceptionDate BETWEEN :startDate AND :endDate " +
@@ -41,5 +38,4 @@ public interface StudyPlanExceptionRepository extends JpaRepository<StudyPlanExc
     @Modifying
     @Query("DELETE FROM StudyPlanException spe WHERE spe.studyPlan.id = :planId AND spe.exceptionDate > :date")
     void deleteByStudyPlanIdAndExceptionDateAfter(@Param("planId") Long planId, @Param("date") LocalDate date);
-
 }
