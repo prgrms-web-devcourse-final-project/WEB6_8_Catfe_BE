@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/posts/{postId}/like")
 @RequiredArgsConstructor
-public class PostLikeController {
+public class PostLikeController implements PostLikeControllerDocs {
     private final PostLikeService postLikeService;
 
     // 게시글 좋아요
