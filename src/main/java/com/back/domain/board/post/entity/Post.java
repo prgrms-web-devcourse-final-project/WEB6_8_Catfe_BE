@@ -26,6 +26,12 @@ public class Post extends BaseEntity {
     @Column(nullable = false)
     private Long likeCount = 0L;
 
+    @Column(nullable = false)
+    private Long bookmarkCount = 0L;
+
+    @Column(nullable = false)
+    private Long commentCount = 0L;
+
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PostCategoryMapping> postCategoryMappings = new ArrayList<>();
 
@@ -69,6 +75,30 @@ public class Post extends BaseEntity {
     public void decreaseLikeCount() {
         if (this.likeCount > 0) {
             this.likeCount--;
+        }
+    }
+
+    // 북마크 수 증가
+    public void increaseBookmarkCount() {
+        this.bookmarkCount++;
+    }
+
+    // 북마크 수 감소
+    public void decreaseBookmarkCount() {
+        if (this.bookmarkCount > 0) {
+            this.bookmarkCount--;
+        }
+    }
+
+    // 댓글 수 증가
+    public void increaseCommentCount() {
+        this.commentCount++;
+    }
+
+    // 댓글 수 감소
+    public void decreaseCommentCount() {
+        if (this.commentCount > 0) {
+            this.commentCount--;
         }
     }
 
