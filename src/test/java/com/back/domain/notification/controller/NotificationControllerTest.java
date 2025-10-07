@@ -118,7 +118,7 @@ class NotificationControllerTest {
 
             given(userRepository.findById(1L)).willReturn(Optional.of(receiver));
             given(userRepository.findById(2L)).willReturn(Optional.of(actor));
-            given(notificationService.createPersonalNotification(any(), any(), any(), any(), any()))
+            given(notificationService.createPersonalNotification(any(), any(), any(), any(), any(), any()))
                     .willReturn(notification);
 
             // when

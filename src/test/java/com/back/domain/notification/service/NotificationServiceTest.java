@@ -3,6 +3,7 @@ package com.back.domain.notification.service;
 import com.back.domain.notification.dto.NotificationWebSocketDto;
 import com.back.domain.notification.entity.Notification;
 import com.back.domain.notification.entity.NotificationRead;
+import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.entity.NotificationType;
 import com.back.domain.notification.repository.NotificationReadRepository;
 import com.back.domain.notification.repository.NotificationRepository;
@@ -46,6 +47,9 @@ class NotificationServiceTest {
 
     @Mock
     private NotificationWebSocketService webSocketService;
+
+    @Mock
+    private NotificationSettingService notificationSettingService;
 
     @InjectMocks
     private NotificationService notificationService;
@@ -94,10 +98,13 @@ class NotificationServiceTest {
             // given
             given(notificationRepository.save(any(Notification.class)))
                     .willReturn(notification);
+            given(notificationSettingService.isNotificationEnabled(user.getId(), NotificationSettingType.SYSTEM))
+                    .willReturn(true);
 
             // when
             Notification result = notificationService.createPersonalNotification(
-                    user, actor, "테스트 알림", "내용", "/target"
+                    user, actor, "테스트 알림", "내용", "/target",
+                    NotificationSettingType.SYSTEM
             );
 
             // then
@@ -107,6 +114,7 @@ class NotificationServiceTest {
             assertThat(result.getActor()).isEqualTo(actor);
 
             verify(notificationRepository).save(any(Notification.class));
+            verify(notificationSettingService).isNotificationEnabled(user.getId(), NotificationSettingType.SYSTEM);
             verify(webSocketService).sendNotificationToUser(
                     eq(user.getId()),
                     any(NotificationWebSocketDto.class)
@@ -125,7 +133,8 @@ class NotificationServiceTest {
 
             // when
             Notification result = notificationService.createRoomNotification(
-                    room, actor, "룸 알림", "내용", "/room"
+                    room, actor, "룸 알림", "내용", "/room",
+                    NotificationSettingType.ROOM_NOTICE
             );
 
             // then
@@ -177,10 +186,13 @@ class NotificationServiceTest {
             );
             given(notificationRepository.save(any(Notification.class)))
                     .willReturn(communityNotification);
+            given(notificationSettingService.isNotificationEnabled(user.getId(), NotificationSettingType.POST_COMMENT))
+                    .willReturn(true);
 
             // when
             Notification result = notificationService.createCommunityNotification(
-                    user, actor, "커뮤니티 알림", "내용", "/community"
+                    user, actor, "커뮤니티 알림", "내용", "/community",
+                    NotificationSettingType.POST_COMMENT
             );
 
             // then
@@ -190,6 +202,7 @@ class NotificationServiceTest {
             assertThat(result.getActor()).isEqualTo(actor);
 
             verify(notificationRepository).save(any(Notification.class));
+            verify(notificationSettingService).isNotificationEnabled(user.getId(), NotificationSettingType.POST_COMMENT);
             verify(webSocketService).sendNotificationToUser(
                     eq(user.getId()),
                     any(NotificationWebSocketDto.class)
@@ -205,7 +218,8 @@ class NotificationServiceTest {
             // when & then
             assertThatThrownBy(() ->
                     notificationService.createPersonalNotification(
-                            sameUser, sameUser, "title", "content", "/url"
+                            sameUser, sameUser, "title", "content", "/url",
+                            NotificationSettingType.SYSTEM
                     )
             ).isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOTIFICATION_FORBIDDEN);
@@ -222,12 +236,60 @@ class NotificationServiceTest {
             // when & then
             assertThatThrownBy(() ->
                     notificationService.createCommunityNotification(
-                            sameUser, sameUser, "title", "content", "/url"
+                            sameUser, sameUser, "title", "content", "/url",
+                            NotificationSettingType.POST_COMMENT
                     )
             ).isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOTIFICATION_FORBIDDEN);
 
             verify(notificationRepository, never()).save(any(Notification.class));
+        }
+
+        @Test
+        @DisplayName("알림 설정이 비활성화된 경우 WebSocket 전송 생략")
+        void t7() {
+            // given
+            given(notificationRepository.save(any(Notification.class)))
+                    .willReturn(notification);
+            given(notificationSettingService.isNotificationEnabled(user.getId(), NotificationSettingType.POST_COMMENT))
+                    .willReturn(false);
+
+            // when
+            Notification result = notificationService.createCommunityNotification(
+                    user, actor, "커뮤니티 알림", "내용", "/community",
+                    NotificationSettingType.POST_COMMENT
+            );
+
+            // then
+            assertThat(result).isNotNull();
+            verify(notificationRepository).save(any(Notification.class));
+            verify(notificationSettingService).isNotificationEnabled(user.getId(), NotificationSettingType.POST_COMMENT);
+            verify(webSocketService, never()).sendNotificationToUser(anyLong(), any());
+        }
+
+        @Test
+        @DisplayName("자기 자신 알림(createSelfNotification) 생성 성공")
+        void t8() {
+            // given
+            given(notificationRepository.save(any(Notification.class)))
+                    .willReturn(notification);
+            given(notificationSettingService.isNotificationEnabled(user.getId(), NotificationSettingType.SYSTEM))
+                    .willReturn(true);
+
+            // when
+            Notification result = notificationService.createSelfNotification(
+                    user, "학습 기록", "1시간 공부 완료", "/study",
+                    NotificationSettingType.SYSTEM
+            );
+
+            // then
+            assertThat(result).isNotNull();
+            verify(notificationRepository).save(any(Notification.class));
+            verify(notificationSettingService).isNotificationEnabled(user.getId(), NotificationSettingType.SYSTEM);
+            verify(webSocketService).sendNotificationToUser(
+                    eq(user.getId()),
+                    any(NotificationWebSocketDto.class)
+            );
         }
     }
 
