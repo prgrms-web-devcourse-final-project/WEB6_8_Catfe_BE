@@ -198,7 +198,11 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         List<Tuple> categoryTuples = queryFactory
                 .select(
                         categoryMapping.post.id,
-                        new QCategoryResponse(categoryMapping.category.id, categoryMapping.category.name)
+                        new QCategoryResponse(
+                                categoryMapping.category.id,
+                                categoryMapping.category.name,
+                                categoryMapping.category.type
+                        )
                 )
                 .from(categoryMapping)
                 .where(categoryMapping.post.id.in(postIds))

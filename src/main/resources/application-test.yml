@@ -10,6 +10,10 @@ spring:
       host: ${SPRING_REDIS_HOST:localhost}
       port: ${SPRING_REDIS_PORT:6379}
 
+  sql:
+    init:
+      mode: never
+
   security:
     oauth2:
       client:

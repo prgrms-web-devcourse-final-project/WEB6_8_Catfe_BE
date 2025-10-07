@@ -46,6 +46,7 @@ public enum ErrorCode {
     INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "PLAN_006", "시작 시간은 종료 시간보다 빨라야 합니다."),
     PLAN_TIME_CONFLICT(HttpStatus.CONFLICT, "PLAN_007", "이미 존재하는 학습 계획과 시간이 겹칩니다. 기존 종료 시간과 겹치는 경우는 제외됩니다."),
     PLAN_CANNOT_UPDATE(HttpStatus.BAD_REQUEST, "PLAN_008", "수정 스위치 로직 탈출. 어떤 경우인지 파악이 필요합니다."),
+    PLAN_TOO_MANY_EXCEPTIONS(HttpStatus.BAD_REQUEST, "PLAN_009", "변경사항이 비정상적으로 많아 요청이 거절되었습니다."),
     REPEAT_INVALID_UNTIL_DATE(HttpStatus.BAD_REQUEST, "REPEAT_001", "반복 계획의 종료 날짜는 시작 날짜 이전일 수 없습니다."),
     REPEAT_BYDAY_REQUIRED(HttpStatus.BAD_REQUEST, "REPEAT_002", "주간 반복 계획의 경우 요일(byDay) 정보가 필요합니다."),
 
@@ -95,6 +96,8 @@ public enum ErrorCode {
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_001", "존재하지 않는 게시글입니다."),
     POST_NO_PERMISSION(HttpStatus.FORBIDDEN, "POST_002", "게시글 작성자만 수정/삭제할 수 있습니다."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_003", "존재하지 않는 카테고리입니다."),
+    CATEGORY_ALREADY_EXISTS(HttpStatus.CONFLICT, "POST_004", "이미 존재하는 카테고리입니다."),
+
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_001", "존재하지 않는 댓글입니다."),
     COMMENT_NO_PERMISSION(HttpStatus.FORBIDDEN, "COMMENT_002", "댓글 작성자만 수정/삭제할 수 있습니다."),
     COMMENT_PARENT_MISMATCH(HttpStatus.BAD_REQUEST, "COMMENT_003", "부모 댓글이 해당 게시글에 속하지 않습니다."),
