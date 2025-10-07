@@ -9,6 +9,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,10 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class DevInitData {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-
+    private final Environment environment;
     @Bean
     ApplicationRunner DevInitDataApplicationRunner() {
         return args -> {
+            String activeProfile = environment.getProperty("spring.profiles.active", "none");
+            if (!"default".equals(activeProfile)) {
+                return; // default 환경이 아니면 실행하지 않음
+            }
             initUsers();
         };
     }
