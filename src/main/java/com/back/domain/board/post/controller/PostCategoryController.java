@@ -17,7 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/posts/categories")
 @RequiredArgsConstructor
-public class PostCategoryController {
+public class PostCategoryController implements PostCategoryControllerDocs {
     private final PostCategoryService postCategoryService;
 
     // 카테고리 생성
