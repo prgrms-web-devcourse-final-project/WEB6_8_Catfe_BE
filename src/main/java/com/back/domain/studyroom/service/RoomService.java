@@ -1,5 +1,8 @@
 package com.back.domain.studyroom.service;
 
+import com.back.domain.notification.event.studyroom.MemberKickedEvent;
+import com.back.domain.notification.event.studyroom.MemberRoleChangedEvent;
+import com.back.domain.notification.event.studyroom.OwnerTransferredEvent;
 import com.back.domain.studyroom.config.StudyRoomProperties;
 import com.back.domain.studyroom.dto.RoomResponse;
 import com.back.domain.studyroom.entity.*;
@@ -11,8 +14,10 @@ import com.back.global.exception.ErrorCode;
 import com.back.global.websocket.service.RoomParticipantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,7 +49,8 @@ public class RoomService {
     private final UserRepository userRepository;
     private final StudyRoomProperties properties;
     private final RoomParticipantService roomParticipantService;
-    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 방 생성 메서드
@@ -384,6 +390,19 @@ public class RoomService {
             // 기존 방장을 MEMBER로 강등
             requester.updateRole(RoomRole.MEMBER);
             log.info("기존 방장 강등 - RoomId: {}, UserId: {}, MEMBER로 변경", roomId, requesterId);
+
+            // 방장 위임 이벤트 발행
+            Room room = roomRepository.findById(roomId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+
+            eventPublisher.publishEvent(
+                    new OwnerTransferredEvent(
+                            requesterId,      // 이전 방장
+                            roomId,
+                            targetUserId,     // 새 방장
+                            room.getTitle()
+                    )
+            );
         }
 
         // 5. 대상자 처리
@@ -408,6 +427,18 @@ public class RoomService {
             
             log.info("VISITOR 승격 (DB 저장) - RoomId: {}, UserId: {}, NewRole: {}", 
                     roomId, targetUserId, newRole);
+        }
+
+        // 권한 변경 이벤트 발행 (HOST 위임이 아닌 경우만)
+        if (newRole != RoomRole.HOST) {
+            eventPublisher.publishEvent(
+                    new MemberRoleChangedEvent(
+                            requesterId,
+                            roomId,
+                            targetUserId,
+                            newRole.name()
+                    )
+            );
         }
         
         // 6. WebSocket으로 역할 변경 알림 브로드캐스트
@@ -538,6 +569,19 @@ public class RoomService {
 
         // Redis에서 제거 (강제 퇴장)
         roomParticipantService.exitRoom(targetUserId, roomId);
+
+        // 멤버 추방 이벤트 발행
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+
+        eventPublisher.publishEvent(
+                new MemberKickedEvent(
+                        requesterId,
+                        roomId,
+                        targetUserId,
+                        room.getTitle()
+                )
+        );
         
         log.info("멤버 추방 완료 - RoomId: {}, TargetUserId: {}, RequesterId: {}", 
                 roomId, targetUserId, requesterId);
