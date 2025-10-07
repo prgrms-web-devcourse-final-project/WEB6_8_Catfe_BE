@@ -55,8 +55,7 @@ public class CommentLikeService {
      * 1. User 조회
      * 2. Comment 조회
      * 3. CommentLike 조회
-     * 4. 사용자 검증
-     * 5. CommentLike 삭제 및 likeCount 감소
+     * 4. CommentLike 삭제 및 likeCount 감소
      */
     public CommentLikeResponse cancelLikeComment(Long commentId, Long userId) {
         // User 조회
@@ -70,11 +69,6 @@ public class CommentLikeService {
         // CommentLike 조회
         CommentLike commentLike = commentLikeRepository.findByUserIdAndCommentId(userId, commentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_LIKE_NOT_FOUND));
-
-        // 사용자 검증
-        if (!commentLike.getUser().getId().equals(userId)) {
-            throw new CustomException(ErrorCode.COMMENT_LIKE_NO_PERMISSION);
-        }
 
         // CommentLike 삭제
         commentLikeRepository.delete(commentLike);

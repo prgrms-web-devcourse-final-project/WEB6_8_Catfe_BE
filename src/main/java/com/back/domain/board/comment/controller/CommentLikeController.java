@@ -40,7 +40,7 @@ public class CommentLikeController {
         CommentLikeResponse response = commentLikeService.cancelLikeComment(commentId, user.getUserId());
         return ResponseEntity
                 .ok(RsData.success(
-                        "댓글 좋아요를 취소했습니다.",
+                        "댓글 좋아요가 취소되었습니다.",
                         response
                 ));
     }
