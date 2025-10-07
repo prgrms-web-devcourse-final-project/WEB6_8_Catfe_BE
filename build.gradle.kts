@@ -74,6 +74,9 @@ dependencies {
     // Redis
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("com.github.codemonstur:embedded-redis:1.4.3")
+
+    // AWS S3
+    implementation ("org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE")
 }
 
 tasks.withType<Test> {
