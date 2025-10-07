@@ -27,11 +27,6 @@ public class CommunityNotificationEventListener {
                 event.getPostId(), event.getCommentId(), event.getActorId());
 
         try {
-            // 자기 글에 자기가 댓글 단 경우 제외
-            if (event.getActorId().equals(event.getReceiverId())) {
-                log.debug("[알림] 자기 글에 댓글 작성 - 알림 생략");
-                return;
-            }
 
             User actor = userRepository.findById(event.getActorId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -62,11 +57,6 @@ public class CommunityNotificationEventListener {
                 event.getParentCommentId(), event.getReplyId(), event.getActorId());
 
         try {
-            // 자기 댓글에 자기가 대댓글 단 경우 제외
-            if (event.getActorId().equals(event.getReceiverId())) {
-                log.debug("[알림] 자기 댓글에 대댓글 작성 - 알림 생략");
-                return;
-            }
 
             User actor = userRepository.findById(event.getActorId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -97,11 +87,6 @@ public class CommunityNotificationEventListener {
                 event.getPostId(), event.getActorId());
 
         try {
-            // 자기 글에 자기가 좋아요 누른 경우 제외
-            if (event.getActorId().equals(event.getReceiverId())) {
-                log.debug("[알림] 자기 글에 좋아요 - 알림 생략");
-                return;
-            }
 
             User actor = userRepository.findById(event.getActorId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -132,11 +117,6 @@ public class CommunityNotificationEventListener {
                 event.getCommentId(), event.getActorId());
 
         try {
-            // 자기 댓글에 자기가 좋아요 누른 경우 제외
-            if (event.getActorId().equals(event.getReceiverId())) {
-                log.debug("[알림] 자기 댓글에 좋아요 - 알림 생략");
-                return;
-            }
 
             User actor = userRepository.findById(event.getActorId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
