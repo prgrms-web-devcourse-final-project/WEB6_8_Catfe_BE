@@ -16,7 +16,7 @@ public class PostLikeController {
     private final PostLikeService postLikeService;
 
     // 게시글 좋아요
-    @GetMapping
+    @PostMapping
     public ResponseEntity<RsData<PostLikeResponse>> likePost(
             @PathVariable Long postId,
             @AuthenticationPrincipal CustomUserDetails user
