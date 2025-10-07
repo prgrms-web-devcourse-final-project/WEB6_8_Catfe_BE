@@ -13,7 +13,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 @Configuration
-@Profile("dev")
 @RequiredArgsConstructor
 public class DevInitData {
     private final UserRepository userRepository;
