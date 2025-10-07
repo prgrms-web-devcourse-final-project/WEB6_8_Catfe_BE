@@ -1,5 +1,6 @@
 package com.back.domain.studyroom.service;
 
+import com.back.domain.notification.service.NotificationService;
 import com.back.domain.studyroom.config.StudyRoomProperties;
 import com.back.domain.studyroom.entity.*;
 import com.back.domain.studyroom.repository.RoomMemberRepository;
@@ -54,6 +55,9 @@ class RoomServiceTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private RoomService roomService;
