@@ -97,11 +97,15 @@ public enum ErrorCode {
     POST_NO_PERMISSION(HttpStatus.FORBIDDEN, "POST_002", "게시글 작성자만 수정/삭제할 수 있습니다."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_003", "존재하지 않는 카테고리입니다."),
     CATEGORY_ALREADY_EXISTS(HttpStatus.CONFLICT, "POST_004", "이미 존재하는 카테고리입니다."),
+    POST_ALREADY_LIKED(HttpStatus.CONFLICT, "POST_005", "이미 좋아요한 게시글입니다."),
+    POST_LIKE_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_006", "해당 게시글에 대한 좋아요 기록이 없습니다."),
 
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_001", "존재하지 않는 댓글입니다."),
     COMMENT_NO_PERMISSION(HttpStatus.FORBIDDEN, "COMMENT_002", "댓글 작성자만 수정/삭제할 수 있습니다."),
     COMMENT_PARENT_MISMATCH(HttpStatus.BAD_REQUEST, "COMMENT_003", "부모 댓글이 해당 게시글에 속하지 않습니다."),
     COMMENT_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "COMMENT_004", "대댓글은 한 단계까지만 작성할 수 있습니다."),
+    COMMENT_ALREADY_LIKED(HttpStatus.CONFLICT, "COMMENT_005", "이미 좋아요한 댓글입니다."),
+    COMMENT_LIKE_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_006", "해당 댓글에 대한 좋아요 기록이 없습니다."),
 
     // ======================== 공통 에러 ========================
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON_400", "잘못된 요청입니다."),
@@ -121,10 +125,15 @@ public enum ErrorCode {
     OAUTH2_ATTRIBUTE_MISSING(HttpStatus.UNAUTHORIZED, "AUTH_009", "소셜 계정에서 필요한 사용자 정보를 가져올 수 없습니다."),
     OAUTH2_AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "AUTH_010", "소셜 로그인 인증에 실패했습니다."),
 
+    // ======================== 파일 업로드 관련 ========================
+    FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE_001", "파일 업로드에 실패했습니다."),
+
+
     // ======================== 토큰 관련 ========================
     INVALID_EMAIL_TOKEN(HttpStatus.UNAUTHORIZED, "TOKEN_001", "유효하지 않은 이메일 인증 토큰입니다."),
     ALREADY_VERIFIED(HttpStatus.CONFLICT, "TOKEN_002", "이미 인증된 계정입니다."),
     INVALID_PASSWORD_RESET_TOKEN(HttpStatus.UNAUTHORIZED, "TOKEN_003", "유효하지 않은 비밀번호 재설정 토큰입니다.");
+
 
     private final HttpStatus status;
     private final String code;

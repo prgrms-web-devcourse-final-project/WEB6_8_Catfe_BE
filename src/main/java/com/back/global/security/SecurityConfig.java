@@ -46,6 +46,7 @@ public class SecurityConfig {
                                 .requestMatchers("/","/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger 허용
                                 .requestMatchers("/h2-console/**").permitAll() // H2 Console 허용
                                 .requestMatchers("/actuator/health").permitAll() // 헬스 체크 허용
+                                .requestMatchers("/file/**").permitAll() // 파일 관련 요청 모두 허용(테스트 완료 후, 요청제한 예정)
                                 .anyRequest().authenticated()
                 )
 
