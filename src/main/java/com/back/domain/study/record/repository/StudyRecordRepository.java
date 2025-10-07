@@ -28,4 +28,16 @@ public interface StudyRecordRepository extends JpaRepository<StudyRecord, Long> 
             @Param("userId") Long userId,
             @Param("startOfDay") LocalDateTime startOfDay,
             @Param("endOfDay") LocalDateTime endOfDay);
+
+    // 특정 StudyPlan에 대해 특정 날짜에 StudyRecord가 있는지 확인 (일일 목표 달성 알림 체크용)
+    @Query("SELECT CASE WHEN COUNT(sr) > 0 THEN true ELSE false END " +
+            "FROM StudyRecord sr " +
+            "WHERE sr.studyPlan.id = :planId " +
+            "AND sr.startTime >= :startOfDay " +
+            "AND sr.startTime < :endOfDay")
+    boolean existsByStudyPlanIdAndDate(
+            @Param("planId") Long planId,
+            @Param("startOfDay") LocalDateTime startOfDay,
+            @Param("endOfDay") LocalDateTime endOfDay
+    );
 }
