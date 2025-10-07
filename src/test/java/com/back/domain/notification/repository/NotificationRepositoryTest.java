@@ -503,4 +503,84 @@ class NotificationRepositoryTest {
                     .containsOnly(NotificationType.SYSTEM);
         }
     }
+
+    @Nested
+    @DisplayName("findAllUnreadByUserId 테스트")
+    class FindAllUnreadByUserIdTest {
+
+        @Test
+        @DisplayName("읽지 않은 알림 전체 조회 (페이징 없음)")
+        void t1() {
+            // given
+            Notification unread1 = Notification.createPersonalNotification(
+                    user1, actor, "읽지 않음1", "내용", "/1"
+            );
+            Notification unread2 = Notification.createPersonalNotification(
+                    user1, actor, "읽지 않음2", "내용", "/2"
+            );
+            Notification read = Notification.createPersonalNotification(
+                    user1, actor, "읽음", "내용", "/read"
+            );
+            notificationRepository.saveAll(List.of(unread1, unread2, read));
+
+            // read 알림을 읽음 처리
+            NotificationRead notificationRead = NotificationRead.create(read, user1);
+            notificationReadRepository.save(notificationRead);
+
+            // when
+            List<Notification> result = notificationRepository
+                    .findAllUnreadByUserId(user1.getId());
+
+            // then
+            assertThat(result).hasSize(2);
+            assertThat(result)
+                    .extracting(Notification::getTitle)
+                    .containsExactlyInAnyOrder("읽지 않음1", "읽지 않음2");
+        }
+
+        @Test
+        @DisplayName("모든 알림을 읽은 경우 빈 리스트 반환")
+        void t2() {
+            // given
+            Notification notification = Notification.createPersonalNotification(
+                    user1, actor, "읽음", "내용", "/read"
+            );
+            notificationRepository.save(notification);
+
+            NotificationRead read = NotificationRead.create(notification, user1);
+            notificationReadRepository.save(read);
+
+            // when
+            List<Notification> result = notificationRepository
+                    .findAllUnreadByUserId(user1.getId());
+
+            // then
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("생성일시 내림차순으로 정렬")
+        void t3() throws InterruptedException {
+            // given
+            Notification old = Notification.createPersonalNotification(
+                    user1, actor, "오래된", "내용", "/old"
+            );
+            notificationRepository.save(old);
+
+            Thread.sleep(100);
+
+            Notification recent = Notification.createPersonalNotification(
+                    user1, actor, "최근", "내용", "/recent"
+            );
+            notificationRepository.save(recent);
+
+            // when
+            List<Notification> result = notificationRepository
+                    .findAllUnreadByUserId(user1.getId());
+
+            // then
+            assertThat(result.get(0).getTitle()).isEqualTo("최근");
+            assertThat(result.get(1).getTitle()).isEqualTo("오래된");
+        }
+    }
 }

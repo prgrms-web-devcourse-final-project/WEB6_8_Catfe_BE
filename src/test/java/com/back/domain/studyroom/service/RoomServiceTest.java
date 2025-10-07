@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -50,6 +51,9 @@ class RoomServiceTest {
 
     @Mock
     private RoomParticipantService roomParticipantService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private RoomService roomService;
@@ -374,6 +378,7 @@ class RoomServiceTest {
         
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.of(targetMember));
+        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
 
         // when
         roomService.kickMember(1L, 2L, 1L);

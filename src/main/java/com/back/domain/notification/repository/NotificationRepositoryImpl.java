@@ -143,4 +143,28 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
 
         return new PageImpl<>(content, pageable, total != null ? total : 0L);
     }
+
+    @Override
+    public List<Notification> findAllUnreadByUserId(Long userId) {
+        QNotification notification = QNotification.notification;
+        QNotificationRead notificationRead = QNotificationRead.notificationRead;
+        QRoomMember roomMember = QRoomMember.roomMember;
+
+        return queryFactory
+                .selectFrom(notification)
+                .leftJoin(notificationRead)
+                .on(notification.id.eq(notificationRead.notification.id)
+                        .and(notificationRead.user.id.eq(userId)))
+                .leftJoin(roomMember)
+                .on(notification.room.id.eq(roomMember.room.id)
+                        .and(roomMember.user.id.eq(userId)))
+                .where(
+                        notification.receiver.id.eq(userId)
+                                .or(notification.type.eq(NotificationType.SYSTEM))
+                                .or(roomMember.id.isNotNull()),
+                        notificationRead.id.isNull()
+                )
+                .orderBy(notification.createdAt.desc())
+                .fetch();
+    }
 }

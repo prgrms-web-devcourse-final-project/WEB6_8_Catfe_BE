@@ -16,4 +16,7 @@ public interface NotificationRepositoryCustom {
 
     // 특정 유저의 읽지 않은 알림 목록 조회
     Page<Notification> findUnreadByUserId(Long userId, Pageable pageable);
+
+    // 특정 유저의 읽지 않은 알림 전체 조회
+    List<Notification> findAllUnreadByUserId(Long userId);
 }

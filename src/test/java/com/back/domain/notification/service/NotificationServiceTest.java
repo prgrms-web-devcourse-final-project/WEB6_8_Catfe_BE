@@ -401,12 +401,10 @@ class NotificationServiceTest {
             );
             ReflectionTestUtils.setField(notification2, "id", 2L);
 
-            Page<Notification> unreadPage = new PageImpl<>(
-                    List.of(notification, notification2)
-            );
+            List<Notification> unreadList = List.of(notification, notification2);
 
-            given(notificationRepository.findUnreadByUserId(user.getId(), Pageable.unpaged()))
-                    .willReturn(unreadPage);
+            given(notificationRepository.findAllUnreadByUserId(user.getId()))
+                    .willReturn(unreadList);
             given(notificationReadRepository.existsByNotificationIdAndUserId(anyLong(), eq(user.getId())))
                     .willReturn(false);
 
@@ -414,8 +412,10 @@ class NotificationServiceTest {
             notificationService.markMultipleAsRead(user.getId(), user);
 
             // then
-            verify(notificationRepository).findUnreadByUserId(user.getId(), Pageable.unpaged());
-            verify(notificationReadRepository, times(2)).save(any(NotificationRead.class));
+            verify(notificationRepository).findAllUnreadByUserId(user.getId());
+            verify(notificationReadRepository).saveAll(argThat(list ->
+                    list != null && ((List<?>) list).size() == 2
+            ));
         }
 
         @Test
@@ -427,23 +427,23 @@ class NotificationServiceTest {
             );
             ReflectionTestUtils.setField(notification2, "id", 2L);
 
-            Page<Notification> unreadPage = new PageImpl<>(
-                    List.of(notification, notification2)
-            );
+            List<Notification> unreadList = List.of(notification, notification2);
 
-            given(notificationRepository.findUnreadByUserId(user.getId(), Pageable.unpaged()))
-                    .willReturn(unreadPage);
+            given(notificationRepository.findAllUnreadByUserId(user.getId()))
+                    .willReturn(unreadList);
             given(notificationReadRepository.existsByNotificationIdAndUserId(1L, user.getId()))
-                    .willReturn(true); // 첫 번째 알림은 이미 읽음
+                    .willReturn(true);
             given(notificationReadRepository.existsByNotificationIdAndUserId(2L, user.getId()))
-                    .willReturn(false); // 두 번째 알림은 안 읽음
+                    .willReturn(false);
 
             // when
             notificationService.markMultipleAsRead(user.getId(), user);
 
             // then
-            verify(notificationRepository).findUnreadByUserId(user.getId(), Pageable.unpaged());
-            verify(notificationReadRepository, times(1)).save(any(NotificationRead.class));
+            verify(notificationRepository).findAllUnreadByUserId(user.getId());
+            verify(notificationReadRepository).saveAll(argThat(list ->
+                    list != null && ((List<?>) list).size() == 1
+            ));
         }
     }
 }
