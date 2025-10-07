@@ -4,6 +4,8 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.CannedAccessControlList;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.back.global.exception.CustomException;
+import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -24,25 +26,25 @@ public class FileService {
 
     private final AmazonS3 amazonS3;
 
-    public List<String> uploadFile(List<MultipartFile> multipartFiles) {
-        List<String> fileNameList = new ArrayList<>();
+    public String uploadFile(MultipartFile multipartFile) {
+        if (multipartFile == null || multipartFile.isEmpty()) {
+            return null;
+        }
 
-        multipartFiles.forEach(file -> {
-                    String fileName = file.getOriginalFilename();
-                    ObjectMetadata objectMetadata = new ObjectMetadata();
-                    objectMetadata.setContentLength(file.getSize());
-                    objectMetadata.setContentType(file.getContentType());
+        String fileName = multipartFile.getName();
+        ObjectMetadata objectMetadata = new ObjectMetadata();
+        objectMetadata.setContentLength(multipartFile.getSize());
+        objectMetadata.setContentType(multipartFile.getContentType());
 
-                    try (InputStream inputStream = file.getInputStream()) {
-                        amazonS3.putObject(new PutObjectRequest(bucket, fileName, inputStream, objectMetadata)
-                                .withCannedAcl(CannedAccessControlList.PublicRead));
-                    } catch (IOException e) {
-                        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드에 실패했습니다.");
-                    }
+        try(InputStream inputStream = multipartFile.getInputStream()){
+            amazonS3.putObject(
+                    new PutObjectRequest(bucket, fileName, inputStream, objectMetadata
+                    )
+            );
+        } catch (IOException e){
+            throw new CustomException(ErrorCode.FILE_UPLOAD_FAILED);
+        }
 
-                    fileNameList.add(fileName);
-                });
-
-        return fileNameList;
+        return fileName;
     }
 }

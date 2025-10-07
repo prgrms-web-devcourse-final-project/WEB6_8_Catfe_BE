@@ -19,9 +19,9 @@ public class FileController {
     private final FileService fileService;
 
     @PostMapping
-    public ResponseEntity<RsData<List<String>>> uploadFile(List<MultipartFile> multipartFiles) {
+    public ResponseEntity<RsData<String>> uploadFile(MultipartFile multipartFile) {
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(RsData.success("파일 업로드 성공", fileService.uploadFile(multipartFiles)));
+                .body(RsData.success("파일 업로드 성공", fileService.uploadFile(multipartFile)));
     }
 }

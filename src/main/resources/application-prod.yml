@@ -1,4 +1,7 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   datasource:
     url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -10,9 +13,6 @@ spring:
       host: ${REDIS_HOST}
       port: 6379
       password: ${REDIS_PASSWORD}
-
-  config:
-    import: optional:file:.env[.properties]
 
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
@@ -112,3 +112,19 @@ studyroom:
 
 frontend:
   base-url: ${FRONTEND_BASE_URL}
+
+# AWS S3
+cloud:
+  aws:
+    credentials:
+      access-key: ${ACCESS_KEY}
+      secret-key: ${SECRET_KEY}
+
+    region:
+      static: ${REGION}
+
+    s3:
+      bucket: ${BUCKET_NAME}
+
+    stack:
+      auto: false
