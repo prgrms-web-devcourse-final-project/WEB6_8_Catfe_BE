@@ -23,6 +23,11 @@ spring:
         format_sql: true
         highlight_sql: true
         use_sql_comments: true
+    defer-datasource-initialization: true
+
+  sql:
+    init:
+      mode: always
 
   security:
     oauth2:
