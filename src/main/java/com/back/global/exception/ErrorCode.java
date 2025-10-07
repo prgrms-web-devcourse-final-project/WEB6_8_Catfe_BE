@@ -68,6 +68,10 @@ public enum ErrorCode {
     NOTIFICATION_MISSING_ACTOR(HttpStatus.BAD_REQUEST, "NOTIFICATION_005", "발신자 정보가 필요합니다."),
     NOTIFICATION_MISSING_TARGET(HttpStatus.BAD_REQUEST, "NOTIFICATION_006", "수신자 또는 대상 정보가 필요합니다."),
 
+    // ======================== 알림 설정 관련 ========================
+    NOTIFICATION_SETTING_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION_SETTING_001", "알림 설정을 찾을 수 없습니다."),
+    NOTIFICATION_SETTING_FORBIDDEN(HttpStatus.FORBIDDEN, "NOTIFICATION_SETTING_002", "알림 설정에 대한 접근 권한이 없습니다."),
+
     // ======================== 메시지 관련 ========================
     MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MESSAGE_001", "존재하지 않는 메시지입니다."),
     MESSAGE_FORBIDDEN(HttpStatus.FORBIDDEN, "MESSAGE_002", "자신의 메시지만 삭제할 수 있습니다."),
