@@ -1,5 +1,6 @@
 package com.back.domain.notification.event.study;
 
+import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.service.NotificationService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -30,13 +31,12 @@ public class StudyNotificationEventListener {
             User user = userRepository.findById(event.getUserId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-            // 본인에게 개인 알림
-            notificationService.createPersonalNotification(
-                    user,           // receiver (본인)
-                    user,           // actor (본인)
+            notificationService.createSelfNotification(
+                    user,
                     event.getTitle(),
                     event.getContent(),
-                    "/study/records/" + event.getStudyRecordId()
+                    "/study/records/" + event.getStudyRecordId(),
+                    NotificationSettingType.SYSTEM
             );
 
             log.info("[알림] 학습 기록 알림 전송 완료");
@@ -58,12 +58,12 @@ public class StudyNotificationEventListener {
             User user = userRepository.findById(event.getUserId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-            notificationService.createPersonalNotification(
-                    user,
+            notificationService.createSelfNotification(
                     user,
                     event.getTitle(),
                     event.getContent(),
-                    "/study/plans?date=" + event.getAchievedDate()
+                    "/study/plans?date=" + event.getAchievedDate(),
+                    NotificationSettingType.SYSTEM
             );
 
             log.info("[알림] 일일 목표 달성 알림 전송 완료");

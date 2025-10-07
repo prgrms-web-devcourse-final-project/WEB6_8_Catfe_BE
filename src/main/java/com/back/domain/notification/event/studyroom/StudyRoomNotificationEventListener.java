@@ -1,5 +1,6 @@
 package com.back.domain.notification.event.studyroom;
 
+import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.service.NotificationService;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.repository.RoomMemberRepository;
@@ -45,8 +46,9 @@ public class StudyRoomNotificationEventListener {
                     room,
                     actor,
                     event.getTitle(),
-                    event.getNoticeTitle(),  // content에 공지 제목
-                    "/rooms/" + event.getStudyRoomId() + "/notices"
+                    event.getNoticeTitle(),
+                    "/rooms/" + event.getStudyRoomId() + "/notices",
+                    NotificationSettingType.ROOM_NOTICE
             );
 
             log.info("[알림] 스터디룸 공지사항 알림 전송 완료");
@@ -79,7 +81,8 @@ public class StudyRoomNotificationEventListener {
                     actor,
                     event.getTitle(),
                     event.getContent(),
-                    "/rooms/" + event.getStudyRoomId()
+                    "/rooms/" + event.getStudyRoomId(),
+                    NotificationSettingType.ROOM_JOIN
             );
 
             log.info("[알림] 권한 변경 알림 전송 완료");
@@ -108,7 +111,8 @@ public class StudyRoomNotificationEventListener {
                     actor,
                     event.getTitle(),
                     event.getContent(),
-                    "/rooms"
+                    "/rooms",
+                    NotificationSettingType.ROOM_JOIN
             );
 
             log.info("[알림] 멤버 추방 알림 전송 완료");
@@ -137,7 +141,8 @@ public class StudyRoomNotificationEventListener {
                     actor,
                     event.getTitle(),
                     event.getContent(),
-                    "/rooms/" + event.getStudyRoomId()
+                    "/rooms/" + event.getStudyRoomId(),
+                    NotificationSettingType.ROOM_JOIN
             );
 
             log.info("[알림] 방장 위임 알림 전송 완료");

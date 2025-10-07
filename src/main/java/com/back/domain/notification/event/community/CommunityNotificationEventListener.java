@@ -1,5 +1,6 @@
 package com.back.domain.notification.event.community;
 
+import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.service.NotificationService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -27,7 +28,6 @@ public class CommunityNotificationEventListener {
                 event.getPostId(), event.getCommentId(), event.getActorId());
 
         try {
-
             User actor = userRepository.findById(event.getActorId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -39,7 +39,8 @@ public class CommunityNotificationEventListener {
                     actor,
                     event.getTitle(),
                     event.getContent(),
-                    "/posts/" + event.getPostId()
+                    "/posts/" + event.getPostId(),
+                    NotificationSettingType.POST_COMMENT
             );
 
             log.info("[알림] 댓글 작성 알림 전송 완료");
@@ -57,7 +58,6 @@ public class CommunityNotificationEventListener {
                 event.getParentCommentId(), event.getReplyId(), event.getActorId());
 
         try {
-
             User actor = userRepository.findById(event.getActorId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -69,7 +69,8 @@ public class CommunityNotificationEventListener {
                     actor,
                     event.getTitle(),
                     event.getContent(),
-                    "/posts/" + event.getPostId() + "#comment-" + event.getParentCommentId()
+                    "/posts/" + event.getPostId() + "#comment-" + event.getParentCommentId(),
+                    NotificationSettingType.POST_COMMENT
             );
 
             log.info("[알림] 대댓글 작성 알림 전송 완료");
@@ -87,7 +88,6 @@ public class CommunityNotificationEventListener {
                 event.getPostId(), event.getActorId());
 
         try {
-
             User actor = userRepository.findById(event.getActorId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -99,7 +99,8 @@ public class CommunityNotificationEventListener {
                     actor,
                     event.getTitle(),
                     event.getContent(),
-                    "/posts/" + event.getPostId()
+                    "/posts/" + event.getPostId(),
+                    NotificationSettingType.POST_LIKE
             );
 
             log.info("[알림] 게시글 좋아요 알림 전송 완료");
@@ -117,7 +118,6 @@ public class CommunityNotificationEventListener {
                 event.getCommentId(), event.getActorId());
 
         try {
-
             User actor = userRepository.findById(event.getActorId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -129,7 +129,8 @@ public class CommunityNotificationEventListener {
                     actor,
                     event.getTitle(),
                     event.getContent(),
-                    "/posts/" + event.getPostId() + "#comment-" + event.getCommentId()
+                    "/posts/" + event.getPostId() + "#comment-" + event.getCommentId(),
+                    NotificationSettingType.POST_LIKE
             );
 
             log.info("[알림] 댓글 좋아요 알림 전송 완료");

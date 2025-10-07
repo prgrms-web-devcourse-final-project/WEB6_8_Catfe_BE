@@ -38,7 +38,8 @@ public class NotificationService {
             User actor,
             String title,
             String content,
-            String targetUrl) {
+            String targetUrl,
+            NotificationSettingType settingType) {
 
         // 자기 자신에게 알림 방지
         validateActorAndReceiver(receiver, actor);
@@ -48,15 +49,43 @@ public class NotificationService {
                 receiver, actor, title, content, targetUrl);
         notificationRepository.save(notification);
 
-        // 알림 설정 체크 후 전송 (개인 알림은 일반적으로 SYSTEM 설정을 따름)
-        if (shouldSendNotification(receiver.getId(), NotificationSettingType.SYSTEM)) {
+        // 알림 설정 체크 후 전송
+        if (shouldSendNotification(receiver.getId(), settingType)) {
             NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
             webSocketService.sendNotificationToUser(receiver.getId(), dto);
-            log.info("개인 알림 전송 - 수신자 ID: {}, 발신자 ID: {}, 알림 ID: {}",
-                    receiver.getId(), actor.getId(), notification.getId());
+            log.info("개인 알림 전송 - 수신자 ID: {}, 발신자 ID: {}, 알림 ID: {}, 설정 타입: {}",
+                    receiver.getId(), actor.getId(), notification.getId(), settingType);
         } else {
-            log.info("개인 알림 저장만 완료 (전송 생략) - 수신자 ID: {}, 알림 ID: {}",
-                    receiver.getId(), notification.getId());
+            log.info("개인 알림 저장만 완료 (전송 생략) - 수신자 ID: {}, 알림 ID: {}, 설정 타입: {}",
+                    receiver.getId(), notification.getId(), settingType);
+        }
+
+        return notification;
+    }
+
+    // 개인 알림 생성 및 전송
+    @Transactional
+    public Notification createSelfNotification(
+            User user,
+            String title,
+            String content,
+            String targetUrl,
+            NotificationSettingType settingType) {
+
+        // DB에 알림 저장
+        Notification notification = Notification.createPersonalNotification(
+                user, user, title, content, targetUrl);
+        notificationRepository.save(notification);
+
+        // 알림 설정 체크 후 전송
+        if (shouldSendNotification(user.getId(), settingType)) {
+            NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
+            webSocketService.sendNotificationToUser(user.getId(), dto);
+            log.info("자기 자신 알림 전송 - 사용자 ID: {}, 알림 ID: {}, 설정 타입: {}",
+                    user.getId(), notification.getId(), settingType);
+        } else {
+            log.info("자기 자신 알림 저장만 완료 (전송 생략) - 사용자 ID: {}, 알림 ID: {}, 설정 타입: {}",
+                    user.getId(), notification.getId(), settingType);
         }
 
         return notification;
@@ -84,18 +113,6 @@ public class NotificationService {
                 room.getId(), actor.getId(), notification.getId(), settingType);
 
         return notification;
-    }
-
-    // 스터디룸 알림 생성 및 전송
-    @Transactional
-    public Notification createRoomNotification(
-            Room room,
-            User actor,
-            String title,
-            String content,
-            String targetUrl) {
-
-        return createRoomNotification(room, actor, title, content, targetUrl, NotificationSettingType.ROOM_JOIN);
     }
 
     // 시스템 전체 알림 생성 및 브로드캐스트
@@ -141,19 +158,6 @@ public class NotificationService {
         }
 
         return notification;
-    }
-
-    // 커뮤니티 알림 생성 및 전송
-    @Transactional
-    public Notification createCommunityNotification(
-            User receiver,
-            User actor,
-            String title,
-            String content,
-            String targetUrl) {
-
-        return createCommunityNotification(receiver, actor, title, content, targetUrl,
-                NotificationSettingType.POST_COMMENT);
     }
 
     // ==================== 알림 조회 ====================
