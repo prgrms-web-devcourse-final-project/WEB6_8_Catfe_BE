@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Configuration
+@Profile("default")
 @RequiredArgsConstructor
 public class DevInitData {
     private final UserRepository userRepository;
@@ -34,13 +35,6 @@ public class DevInitData {
     @Bean
     ApplicationRunner DevInitDataApplicationRunner() {
         return args -> {
-            String activeProfile = environment.getProperty("spring.profiles.active", "none");
-            if (!"default".equals(activeProfile)) {
-                return; // default 환경이 아니면 실행하지 않음
-            }
-//            if (!"none".equals(activeProfile) && !"default".equals(activeProfile)) {
-//                return;
-//            }
             initUsersAndPostsAndComments();
         };
     }
