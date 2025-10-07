@@ -1,14 +1,16 @@
 package com.back.domain.board.post.controller;
 
+import com.back.domain.board.post.dto.CategoryRequest;
 import com.back.domain.board.post.dto.CategoryResponse;
 import com.back.domain.board.post.service.PostCategoryService;
 import com.back.global.common.dto.RsData;
+import com.back.global.security.user.CustomUserDetails;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -17,6 +19,21 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PostCategoryController {
     private final PostCategoryService postCategoryService;
+
+    // 카테고리 생성
+    @PostMapping
+    public ResponseEntity<RsData<CategoryResponse>> createCategory(
+            @RequestBody @Valid CategoryRequest request,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        CategoryResponse response = postCategoryService.createCategory(request, user.getUserId());
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(RsData.success(
+                        "카테고리가 생성되었습니다.",
+                        response
+                ));
+    }
 
     // 카테고리 전체 조회
     @GetMapping

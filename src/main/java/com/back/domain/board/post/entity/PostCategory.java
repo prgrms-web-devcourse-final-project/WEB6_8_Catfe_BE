@@ -25,6 +25,13 @@ public class PostCategory extends BaseEntity {
     // -------------------- 생성자 --------------------
     public PostCategory(String name) {
         this.name = name;
+        this.type = CategoryType.SUBJECT;
+        this.postCategoryMappings = new ArrayList<>();
+    }
+
+    public PostCategory(String name, CategoryType type) {
+        this.name = name;
+        this.type = type;
         this.postCategoryMappings = new ArrayList<>();
     }
 }
