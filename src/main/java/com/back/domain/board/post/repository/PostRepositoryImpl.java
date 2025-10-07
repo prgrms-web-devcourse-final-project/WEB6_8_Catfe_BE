@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 public class PostRepositoryImpl implements PostRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
+    // TODO: Post에 likeCount 필드 추가에 따른 로직 개선
     /**
      * 게시글 다건 검색
      * - 총 쿼리 수 : 3회 (Post + Category + count)
