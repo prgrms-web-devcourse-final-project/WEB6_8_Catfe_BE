@@ -96,7 +96,7 @@ public enum ErrorCode {
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_001", "존재하지 않는 게시글입니다."),
     POST_NO_PERMISSION(HttpStatus.FORBIDDEN, "POST_002", "게시글 작성자만 수정/삭제할 수 있습니다."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_003", "존재하지 않는 카테고리입니다."),
-    CATEGORY_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "POST_004", "이미 존재하는 카테고리입니다."),
+    CATEGORY_ALREADY_EXISTS(HttpStatus.CONFLICT, "POST_004", "이미 존재하는 카테고리입니다."),
 
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_001", "존재하지 않는 댓글입니다."),
     COMMENT_NO_PERMISSION(HttpStatus.FORBIDDEN, "COMMENT_002", "댓글 작성자만 수정/삭제할 수 있습니다."),
