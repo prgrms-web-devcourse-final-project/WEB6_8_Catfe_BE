@@ -198,7 +198,8 @@ sudo sh -c 'echo "/swapfile swap swap defaults 0 0" >> /etc/fstab'
 echo "PASSWORD=${var.password_1}" >> /etc/environment
 echo "DOMAIN=${var.catfe_domain_1}" >> /etc/environment
 echo "GITHUB_ACCESS_TOKEN_OWNER=${var.github_access_token_1_owner}" >> /etc/environment
-ehco "GITHUB_ACCESS_TOKEN=${var.github_access_token_1}" >> /etc/environment
+echo "GITHUB_ACCESS_TOKEN=${var.github_access_token_1}" >> /etc/environment
+
 # EC2 환경변수 등록
 source /etc/environment
 
@@ -339,5 +340,31 @@ resource "aws_db_instance" "mysql" {
     Key   = "TEAM"
     Value = "devcos-team05"
     Name  = "team5-mysql"
+  }
+}
+
+# EC2 역할에 AmazonS3FullAccess 정책을 부착
+resource "aws_iam_role_policy_attachment" "s3_full_access" {
+  role = aws_iam_role.ec2_role_1.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+# S3 접근 권한 추가
+resource "aws_s3_bucket_public_access_block" "public-access" {
+  bucket = aws_s3_bucket.s3_1.id
+
+  block_public_acls = false
+  block_public_policy = false
+  ignore_public_acls = false
+  restrict_public_buckets = false
+}
+
+# S3 인스턴스 생성
+resource "aws_s3_bucket" "s3_1" {
+  bucket = "team5-s3-1"
+  tags = {
+    Key = "TEAM"
+    Value = "devcos-team05"
+    Name = "team5-s3-1"
   }
 }

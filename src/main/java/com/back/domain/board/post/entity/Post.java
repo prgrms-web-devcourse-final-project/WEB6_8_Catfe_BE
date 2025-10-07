@@ -22,6 +22,16 @@ public class Post extends BaseEntity {
 
     private String content;
 
+    // TODO: 추후 PostRepositoryImpl#searchPosts 로직 개선 필요, ERD에도 반영할 것
+    @Column(nullable = false)
+    private Long likeCount = 0L;
+
+    @Column(nullable = false)
+    private Long bookmarkCount = 0L;
+
+    @Column(nullable = false)
+    private Long commentCount = 0L;
+
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PostCategoryMapping> postCategoryMappings = new ArrayList<>();
 
@@ -54,6 +64,42 @@ public class Post extends BaseEntity {
         categories.forEach(category ->
                 this.postCategoryMappings.add(new PostCategoryMapping(this, category))
         );
+    }
+
+    // 좋아요 수 증가
+    public void increaseLikeCount() {
+        this.likeCount++;
+    }
+
+    // 좋아요 수 감소
+    public void decreaseLikeCount() {
+        if (this.likeCount > 0) {
+            this.likeCount--;
+        }
+    }
+
+    // 북마크 수 증가
+    public void increaseBookmarkCount() {
+        this.bookmarkCount++;
+    }
+
+    // 북마크 수 감소
+    public void decreaseBookmarkCount() {
+        if (this.bookmarkCount > 0) {
+            this.bookmarkCount--;
+        }
+    }
+
+    // 댓글 수 증가
+    public void increaseCommentCount() {
+        this.commentCount++;
+    }
+
+    // 댓글 수 감소
+    public void decreaseCommentCount() {
+        if (this.commentCount > 0) {
+            this.commentCount--;
+        }
     }
 
     // -------------------- 헬퍼 메서드 --------------------

@@ -16,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -176,17 +178,20 @@ public class NotificationService {
     // 여러 알림 일괄 읽음 처리
     @Transactional
     public void markMultipleAsRead(Long userId, User user) {
-        Page<Notification> unreadNotifications = getUnreadNotifications(userId, Pageable.unpaged());
+        // Page가 아닌 List로 직접 조회
+        List<Notification> unreadNotifications = notificationRepository.findAllUnreadByUserId(userId);
 
-        int count = 0;
-        for (Notification notification : unreadNotifications) {
-            if (!notificationReadRepository.existsByNotificationIdAndUserId(notification.getId(), user.getId())) {
-                NotificationRead notificationRead = NotificationRead.create(notification, user);
-                notificationReadRepository.save(notificationRead);
-                count++;
-            }
+        List<NotificationRead> notificationReads = unreadNotifications.stream()
+                .filter(notification -> !notificationReadRepository
+                        .existsByNotificationIdAndUserId(notification.getId(), user.getId()))
+                .map(notification -> NotificationRead.create(notification, user))
+                .toList();
+
+        if (!notificationReads.isEmpty()) {
+            notificationReadRepository.saveAll(notificationReads);
+            log.info("일괄 읽음 처리 - 유저 ID: {}, 처리 개수: {}", userId, notificationReads.size());
+        } else {
+            log.info("일괄 읽음 처리 - 유저 ID: {}, 읽을 알림 없음", userId);
         }
-
-        log.info("일괄 읽음 처리 - 유저 ID: {}, 처리 개수: {}", userId, count);
     }
 }

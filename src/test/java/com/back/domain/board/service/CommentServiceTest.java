@@ -10,6 +10,7 @@ import com.back.domain.board.comment.entity.Comment;
 import com.back.domain.board.post.entity.Post;
 import com.back.domain.board.comment.repository.CommentRepository;
 import com.back.domain.board.post.repository.PostRepository;
+import com.back.domain.notification.service.NotificationService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
@@ -24,6 +25,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -46,6 +48,9 @@ class CommentServiceTest {
 
     @Autowired
     private PostRepository postRepository;
+
+    @MockitoBean
+    private NotificationService notificationService;
 
     // ====================== 댓글 생성 테스트 ======================
 

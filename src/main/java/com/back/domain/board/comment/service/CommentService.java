@@ -9,11 +9,14 @@ import com.back.domain.board.comment.entity.Comment;
 import com.back.domain.board.post.entity.Post;
 import com.back.domain.board.comment.repository.CommentRepository;
 import com.back.domain.board.post.repository.PostRepository;
+import com.back.domain.notification.event.community.CommentCreatedEvent;
+import com.back.domain.notification.event.community.ReplyCreatedEvent;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 댓글 생성 서비스
@@ -48,6 +52,18 @@ public class CommentService {
 
         // Comment 저장 및 응답 반환
         commentRepository.save(comment);
+
+        // 댓글 작성 이벤트 발행
+        eventPublisher.publishEvent(
+                new CommentCreatedEvent(
+                        userId,                  // 댓글 작성자
+                        post.getUser().getId(),  // 게시글 작성자
+                        postId,
+                        comment.getId(),
+                        request.content()
+                )
+        );
+
         return CommentResponse.from(comment);
     }
 
@@ -159,6 +175,19 @@ public class CommentService {
 
         // 저장 및 응답 반환
         commentRepository.save(reply);
+
+        // 대댓글 작성 이벤트 발행
+        eventPublisher.publishEvent(
+                new ReplyCreatedEvent(
+                        userId,                      // 대댓글 작성자
+                        parent.getUser().getId(),    // 댓글 작성자
+                        postId,
+                        parentCommentId,
+                        reply.getId(),
+                        request.content()
+                )
+        );
+
         return ReplyResponse.from(reply);
     }
 }

@@ -27,15 +27,16 @@ public enum ErrorCode {
     ROOM_PASSWORD_INCORRECT(HttpStatus.BAD_REQUEST, "ROOM_004", "방 비밀번호가 틀렸습니다."),
     ROOM_INACTIVE(HttpStatus.BAD_REQUEST, "ROOM_005", "비활성화된 방입니다."),
     ROOM_TERMINATED(HttpStatus.BAD_REQUEST, "ROOM_006", "종료된 방입니다."),
-    ALREADY_JOINED_ROOM(HttpStatus.BAD_REQUEST, "ROOM_007", "이미 참여 중인 방입니다."),
-    NOT_ROOM_MEMBER(HttpStatus.FORBIDDEN, "ROOM_008", "방 멤버가 아닙니다."),
-    NOT_ROOM_MANAGER(HttpStatus.FORBIDDEN, "ROOM_009", "방 관리자 권한이 필요합니다."),
-    CANNOT_KICK_HOST(HttpStatus.BAD_REQUEST, "ROOM_010", "방장은 추방할 수 없습니다."),
-    CANNOT_CHANGE_HOST_ROLE(HttpStatus.BAD_REQUEST, "ROOM_011", "방장의 권한은 변경할 수 없습니다."),
-    CANNOT_CHANGE_OWN_ROLE(HttpStatus.BAD_REQUEST, "ROOM_012", "자신의 역할은 변경할 수 없습니다."),
-    CHAT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "ROOM_013", "채팅 삭제 권한이 없습니다. 방장 또는 부방장만 가능합니다."),
-    INVALID_DELETE_CONFIRMATION(HttpStatus.BAD_REQUEST, "ROOM_014", "삭제 확인 메시지가 일치하지 않습니다."),
-    CHAT_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ROOM_015", "채팅 삭제 중 오류가 발생했습니다."),
+    ROOM_NOT_JOINABLE(HttpStatus.BAD_REQUEST, "ROOM_007", "입장할 수 없는 방입니다."),
+    ALREADY_JOINED_ROOM(HttpStatus.BAD_REQUEST, "ROOM_008", "이미 참여 중인 방입니다."),
+    NOT_ROOM_MEMBER(HttpStatus.FORBIDDEN, "ROOM_009", "방 멤버가 아닙니다."),
+    NOT_ROOM_MANAGER(HttpStatus.FORBIDDEN, "ROOM_010", "방 관리자 권한이 필요합니다."),
+    CANNOT_KICK_HOST(HttpStatus.BAD_REQUEST, "ROOM_011", "방장은 추방할 수 없습니다."),
+    CANNOT_CHANGE_HOST_ROLE(HttpStatus.BAD_REQUEST, "ROOM_012", "방장의 권한은 변경할 수 없습니다."),
+    CANNOT_CHANGE_OWN_ROLE(HttpStatus.BAD_REQUEST, "ROOM_013", "자신의 역할은 변경할 수 없습니다."),
+    CHAT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "ROOM_014", "채팅 삭제 권한이 없습니다. 방장 또는 부방장만 가능합니다."),
+    INVALID_DELETE_CONFIRMATION(HttpStatus.BAD_REQUEST, "ROOM_015", "삭제 확인 메시지가 일치하지 않습니다."),
+    CHAT_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ROOM_016", "채팅 삭제 중 오류가 발생했습니다."),
 
     // ======================== 스터디 플래너 관련 ========================
     PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "PLAN_001", "존재하지 않는 학습 계획입니다."),
@@ -46,6 +47,7 @@ public enum ErrorCode {
     INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "PLAN_006", "시작 시간은 종료 시간보다 빨라야 합니다."),
     PLAN_TIME_CONFLICT(HttpStatus.CONFLICT, "PLAN_007", "이미 존재하는 학습 계획과 시간이 겹칩니다. 기존 종료 시간과 겹치는 경우는 제외됩니다."),
     PLAN_CANNOT_UPDATE(HttpStatus.BAD_REQUEST, "PLAN_008", "수정 스위치 로직 탈출. 어떤 경우인지 파악이 필요합니다."),
+    PLAN_TOO_MANY_EXCEPTIONS(HttpStatus.BAD_REQUEST, "PLAN_009", "변경사항이 비정상적으로 많아 요청이 거절되었습니다."),
     REPEAT_INVALID_UNTIL_DATE(HttpStatus.BAD_REQUEST, "REPEAT_001", "반복 계획의 종료 날짜는 시작 날짜 이전일 수 없습니다."),
     REPEAT_BYDAY_REQUIRED(HttpStatus.BAD_REQUEST, "REPEAT_002", "주간 반복 계획의 경우 요일(byDay) 정보가 필요합니다."),
 
@@ -95,10 +97,16 @@ public enum ErrorCode {
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_001", "존재하지 않는 게시글입니다."),
     POST_NO_PERMISSION(HttpStatus.FORBIDDEN, "POST_002", "게시글 작성자만 수정/삭제할 수 있습니다."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_003", "존재하지 않는 카테고리입니다."),
+    CATEGORY_ALREADY_EXISTS(HttpStatus.CONFLICT, "POST_004", "이미 존재하는 카테고리입니다."),
+    POST_ALREADY_LIKED(HttpStatus.CONFLICT, "POST_005", "이미 좋아요한 게시글입니다."),
+    POST_LIKE_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_006", "해당 게시글에 대한 좋아요 기록이 없습니다."),
+
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_001", "존재하지 않는 댓글입니다."),
     COMMENT_NO_PERMISSION(HttpStatus.FORBIDDEN, "COMMENT_002", "댓글 작성자만 수정/삭제할 수 있습니다."),
     COMMENT_PARENT_MISMATCH(HttpStatus.BAD_REQUEST, "COMMENT_003", "부모 댓글이 해당 게시글에 속하지 않습니다."),
     COMMENT_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "COMMENT_004", "대댓글은 한 단계까지만 작성할 수 있습니다."),
+    COMMENT_ALREADY_LIKED(HttpStatus.CONFLICT, "COMMENT_005", "이미 좋아요한 댓글입니다."),
+    COMMENT_LIKE_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_006", "해당 댓글에 대한 좋아요 기록이 없습니다."),
 
     // ======================== 공통 에러 ========================
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON_400", "잘못된 요청입니다."),
@@ -118,10 +126,15 @@ public enum ErrorCode {
     OAUTH2_ATTRIBUTE_MISSING(HttpStatus.UNAUTHORIZED, "AUTH_009", "소셜 계정에서 필요한 사용자 정보를 가져올 수 없습니다."),
     OAUTH2_AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "AUTH_010", "소셜 로그인 인증에 실패했습니다."),
 
+    // ======================== 파일 업로드 관련 ========================
+    FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE_001", "파일 업로드에 실패했습니다."),
+
+
     // ======================== 토큰 관련 ========================
     INVALID_EMAIL_TOKEN(HttpStatus.UNAUTHORIZED, "TOKEN_001", "유효하지 않은 이메일 인증 토큰입니다."),
     ALREADY_VERIFIED(HttpStatus.CONFLICT, "TOKEN_002", "이미 인증된 계정입니다."),
     INVALID_PASSWORD_RESET_TOKEN(HttpStatus.UNAUTHORIZED, "TOKEN_003", "유효하지 않은 비밀번호 재설정 토큰입니다.");
+
 
     private final HttpStatus status;
     private final String code;
