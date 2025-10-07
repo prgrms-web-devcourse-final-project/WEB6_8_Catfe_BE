@@ -30,7 +30,6 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.util.List;
@@ -98,8 +97,6 @@ class NotificationServiceTest {
             // given
             given(notificationRepository.save(any(Notification.class)))
                     .willReturn(notification);
-            given(notificationSettingService.isNotificationEnabled(user.getId(), NotificationSettingType.SYSTEM))
-                    .willReturn(true);
 
             // when
             Notification result = notificationService.createPersonalNotification(
@@ -114,7 +111,6 @@ class NotificationServiceTest {
             assertThat(result.getActor()).isEqualTo(actor);
 
             verify(notificationRepository).save(any(Notification.class));
-            verify(notificationSettingService).isNotificationEnabled(user.getId(), NotificationSettingType.SYSTEM);
             verify(webSocketService).sendNotificationToUser(
                     eq(user.getId()),
                     any(NotificationWebSocketDto.class)
@@ -273,8 +269,6 @@ class NotificationServiceTest {
             // given
             given(notificationRepository.save(any(Notification.class)))
                     .willReturn(notification);
-            given(notificationSettingService.isNotificationEnabled(user.getId(), NotificationSettingType.SYSTEM))
-                    .willReturn(true);
 
             // when
             Notification result = notificationService.createSelfNotification(
@@ -285,7 +279,6 @@ class NotificationServiceTest {
             // then
             assertThat(result).isNotNull();
             verify(notificationRepository).save(any(Notification.class));
-            verify(notificationSettingService).isNotificationEnabled(user.getId(), NotificationSettingType.SYSTEM);
             verify(webSocketService).sendNotificationToUser(
                     eq(user.getId()),
                     any(NotificationWebSocketDto.class)
