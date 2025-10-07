@@ -50,4 +50,35 @@ public class PostLikeService {
         postLikeRepository.save(new PostLike(post, user));
         return PostLikeResponse.from(post);
     }
+
+    /**
+     * 게시글 좋아요 취소 서비스
+     * 1. User 조회
+     * 2. Post 조회
+     * 3. PostLike 조회
+     * 4. PostLike 삭제 및 likeCount 감소
+     * 5. PostLikeResponse 반환
+     */
+    public PostLikeResponse cancelLikePost(Long postId, Long userId) {
+        // User 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // Post 조회
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+
+        // PostLike 조회
+        PostLike postLike = postLikeRepository.findByUserIdAndPostId(userId, postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_LIKE_NOT_FOUND));
+
+        // PostLike 삭제
+        postLikeRepository.delete(postLike);
+
+        // 좋아요 수 감소
+        post.decreaseLikeCount();
+
+        // 응답 반환
+        return PostLikeResponse.from(post);
+    }
 }
