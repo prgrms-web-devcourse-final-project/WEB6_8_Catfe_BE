@@ -7,16 +7,12 @@ import com.back.global.security.user.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/posts/{postId}/bookmark")
 @RequiredArgsConstructor
 public class PostBookmarkController {
-    private final PostBookmarkService bookmarkService;
     private final PostBookmarkService postBookmarkService;
 
     // 게시글 북마크
@@ -29,6 +25,20 @@ public class PostBookmarkController {
         return ResponseEntity
                 .ok(RsData.success(
                         "게시글 북마크가 등록되었습니다.",
+                        response
+                ));
+    }
+
+    // 게시글 북마크 취소
+    @DeleteMapping
+    public ResponseEntity<RsData<PostBookmarkResponse>> cancelBookmarkPost(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        PostBookmarkResponse response = postBookmarkService.cancelBookmarkPost(postId, user.getUserId());
+        return ResponseEntity
+                .ok(RsData.success(
+                        "게시글 북마크가 취소되었습니다.",
                         response
                 ));
     }
