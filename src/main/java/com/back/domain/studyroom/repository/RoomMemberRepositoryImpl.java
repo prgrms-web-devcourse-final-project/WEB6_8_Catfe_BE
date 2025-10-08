@@ -100,4 +100,116 @@ public class RoomMemberRepositoryImpl implements RoomMemberRepositoryCustom {
                 )
                 .fetch();
     }
+
+    /**
+     * 사용자가 참여 중인 모든 방의 멤버십 조회
+     * DB에 저장된 멤버십만 조회 (MEMBER 이상)
+     * @param userId 사용자 ID
+     * @return 멤버십 목록
+     */
+    @Override
+    public List<RoomMember> findActiveByUserId(Long userId) {
+        return queryFactory
+                .selectFrom(roomMember)
+                .where(roomMember.user.id.eq(userId))
+                .fetch();
+    }
+
+    /**
+     * 특정 역할의 멤버 조회
+     * - 방장(HOST) 찾기
+     * - 부방장(SUB_HOST) 목록 조회
+     * - 역할별 멤버 필터링
+     * @param roomId 방 ID
+     * @param role 역할 (HOST, SUB_HOST, MEMBER, VISITOR)
+     * @return 해당 역할의 멤버 목록
+     */
+    @Override
+    public List<RoomMember> findByRoomIdAndRole(Long roomId, RoomRole role) {
+        return queryFactory
+                .selectFrom(roomMember)
+                .where(
+                        roomMember.room.id.eq(roomId),
+                        roomMember.role.eq(role)
+                )
+                .fetch();
+    }
+
+    /**
+     * 방장 조회
+     * - 방장 권한 확인
+     * - 방 소유자 정보 표시
+     * @param roomId 방 ID
+     * @return 방장 멤버십 (Optional)
+     */
+    @Override
+    public Optional<RoomMember> findHostByRoomId(Long roomId) {
+        RoomMember host = queryFactory
+                .selectFrom(roomMember)
+                .where(
+                        roomMember.room.id.eq(roomId),
+                        roomMember.role.eq(RoomRole.HOST)
+                )
+                .fetchOne();
+
+        return Optional.ofNullable(host);
+    }
+
+    /**
+     * 관리자 권한을 가진 멤버들 조회 (HOST, SUB_HOST)
+     * @param roomId 방 ID
+     * @return 관리자 멤버 목록 (HOST, SUB_HOST)
+     */
+    @Override
+    public List<RoomMember> findManagersByRoomId(Long roomId) {
+        return queryFactory
+                .selectFrom(roomMember)
+                .where(
+                        roomMember.room.id.eq(roomId),
+                        roomMember.role.in(RoomRole.HOST, RoomRole.SUB_HOST)
+                )
+                .orderBy(roomMember.role.asc())  // HOST가 먼저
+                .fetch();
+    }
+
+    /**
+     * 사용자가 특정 방에서 관리자 권한을 가지고 있는지 확인
+     * @param roomId 방 ID
+     * @param userId 사용자 ID
+     * @return 관리자 권한 여부
+     */
+    @Override
+    public boolean isManager(Long roomId, Long userId) {
+        Long count = queryFactory
+                .select(roomMember.count())
+                .from(roomMember)
+                .where(
+                        roomMember.room.id.eq(roomId),
+                        roomMember.user.id.eq(userId),
+                        roomMember.role.in(RoomRole.HOST, RoomRole.SUB_HOST)
+                )
+                .fetchOne();
+
+        return count != null && count > 0;
+    }
+
+    /**
+     * 사용자가 이미 해당 방의 멤버인지 확인
+     * @param roomId 방 ID
+     * @param userId 사용자 ID
+     * @return 멤버 여부
+     */
+    @Override
+    public boolean existsByRoomIdAndUserId(Long roomId, Long userId) {
+        Long count = queryFactory
+                .select(roomMember.count())
+                .from(roomMember)
+                .where(
+                        roomMember.room.id.eq(roomId),
+                        roomMember.user.id.eq(userId)
+                )
+                .fetchOne();
+
+        return count != null && count > 0;
+    }
 }
