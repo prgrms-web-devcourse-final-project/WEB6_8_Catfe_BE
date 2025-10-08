@@ -121,69 +121,6 @@ class NotificationSettingServiceTest {
     }
 
     @Nested
-    @DisplayName("알림 설정 변경 테스트")
-    class UpdateSettingsTest {
-
-        @Test
-        @DisplayName("알림 설정 일괄 변경 - 성공")
-        void t1() {
-            // given
-            given(settingRepository.findAllByUserId(user.getId()))
-                    .willReturn(defaultSettings);
-
-            Map<NotificationSettingType, Boolean> newSettings = Map.of(
-                    NotificationSettingType.SYSTEM, false,
-                    NotificationSettingType.POST_COMMENT, false
-            );
-
-            // when
-            settingService.updateSettings(user.getId(), newSettings);
-
-            // then
-            assertThat(defaultSettings.get(0).isEnabled()).isFalse();
-            verify(settingRepository).findAllByUserId(user.getId());
-        }
-
-        @Test
-        @DisplayName("알림 설정 일괄 변경 - 설정이 없는 경우 예외 발생")
-        void t2() {
-            // given
-            given(settingRepository.findAllByUserId(user.getId()))
-                    .willReturn(Collections.emptyList());
-
-            Map<NotificationSettingType, Boolean> newSettings = Map.of(
-                    NotificationSettingType.SYSTEM, false
-            );
-
-            // when & then
-            assertThatThrownBy(() -> settingService.updateSettings(user.getId(), newSettings))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOTIFICATION_SETTING_NOT_FOUND);
-
-            verify(settingRepository).findAllByUserId(user.getId());
-        }
-
-        @Test
-        @DisplayName("알림 설정 일괄 변경 - 변경사항이 없는 경우")
-        void t3() {
-            // given
-            given(settingRepository.findAllByUserId(user.getId()))
-                    .willReturn(defaultSettings);
-
-            Map<NotificationSettingType, Boolean> newSettings = Map.of(
-                    NotificationSettingType.SYSTEM, true // 이미 true
-            );
-
-            // when
-            settingService.updateSettings(user.getId(), newSettings);
-
-            // then
-            assertThat(defaultSettings.get(0).isEnabled()).isTrue();
-            verify(settingRepository).findAllByUserId(user.getId());
-        }
-    }
-
-    @Nested
     @DisplayName("개별 알림 설정 토글 테스트")
     class ToggleSettingTest {
 

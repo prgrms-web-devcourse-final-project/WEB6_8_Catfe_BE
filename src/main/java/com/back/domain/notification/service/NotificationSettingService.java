@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -43,26 +42,6 @@ public class NotificationSettingService {
                 .allMatch(NotificationSetting::isEnabled);
 
         return SettingsResponse.of(allEnabled, settings);
-    }
-
-    // 알림 설정 일괄 변경
-    @Transactional
-    public void updateSettings(Long userId, Map<NotificationSettingType, Boolean> newSettings) {
-        log.info("알림 설정 일괄 변경 - userId: {}, settings: {}", userId, newSettings);
-
-        List<NotificationSetting> settings = settingRepository.findAllByUserId(userId);
-
-        if (settings.isEmpty()) {
-            throw new CustomException(ErrorCode.NOTIFICATION_SETTING_NOT_FOUND);
-        }
-
-        for (NotificationSetting setting : settings) {
-            Boolean newValue = newSettings.get(setting.getType());
-            if (newValue != null && setting.isEnabled() != newValue) {
-                setting.toggle();
-                log.debug("알림 설정 변경 - type: {}, enabled: {}", setting.getType(), setting.isEnabled());
-            }
-        }
     }
 
     // 개별 알림 설정 토글

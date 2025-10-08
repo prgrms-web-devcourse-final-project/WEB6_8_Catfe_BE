@@ -8,7 +8,6 @@ import com.back.global.security.user.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,16 +28,6 @@ public class NotificationSettingController {
         SettingsResponse response = settingService.getUserSettings(currentUser.getUserId());
 
         return ResponseEntity.ok(RsData.success("알림 설정 조회 성공", response));
-    }
-
-    @PutMapping
-    @Operation(summary = "알림 설정 일괄 변경", description = "여러 알림 설정을 한 번에 변경합니다.")
-    public ResponseEntity<RsData<Void>> updateSettings(
-            @RequestBody @Valid UpdateSettingsRequest request) {
-
-        settingService.updateSettings(currentUser.getUserId(), request.settings());
-
-        return ResponseEntity.ok(RsData.success(null));
     }
 
     @PutMapping("/{type}")
