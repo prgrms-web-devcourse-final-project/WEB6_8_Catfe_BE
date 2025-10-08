@@ -1,4 +1,4 @@
-package com.back.domain.board.service;
+package com.back.domain.board.post.service;
 
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.post.entity.Post;
@@ -9,7 +9,6 @@ import com.back.domain.board.post.dto.PostRequest;
 import com.back.domain.board.post.dto.PostResponse;
 import com.back.domain.board.post.repository.PostCategoryRepository;
 import com.back.domain.board.post.repository.PostRepository;
-import com.back.domain.board.post.service.PostService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;

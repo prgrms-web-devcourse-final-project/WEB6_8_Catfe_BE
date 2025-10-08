@@ -1,4 +1,4 @@
-package com.back.domain.board.service;
+package com.back.domain.board.comment.service;
 
 import com.back.domain.board.comment.dto.CommentListResponse;
 import com.back.domain.board.comment.dto.CommentRequest;
