@@ -1,4 +1,4 @@
-package com.back.domain.board.controller;
+package com.back.domain.board.comment.controller;
 
 import com.back.domain.board.comment.dto.CommentRequest;
 import com.back.domain.board.comment.entity.Comment;

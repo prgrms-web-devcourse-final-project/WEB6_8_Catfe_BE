@@ -1,4 +1,4 @@
-package com.back.domain.board.service;
+package com.back.domain.board.comment.service;
 
 import com.back.domain.board.comment.dto.CommentLikeResponse;
 import com.back.domain.board.comment.entity.Comment;

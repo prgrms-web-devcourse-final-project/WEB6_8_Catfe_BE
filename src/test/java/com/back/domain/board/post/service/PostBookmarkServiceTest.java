@@ -1,11 +1,10 @@
-package com.back.domain.board.service;
+package com.back.domain.board.post.service;
 
-import com.back.domain.board.post.dto.PostLikeResponse;
+import com.back.domain.board.post.dto.PostBookmarkResponse;
 import com.back.domain.board.post.entity.Post;
-import com.back.domain.board.post.entity.PostLike;
-import com.back.domain.board.post.repository.PostLikeRepository;
+import com.back.domain.board.post.entity.PostBookmark;
+import com.back.domain.board.post.repository.PostBookmarkRepository;
 import com.back.domain.board.post.repository.PostRepository;
-import com.back.domain.board.post.service.PostLikeService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
@@ -24,25 +23,25 @@ import static org.assertj.core.api.Assertions.*;
 @SpringBootTest
 @Transactional
 @ActiveProfiles("test")
-class PostLikeServiceTest {
+class PostBookmarkServiceTest {
 
     @Autowired
-    private PostLikeService postLikeService;
+    private PostBookmarkService postBookmarkService;
 
     @Autowired
     private PostRepository postRepository;
 
     @Autowired
-    private PostLikeRepository postLikeRepository;
+    private PostBookmarkRepository postBookmarkRepository;
 
     @Autowired
     private UserRepository userRepository;
 
-    // ====================== 게시글 좋아요 테스트 ======================
+    // ====================== 게시글 북마크 등록 테스트 ======================
 
     @Test
-    @DisplayName("게시글 좋아요 성공")
-    void likePost_success() {
+    @DisplayName("게시글 북마크 성공")
+    void bookmarkPost_success() {
         // given
         User user = User.createUser("user1", "user1@example.com", "encodedPwd");
         user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
@@ -53,16 +52,16 @@ class PostLikeServiceTest {
         postRepository.save(post);
 
         // when
-        PostLikeResponse response = postLikeService.likePost(post.getId(), user.getId());
+        PostBookmarkResponse response = postBookmarkService.bookmarkPost(post.getId(), user.getId());
 
         // then
-        assertThat(response.likeCount()).isEqualTo(1);
-        assertThat(postLikeRepository.existsByUserIdAndPostId(user.getId(), post.getId())).isTrue();
+        assertThat(response.bookmarkCount()).isEqualTo(1);
+        assertThat(postBookmarkRepository.existsByUserIdAndPostId(user.getId(), post.getId())).isTrue();
     }
 
     @Test
-    @DisplayName("게시글 좋아요 실패 - 존재하지 않는 게시글")
-    void likePost_fail_postNotFound() {
+    @DisplayName("게시글 북마크 실패 - 존재하지 않는 게시글")
+    void bookmarkPost_fail_postNotFound() {
         // given
         User user = User.createUser("user2", "user2@example.com", "encodedPwd");
         user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
@@ -70,14 +69,14 @@ class PostLikeServiceTest {
         userRepository.save(user);
 
         // when & then
-        assertThatThrownBy(() -> postLikeService.likePost(999L, user.getId()))
+        assertThatThrownBy(() -> postBookmarkService.bookmarkPost(999L, user.getId()))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.POST_NOT_FOUND.getMessage());
     }
 
     @Test
-    @DisplayName("게시글 좋아요 실패 - 이미 좋아요한 경우")
-    void likePost_fail_alreadyLiked() {
+    @DisplayName("게시글 북마크 실패 - 이미 북마크한 경우")
+    void bookmarkPost_fail_alreadyBookmarked() {
         // given
         User user = User.createUser("user3", "user3@example.com", "encodedPwd");
         user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
@@ -87,19 +86,19 @@ class PostLikeServiceTest {
         Post post = new Post(user, "제목", "내용");
         postRepository.save(post);
 
-        postLikeRepository.save(new PostLike(post, user));
+        postBookmarkRepository.save(new PostBookmark(post, user));
 
         // when & then
-        assertThatThrownBy(() -> postLikeService.likePost(post.getId(), user.getId()))
+        assertThatThrownBy(() -> postBookmarkService.bookmarkPost(post.getId(), user.getId()))
                 .isInstanceOf(CustomException.class)
-                .hasMessage(ErrorCode.POST_ALREADY_LIKED.getMessage());
+                .hasMessage(ErrorCode.BOOKMARK_ALREADY_EXISTS.getMessage());
     }
 
-    // ====================== 게시글 좋아요 취소 테스트 ======================
+    // ====================== 게시글 북마크 취소 테스트 ======================
 
     @Test
-    @DisplayName("게시글 좋아요 취소 성공")
-    void cancelLikePost_success() {
+    @DisplayName("게시글 북마크 취소 성공")
+    void cancelBookmarkPost_success() {
         // given
         User user = User.createUser("user4", "user4@example.com", "encodedPwd");
         user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
@@ -109,21 +108,21 @@ class PostLikeServiceTest {
         Post post = new Post(user, "제목", "내용");
         postRepository.save(post);
 
-        PostLike postLike = new PostLike(post, user);
-        postLikeRepository.save(postLike);
-        post.increaseLikeCount();
+        PostBookmark postBookmark = new PostBookmark(post, user);
+        postBookmarkRepository.save(postBookmark);
+        post.increaseBookmarkCount();
 
         // when
-        PostLikeResponse response = postLikeService.cancelLikePost(post.getId(), user.getId());
+        PostBookmarkResponse response = postBookmarkService.cancelBookmarkPost(post.getId(), user.getId());
 
         // then
-        assertThat(response.likeCount()).isEqualTo(0);
-        assertThat(postLikeRepository.existsByUserIdAndPostId(user.getId(), post.getId())).isFalse();
+        assertThat(response.bookmarkCount()).isEqualTo(0);
+        assertThat(postBookmarkRepository.existsByUserIdAndPostId(user.getId(), post.getId())).isFalse();
     }
 
     @Test
-    @DisplayName("게시글 좋아요 취소 실패 - 좋아요 내역 없음")
-    void cancelLikePost_fail_notFound() {
+    @DisplayName("게시글 북마크 취소 실패 - 북마크 내역 없음")
+    void cancelBookmarkPost_fail_notFound() {
         // given
         User user = User.createUser("user5", "user5@example.com", "encodedPwd");
         user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
@@ -134,8 +133,8 @@ class PostLikeServiceTest {
         postRepository.save(post);
 
         // when & then
-        assertThatThrownBy(() -> postLikeService.cancelLikePost(post.getId(), user.getId()))
+        assertThatThrownBy(() -> postBookmarkService.cancelBookmarkPost(post.getId(), user.getId()))
                 .isInstanceOf(CustomException.class)
-                .hasMessage(ErrorCode.POST_LIKE_NOT_FOUND.getMessage());
+                .hasMessage(ErrorCode.BOOKMARK_NOT_FOUND.getMessage());
     }
 }
