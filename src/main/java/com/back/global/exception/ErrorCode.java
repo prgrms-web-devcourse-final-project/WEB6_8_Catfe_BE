@@ -100,6 +100,8 @@ public enum ErrorCode {
     CATEGORY_ALREADY_EXISTS(HttpStatus.CONFLICT, "POST_004", "이미 존재하는 카테고리입니다."),
     POST_ALREADY_LIKED(HttpStatus.CONFLICT, "POST_005", "이미 좋아요한 게시글입니다."),
     POST_LIKE_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_006", "해당 게시글에 대한 좋아요 기록이 없습니다."),
+    BOOKMARK_ALREADY_EXISTS(HttpStatus.CONFLICT, "POST_007", "이미 북마크한 게시글입니다."),
+    BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_008", "해당 게시글에 대한 북마크 기록이 없습니다."),
 
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_001", "존재하지 않는 댓글입니다."),
     COMMENT_NO_PERMISSION(HttpStatus.FORBIDDEN, "COMMENT_002", "댓글 작성자만 수정/삭제할 수 있습니다."),
