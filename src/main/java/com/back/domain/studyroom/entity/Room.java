@@ -35,11 +35,6 @@ public class Room extends BaseEntity {
     @Column(nullable = false)
     private RoomStatus status = RoomStatus.WAITING;
 
-    // 현재 참여자
-    @Builder.Default
-    @Column(nullable = false)
-    private int currentParticipants = 0;
-
     // 방장
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
@@ -74,40 +69,22 @@ public class Room extends BaseEntity {
     /**
      * 방에 입장할 수 있는지 확인
      * 사용 상황: 사용자가 방 입장을 시도할 때 입장 가능 여부를 미리 체크
-     방이 활성화되어 있고, 입장 가능한 상태이며, 정원이 초과되지 않은 경우
+     * 방이 활성화되어 있고, 입장 가능한 상태인 경우
+     * 
+     * 정원 체크는 Redis에서 실시간으로 수행 (RoomService에서 처리)
      */
     public boolean canJoin() {
-        return isActive && status.isJoinable() && currentParticipants < maxParticipants;
+        return isActive && status.isJoinable();
     }
 
     /**
      * 방의 정원이 가득 찼는지 확인
-     방 목록에서 "만석" 표시하거나, 입장 제한할 때
+     * 
+     * 실제 정원 체크는 Redis 기반으로 RoomService에서 수행
+     * 이 메서드는 UI 표시용으로만 사용 (최대 정원 반환)
      */
-    public boolean isFull() {
-        return currentParticipants >= maxParticipants;
-    }
-
-    /**
-     * 참가자 수 증가 (최대 정원까지만)
-     누군가 방에 입장했을 때 참가자 수를 1 증가시킴
-     최대 정원을 초과하지 않도록 체크
-     */
-    public void incrementParticipant() {
-        if (currentParticipants < maxParticipants) {
-            this.currentParticipants++;
-        }
-    }
-
-    /**
-     * 참가자 수 감소 (0 이하로는 감소하지 않음)
-     누군가 방에서 나갔을 때 참가자 수를 1 감소시킴
-     음수가 되지 않도록 체크
-     */
-    public void decrementParticipant() {
-        if (this.currentParticipants > 0) {
-            this.currentParticipants--;
-        }
+    public int getMaxCapacity() {
+        return maxParticipants;
     }
 
     /**
@@ -184,7 +161,6 @@ public class Room extends BaseEntity {
         room.allowAudio = useWebRTC;   // WebRTC 사용 여부에 따라 설정
         room.allowScreenShare = useWebRTC;  // WebRTC 사용 여부에 따라 설정
         room.status = RoomStatus.WAITING;  // 생성 시 대기 상태
-        room.currentParticipants = 0;  // 생성 시 참가자 0명
         room.createdBy = creator;
         room.theme = theme;
         
