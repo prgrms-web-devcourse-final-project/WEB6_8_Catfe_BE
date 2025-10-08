@@ -190,6 +190,50 @@ public class RedisSessionStore {
         }
     }
 
+    /**
+     * 여러 방의 사용자 수를 일괄 조회 (Redis Pipeline 사용)
+     * N+1 문제 해결을 위한 일괄 조회 메서드
+     * @param roomIds 조회할 방 ID 목록
+     * @return 방 ID → 사용자 수 맵
+     */
+    public java.util.Map<Long, Long> getRoomUserCounts(java.util.List<Long> roomIds) {
+        if (roomIds == null || roomIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+
+        try {
+            // Pipeline을 사용하여 한 번에 여러 SET 크기 조회
+            java.util.List<Object> results = redisTemplate.executePipelined(
+                (org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+                    for (Long roomId : roomIds) {
+                        String roomUsersKey = WebSocketConstants.buildRoomUsersKey(roomId);
+                        connection.setCommands().sCard(roomUsersKey.getBytes());
+                    }
+                    return null;
+                }
+            );
+
+            // 결과를 Map으로 변환
+            java.util.Map<Long, Long> resultMap = new java.util.HashMap<>();
+            for (int i = 0; i < roomIds.size(); i++) {
+                Long count = results.get(i) != null ? ((Number) results.get(i)).longValue() : 0L;
+                resultMap.put(roomIds.get(i), count);
+            }
+
+            log.debug("방 사용자 수 일괄 조회 완료 - 방 개수: {}", roomIds.size());
+            return resultMap;
+
+        } catch (Exception e) {
+            log.error("방 사용자 수 일괄 조회 실패 - 방 개수: {}", roomIds.size(), e);
+            // 에러 시 개별 조회로 폴백
+            return roomIds.stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            roomId -> roomId,
+                            this::getRoomUserCount
+                    ));
+        }
+    }
+
     private Long convertToLong(Object obj) {
         if (obj instanceof Long) {
             return (Long) obj;

@@ -42,7 +42,16 @@ public class WebSocketMessageController {
         }
     }
 
-    // 방 입장 처리
+    /**
+     * 방 입장 처리
+     * 
+     * @deprecated 이 STOMP 엔드포인트는 REST API로 대체되었습니다.
+     * 대신 POST /api/rooms/{roomId}/join을 사용하세요.
+     * 
+     * 참고: REST API 호출 시 자동으로 Redis에 입장 처리되며 WebSocket 알림도 전송됩니다.
+     * 이 엔드포인트는 하위 호환성을 위해 유지되지만 사용을 권장하지 않습니다.
+     */
+    @Deprecated
     @MessageMapping("/rooms/{roomId}/join")
     public void handleJoinRoom(@DestinationVariable Long roomId,
                                @Payload HeartbeatMessage message,
@@ -64,7 +73,16 @@ public class WebSocketMessageController {
         }
     }
 
-    // 방 퇴장 처리
+    /**
+     * 방 퇴장 처리
+     * 
+     * @deprecated 이 STOMP 엔드포인트는 REST API로 대체되었습니다.
+     * 대신 POST /api/rooms/{roomId}/leave를 사용하세요.
+     * 
+     * 참고: REST API 호출 시 자동으로 Redis에서 퇴장 처리되며 WebSocket 알림도 전송됩니다.
+     * 이 엔드포인트는 하위 호환성을 위해 유지되지만 사용을 권장하지 않습니다.
+     */
+    @Deprecated
     @MessageMapping("/rooms/{roomId}/leave")
     public void handleLeaveRoom(@DestinationVariable Long roomId,
                                 @Payload HeartbeatMessage message,

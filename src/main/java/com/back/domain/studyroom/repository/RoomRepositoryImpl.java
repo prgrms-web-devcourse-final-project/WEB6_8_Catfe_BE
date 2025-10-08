@@ -38,7 +38,8 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
      * - 비공개가 아닌 방 (isPrivate = false)
      * - 활성화된 방 (isActive = true)
      * - 입장 가능한 상태 (WAITING 또는 ACTIVE)
-     * - 정원이 가득 차지 않은 방
+     * 
+     * 참고: 정원 체크는 Redis 기반으로 프론트엔드/서비스에서 수행
      * @param pageable 페이징 정보
      * @return 페이징된 방 목록
      */
@@ -51,8 +52,7 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .where(
                         room.isPrivate.eq(false),
                         room.isActive.eq(true),
-                        room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE),
-                        room.currentParticipants.lt(room.maxParticipants)
+                        room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE)
                 )
                 .orderBy(room.createdAt.desc())
                 .offset(pageable.getOffset())
@@ -66,8 +66,7 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .where(
                         room.isPrivate.eq(false),
                         room.isActive.eq(true),
-                        room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE),
-                        room.currentParticipants.lt(room.maxParticipants)
+                        room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE)
                 )
                 .fetchOne();
 
@@ -159,11 +158,15 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
 
     /**
      * 인기 방 조회 (참가자 수 기준)
+     * 
+     * 참고: 참가자 수는 Redis에서 조회하므로 DB에서는 정렬 불가
+     * 서비스 레이어에서 Redis 데이터로 정렬 필요
+     * 
      * 조회 조건:
      * - 공개 방만 (isPrivate = false)
      * - 활성화된 방만 (isActive = true)
      * @param pageable 페이징 정보
-     * @return 페이징된 인기 방 목록
+     * @return 페이징된 방 목록 (최신순 정렬)
      */
     @Override
     public Page<Room> findPopularRooms(Pageable pageable) {
@@ -174,10 +177,7 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                         room.isPrivate.eq(false),
                         room.isActive.eq(true)
                 )
-                .orderBy(
-                        room.currentParticipants.desc(),  // 참가자 수 많은 순
-                        room.createdAt.desc()             // 최신순
-                )
+                .orderBy(room.createdAt.desc())  // 최신순 (서비스에서 Redis 기반으로 재정렬)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
@@ -197,20 +197,20 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
 
     /**
      * 비활성 방 정리 (배치 작업용)
+     * 
+     * 참고: 참가자 수는 Redis에서 관리하므로 DB에서 직접 확인 불가
+     * 이 메서드는 Redis와 연동하여 사용해야 함
+     * 
      * 대상:
-     * - 참가자가 0명인 방
      * - ACTIVE 상태인 방
      * - cutoffTime 이전에 마지막으로 업데이트된 방
+     * 
      * 처리:
      * - 상태를 TERMINATED로 변경
      * - isActive를 false로 변경
-     * 사용 예시:
-     * ```
-     * // 1시간 이상 비어있는 방 정리
-     * LocalDateTime cutoff = LocalDateTime.now().minusHours(1);
-     * int count = terminateInactiveRooms(cutoff);
-     * log.info("정리된 방 개수: {}", count);
-     * ```
+     * 
+     * TODO: Redis에서 참가자 0명인 방 확인 후 호출
+     * 
      * @param cutoffTime 기준 시간 (이 시간 이전에 업데이트된 방 정리)
      * @return 정리된 방 개수
      */
@@ -221,7 +221,6 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .set(room.status, RoomStatus.TERMINATED)
                 .set(room.isActive, false)
                 .where(
-                        room.currentParticipants.eq(0),
                         room.status.eq(RoomStatus.ACTIVE),
                         room.updatedAt.lt(cutoffTime)
                 )
