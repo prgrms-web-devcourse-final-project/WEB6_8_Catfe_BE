@@ -1,5 +1,6 @@
 package com.back.domain.notification.event.studyroom;
 
+import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.service.NotificationService;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.repository.RoomMemberRepository;
@@ -94,7 +95,8 @@ class StudyRoomNotificationEventListenerTest {
                 eq(actor),
                 anyString(), // title
                 eq("공지사항 제목입니다"), // content (공지 제목)
-                eq("/rooms/100/notices")
+                eq("/rooms/100/notices"),
+                eq(NotificationSettingType.ROOM_NOTICE)
         );
     }
 
@@ -116,7 +118,7 @@ class StudyRoomNotificationEventListenerTest {
 
         // then
         verify(notificationService, never()).createRoomNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -139,7 +141,7 @@ class StudyRoomNotificationEventListenerTest {
 
         // then
         verify(notificationService, never()).createRoomNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -168,7 +170,8 @@ class StudyRoomNotificationEventListenerTest {
                 eq(actor),    // 권한 변경한 사람이 actor
                 anyString(),
                 anyString(),
-                eq("/rooms/100")
+                eq("/rooms/100"),
+                eq(NotificationSettingType.ROOM_JOIN)
         );
     }
 
@@ -190,7 +193,7 @@ class StudyRoomNotificationEventListenerTest {
 
         // then
         verify(notificationService, never()).createPersonalNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -219,7 +222,8 @@ class StudyRoomNotificationEventListenerTest {
                 eq(actor),    // 추방한 사람이 actor
                 anyString(),
                 anyString(),
-                eq("/rooms") // 방 목록으로 이동
+                eq("/rooms"), // 방 목록으로 이동
+                eq(NotificationSettingType.ROOM_JOIN)
         );
     }
 
@@ -241,7 +245,7 @@ class StudyRoomNotificationEventListenerTest {
 
         // then
         verify(notificationService, never()).createPersonalNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -264,7 +268,7 @@ class StudyRoomNotificationEventListenerTest {
 
         // then
         verify(notificationService, never()).createPersonalNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -293,7 +297,8 @@ class StudyRoomNotificationEventListenerTest {
                 eq(actor),    // 이전 방장이 actor
                 anyString(),
                 anyString(),
-                eq("/rooms/100")
+                eq("/rooms/100"),
+                eq(NotificationSettingType.ROOM_JOIN)
         );
     }
 
@@ -315,7 +320,7 @@ class StudyRoomNotificationEventListenerTest {
 
         // then
         verify(notificationService, never()).createPersonalNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -338,7 +343,7 @@ class StudyRoomNotificationEventListenerTest {
 
         // then
         verify(notificationService, never()).createPersonalNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -357,7 +362,7 @@ class StudyRoomNotificationEventListenerTest {
 
         willThrow(new RuntimeException("알림 생성 실패"))
                 .given(notificationService).createPersonalNotification(
-                        any(), any(), anyString(), anyString(), anyString()
+                        any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
                 );
 
         // when & then - 예외가 전파되지 않아야 함
@@ -365,7 +370,7 @@ class StudyRoomNotificationEventListenerTest {
                 .doesNotThrowAnyException();
 
         verify(notificationService).createPersonalNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 }

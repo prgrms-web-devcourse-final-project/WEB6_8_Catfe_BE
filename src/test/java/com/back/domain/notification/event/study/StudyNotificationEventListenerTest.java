@@ -1,5 +1,6 @@
 package com.back.domain.notification.event.study;
 
+import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.service.NotificationService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -61,12 +62,12 @@ class StudyNotificationEventListenerTest {
         listener.handleStudyRecordCreated(event);
 
         // then
-        verify(notificationService).createPersonalNotification(
-                eq(testUser), // receiver (본인)
-                eq(testUser), // actor (본인)
+        verify(notificationService).createSelfNotification(
+                eq(testUser), // 본인
                 anyString(),  // title
                 anyString(),  // content
-                eq("/study/records/100")
+                eq("/study/records/100"),
+                eq(NotificationSettingType.SYSTEM)
         );
     }
 
@@ -87,8 +88,8 @@ class StudyNotificationEventListenerTest {
         listener.handleStudyRecordCreated(event);
 
         // then
-        verify(notificationService, never()).createPersonalNotification(
-                any(), any(), anyString(), anyString(), anyString()
+        verify(notificationService, never()).createSelfNotification(
+                any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -109,12 +110,12 @@ class StudyNotificationEventListenerTest {
         listener.handleStudyRecordCreated(event);
 
         // then
-        verify(notificationService).createPersonalNotification(
-                eq(testUser),
+        verify(notificationService).createSelfNotification(
                 eq(testUser),
                 anyString(),
                 anyString(),
-                eq("/study/records/100")
+                eq("/study/records/100"),
+                eq(NotificationSettingType.SYSTEM)
         );
     }
 
@@ -135,12 +136,12 @@ class StudyNotificationEventListenerTest {
         listener.handleStudyRecordCreated(event);
 
         // then
-        verify(notificationService).createPersonalNotification(
-                eq(testUser),
+        verify(notificationService).createSelfNotification(
                 eq(testUser),
                 anyString(),
                 anyString(),
-                eq("/study/records/100")
+                eq("/study/records/100"),
+                eq(NotificationSettingType.SYSTEM)
         );
     }
 
@@ -164,12 +165,12 @@ class StudyNotificationEventListenerTest {
         listener.handleDailyGoalAchieved(event);
 
         // then
-        verify(notificationService).createPersonalNotification(
-                eq(testUser), // receiver (본인)
-                eq(testUser), // actor (본인)
+        verify(notificationService).createSelfNotification(
+                eq(testUser), // 본인
                 anyString(),  // title
                 anyString(),  // content
-                eq("/study/plans?date=" + today)
+                eq("/study/plans?date=" + today),
+                eq(NotificationSettingType.SYSTEM)
         );
     }
 
@@ -191,8 +192,8 @@ class StudyNotificationEventListenerTest {
         listener.handleDailyGoalAchieved(event);
 
         // then
-        verify(notificationService, never()).createPersonalNotification(
-                any(), any(), anyString(), anyString(), anyString()
+        verify(notificationService, never()).createSelfNotification(
+                any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -214,12 +215,12 @@ class StudyNotificationEventListenerTest {
         listener.handleDailyGoalAchieved(event);
 
         // then
-        verify(notificationService).createPersonalNotification(
-                eq(testUser),
+        verify(notificationService).createSelfNotification(
                 eq(testUser),
                 anyString(),
                 anyString(),
-                eq("/study/plans?date=" + today)
+                eq("/study/plans?date=" + today),
+                eq(NotificationSettingType.SYSTEM)
         );
     }
 
@@ -241,12 +242,12 @@ class StudyNotificationEventListenerTest {
         listener.handleDailyGoalAchieved(event);
 
         // then
-        verify(notificationService).createPersonalNotification(
-                eq(testUser),
+        verify(notificationService).createSelfNotification(
                 eq(testUser),
                 anyString(),
                 anyString(),
-                eq("/study/plans?date=" + today)
+                eq("/study/plans?date=" + today),
+                eq(NotificationSettingType.SYSTEM)
         );
     }
 
@@ -268,12 +269,12 @@ class StudyNotificationEventListenerTest {
         listener.handleDailyGoalAchieved(event);
 
         // then
-        verify(notificationService).createPersonalNotification(
-                eq(testUser),
+        verify(notificationService).createSelfNotification(
                 eq(testUser),
                 anyString(),
                 anyString(),
-                eq("/study/plans?date=" + yesterday)
+                eq("/study/plans?date=" + yesterday),
+                eq(NotificationSettingType.SYSTEM)
         );
     }
 
@@ -290,16 +291,16 @@ class StudyNotificationEventListenerTest {
         given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
 
         willThrow(new RuntimeException("알림 생성 실패"))
-                .given(notificationService).createPersonalNotification(
-                        any(), any(), anyString(), anyString(), anyString()
+                .given(notificationService).createSelfNotification(
+                        any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
                 );
 
         // when & then - 예외가 전파되지 않아야 함
         assertThatCode(() -> listener.handleStudyRecordCreated(event))
                 .doesNotThrowAnyException();
 
-        verify(notificationService).createPersonalNotification(
-                any(), any(), anyString(), anyString(), anyString()
+        verify(notificationService).createSelfNotification(
+                any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -315,16 +316,16 @@ class StudyNotificationEventListenerTest {
         given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
 
         willThrow(new RuntimeException("알림 생성 실패"))
-                .given(notificationService).createPersonalNotification(
-                        any(), any(), anyString(), anyString(), anyString()
+                .given(notificationService).createSelfNotification(
+                        any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
                 );
 
         // when & then - 예외가 전파되지 않아야 함
         assertThatCode(() -> listener.handleDailyGoalAchieved(event))
                 .doesNotThrowAnyException();
 
-        verify(notificationService).createPersonalNotification(
-                any(), any(), anyString(), anyString(), anyString()
+        verify(notificationService).createSelfNotification(
+                any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 }

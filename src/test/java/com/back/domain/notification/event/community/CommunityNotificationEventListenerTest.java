@@ -1,5 +1,6 @@
 package com.back.domain.notification.event.community;
 
+import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.service.NotificationService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -74,7 +75,8 @@ class CommunityNotificationEventListenerTest {
                 eq(actor),
                 anyString(), // title
                 anyString(), // content
-                eq("/posts/100")
+                eq("/posts/100"),
+                eq(NotificationSettingType.POST_COMMENT)
         );
     }
 
@@ -97,7 +99,7 @@ class CommunityNotificationEventListenerTest {
 
         // then
         verify(notificationService, never()).createCommunityNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -121,7 +123,7 @@ class CommunityNotificationEventListenerTest {
 
         // then
         verify(notificationService, never()).createCommunityNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -152,7 +154,8 @@ class CommunityNotificationEventListenerTest {
                 eq(actor),
                 anyString(),
                 anyString(),
-                eq("/posts/100#comment-200")
+                eq("/posts/100#comment-200"),
+                eq(NotificationSettingType.POST_COMMENT)
         );
     }
 
@@ -176,7 +179,7 @@ class CommunityNotificationEventListenerTest {
 
         // then
         verify(notificationService, never()).createCommunityNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -205,7 +208,8 @@ class CommunityNotificationEventListenerTest {
                 eq(actor),
                 anyString(),
                 anyString(),
-                eq("/posts/100")
+                eq("/posts/100"),
+                eq(NotificationSettingType.POST_LIKE)
         );
     }
 
@@ -228,7 +232,7 @@ class CommunityNotificationEventListenerTest {
 
         // then
         verify(notificationService, never()).createCommunityNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 
@@ -258,7 +262,8 @@ class CommunityNotificationEventListenerTest {
                 eq(actor),
                 anyString(),
                 anyString(),
-                eq("/posts/100#comment-200")
+                eq("/posts/100#comment-200"),
+                eq(NotificationSettingType.POST_LIKE)
         );
     }
 
@@ -286,7 +291,8 @@ class CommunityNotificationEventListenerTest {
                 eq(actor), // actor
                 anyString(),
                 anyString(),
-                anyString()
+                anyString(),
+                eq(NotificationSettingType.POST_LIKE)
         );
     }
 
@@ -305,7 +311,7 @@ class CommunityNotificationEventListenerTest {
 
         willThrow(new RuntimeException("알림 생성 실패"))
                 .given(notificationService).createCommunityNotification(
-                        any(), any(), anyString(), anyString(), anyString()
+                        any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
                 );
 
         // when & then - 예외가 전파되지 않아야 함
@@ -313,7 +319,7 @@ class CommunityNotificationEventListenerTest {
                 .doesNotThrowAnyException();
 
         verify(notificationService).createCommunityNotification(
-                any(), any(), anyString(), anyString(), anyString()
+                any(), any(), anyString(), anyString(), anyString(), any(NotificationSettingType.class)
         );
     }
 }
