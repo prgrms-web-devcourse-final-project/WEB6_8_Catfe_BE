@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/posts/{postId}/bookmark")
 @RequiredArgsConstructor
-public class PostBookmarkController {
+public class PostBookmarkController implements PostBookmarkControllerDocs {
     private final PostBookmarkService postBookmarkService;
 
     // 게시글 북마크
