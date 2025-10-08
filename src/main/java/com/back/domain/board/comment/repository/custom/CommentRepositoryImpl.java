@@ -1,10 +1,9 @@
-package com.back.domain.board.comment.repository;
+package com.back.domain.board.comment.repository.custom;
 
 import com.back.domain.board.comment.dto.CommentListResponse;
 import com.back.domain.board.comment.dto.QCommentListResponse;
 import com.back.domain.board.comment.entity.Comment;
 import com.back.domain.board.comment.entity.QComment;
-import com.back.domain.board.comment.entity.QCommentLike;
 import com.back.domain.board.common.dto.QAuthorResponse;
 import com.back.domain.user.entity.QUser;
 import com.back.domain.user.entity.QUserProfile;
@@ -16,6 +15,7 @@ import com.querydsl.core.types.dsl.PathBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,26 +23,26 @@ import java.util.stream.Collectors;
 public class CommentRepositoryImpl implements CommentRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
-    // TODO: Comment에 likeCount 필드 추가에 따른 로직 개선
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("createdAt", "updatedAt", "likeCount");
+
     /**
-     * 게시글 ID로 댓글 목록 조회
-     * - 부모 댓글 페이징 + 자식 댓글 전체 조회
-     * - likeCount는 부모/자식 댓글을 한 번에 조회 후 주입
-     * - likeCount 정렬은 메모리에서 처리
-     * - 총 쿼리 수: 4회 (부모조회 + 자식조회 + likeCount + count)
+     * 특정 게시글의 댓글 목록 조회
+     * - 총 쿼리 수: 3회
+     * 1.부모 댓글 목록을 페이징/정렬 조건으로 조회
+     * 2.부모 ID 목록으로 자식 댓글 전체 조회
+     * 3.부모 총 건수(count) 조회
      *
-     * @param postId 게시글 Id
+     * @param postId   게시글 Id
      * @param pageable 페이징 + 정렬 조건
      */
     @Override
     public Page<CommentListResponse> getCommentsByPostId(Long postId, Pageable pageable) {
         QComment comment = QComment.comment;
-        QCommentLike commentLike = QCommentLike.commentLike;
 
-        // 1. 정렬 조건 생성 (엔티티 필드 기반)
-        List<OrderSpecifier<?>> orders = buildOrderSpecifiers(pageable, comment);
+        // 1. 정렬 조건 생성
+        List<OrderSpecifier<?>> orders = buildOrderSpecifiers(pageable);
 
-        // 2. 부모 댓글 조회 (페이징)
+        // 2. 부모 댓글 조회 (페이징 적용)
         List<CommentListResponse> parents = fetchComments(
                 comment.post.id.eq(postId).and(comment.parent.isNull()),
                 orders,
@@ -50,37 +50,28 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 pageable.getPageSize()
         );
 
+        // 부모가 비어 있으면 즉시 빈 페이지 반환
         if (parents.isEmpty()) {
             return new PageImpl<>(parents, pageable, 0);
         }
 
-        // 3. 부모 ID 목록 수집
+        // 3. 부모 ID 수집
         List<Long> parentIds = parents.stream()
                 .map(CommentListResponse::getCommentId)
                 .toList();
 
-        // 4. 자식 댓글 조회 (부모 ID 기준)
+        // 4. 자식 댓글 조회 (부모 집합에 대한 전체 조회)
         List<CommentListResponse> children = fetchComments(
                 comment.parent.id.in(parentIds),
-                List.of(comment.createdAt.asc()),
+                List.of(comment.createdAt.asc()),   // 시간순 정렬
                 null,
                 null
         );
 
-        // 5. 부모 + 자식 댓글 ID 합쳐 likeCount 조회 (쿼리 1회)
-        Map<Long, Long> likeCountMap = fetchLikeCounts(parentIds, children);
-
-        // 6. likeCount 주입
-        parents.forEach(p -> p.setLikeCount(likeCountMap.getOrDefault(p.getCommentId(), 0L)));
-        children.forEach(c -> c.setLikeCount(likeCountMap.getOrDefault(c.getCommentId(), 0L)));
-
-        // 7. 부모-자식 매핑
+        // 5. 부모-자식 매핑
         mapChildrenToParents(parents, children);
 
-        // 8. 정렬 후처리 (통계 필드 기반)
-        parents = sortInMemoryIfNeeded(parents, pageable);
-
-        // 9. 전체 부모 댓글 수 조회
+        // 6. 전체 부모 댓글 수 조회
         Long total = queryFactory
                 .select(comment.count())
                 .from(comment)
@@ -95,7 +86,11 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
     /**
      * 댓글 조회
      * - User / UserProfile join (N+1 방지)
-     * - likeCount는 이후 주입
+     *
+     * @param condition where 조건
+     * @param orders    정렬 조건
+     * @param offset    페이징 offset (null이면 미적용)
+     * @param limit     페이징 limit  (null이면 미적용)
      */
     private List<CommentListResponse> fetchComments(
             BooleanExpression condition,
@@ -126,6 +121,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 .where(condition)
                 .orderBy(orders.toArray(new OrderSpecifier[0]));
 
+        // 페이징 적용
         if (offset != null && limit != null) {
             query.offset(offset).limit(limit);
         }
@@ -134,34 +130,8 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
     }
 
     /**
-     * likeCount 일괄 조회
-     * - IN 조건 기반 groupBy 쿼리 1회
-     * - 부모/자식 댓글을 한 번에 조회
-     */
-    private Map<Long, Long> fetchLikeCounts(List<Long> parentIds, List<CommentListResponse> children) {
-        QCommentLike commentLike = QCommentLike.commentLike;
-
-        List<Long> allIds = new ArrayList<>(parentIds);
-        allIds.addAll(children.stream().map(CommentListResponse::getCommentId).toList());
-
-        if (allIds.isEmpty()) return Map.of();
-
-        return queryFactory
-                .select(commentLike.comment.id, commentLike.count())
-                .from(commentLike)
-                .where(commentLike.comment.id.in(allIds))
-                .groupBy(commentLike.comment.id)
-                .fetch()
-                .stream()
-                .collect(Collectors.toMap(
-                        tuple -> tuple.get(commentLike.comment.id),
-                        tuple -> tuple.get(commentLike.count())
-                ));
-    }
-
-    /**
      * 부모/자식 관계 매핑
-     * - childMap을 parentId 기준으로 그룹화 후 children 필드에 set
+     * - 자식 목록을 parentId 기준으로 그룹화 후, 각 부모 DTO의 children에 설정
      */
     private void mapChildrenToParents(List<CommentListResponse> parents, List<CommentListResponse> children) {
         if (children.isEmpty()) return;
@@ -170,53 +140,37 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 .collect(Collectors.groupingBy(CommentListResponse::getParentId));
 
         parents.forEach(parent ->
-                parent.setChildren(childMap.getOrDefault(parent.getCommentId(), List.of()))
+                parent.setChildren(childMap.getOrDefault(parent.getCommentId(), Collections.emptyList()))
         );
     }
 
     /**
-     * 정렬 처리 (DB 정렬)
-     * - createdAt, updatedAt 등 엔티티 필드
+     * 정렬 조건 생성
+     * - Pageable의 Sort 정보를 QueryDSL OrderSpecifier 목록으로 변환
      */
-    private List<OrderSpecifier<?>> buildOrderSpecifiers(Pageable pageable, QComment comment) {
+    private List<OrderSpecifier<?>> buildOrderSpecifiers(Pageable pageable) {
+        QComment comment = QComment.comment;
         PathBuilder<Comment> entityPath = new PathBuilder<>(Comment.class, comment.getMetadata());
         List<OrderSpecifier<?>> orders = new ArrayList<>();
 
         for (Sort.Order order : pageable.getSort()) {
-            String prop = order.getProperty();
+            String property = order.getProperty();
 
-            // 통계 필드는 메모리 정렬에서 처리
-            if (prop.equals("likeCount")) {
+            // 화이트리스트에 포함된 필드만 허용
+            if (!ALLOWED_SORT_FIELDS.contains(property)) {
+                // 허용되지 않은 정렬 키는 무시 (런타임 예외 대신 안전하게 스킵)
                 continue;
             }
+
             Order direction = order.isAscending() ? Order.ASC : Order.DESC;
-            orders.add(new OrderSpecifier<>(direction, entityPath.getComparable(prop, Comparable.class)));
+            orders.add(new OrderSpecifier<>(direction, entityPath.getComparable(property, Comparable.class)));
+        }
+
+        // 명시된 정렬이 없으면 기본 정렬(createdAt DESC) 적용
+        if (orders.isEmpty()) {
+            orders.add(new OrderSpecifier<>(Order.DESC, comment.createdAt));
         }
 
         return orders;
-    }
-
-    /**
-     * 통계 기반 정렬 처리 (메모리)
-     * - likeCount 등 통계 필드
-     * - 페이지 단위라 성능에 영향 없음
-     */
-    private List<CommentListResponse> sortInMemoryIfNeeded(List<CommentListResponse> results, Pageable pageable) {
-        if (results.isEmpty() || !pageable.getSort().isSorted()) return results;
-
-        for (Sort.Order order : pageable.getSort()) {
-            Comparator<CommentListResponse> comparator = null;
-
-            if ("likeCount".equals(order.getProperty())) {
-                comparator = Comparator.comparing(CommentListResponse::getLikeCount);
-            }
-
-            if (comparator != null) {
-                if (order.isDescending()) comparator = comparator.reversed();
-                results.sort(comparator);
-            }
-        }
-
-        return results;
     }
 }
