@@ -97,4 +97,14 @@ public class RoomParticipantService {
             // 에러를 던지지 않고 로그만 남김 (세션 종료는 계속 진행되어야 함)
         }
     }
+
+    /**
+     * 여러 방의 온라인 참가자 수를 일괄 조회
+     * N+1 문제 해결을 위한 일괄 조회 메서드
+     * @param roomIds 방 ID 목록
+     * @return 방 ID → 참가자 수 맵
+     */
+    public java.util.Map<Long, Long> getParticipantCounts(java.util.List<Long> roomIds) {
+        return redisSessionStore.getRoomUserCounts(roomIds);
+    }
 }

@@ -90,9 +90,9 @@ public class RoomService {
      * 방 입장 메서드
      * 
      * 입장 검증 과정:
-     * 1. 방 존재 및 활성 상태 확인 (비관적 락으로 동시성 제어)
-     * 2. 방 상태가 입장 가능한지 확인 (WAITING, ACTIVE)
-     * 3. 정원 초과 여부 확인 (Redis 기반)
+     * 1. 방 존재 확인 (비관적 락으로 동시성 제어)
+     * 2. 정원 초과 여부 확인 (Redis 기반)
+     * 3. 방 입장 가능 여부 확인 (활성화 + 입장 가능한 상태)
      * 4. 비공개 방인 경우 비밀번호 확인
      * 5. 이미 참여 중인지 확인 (재입장 처리)
 
@@ -105,30 +105,29 @@ public class RoomService {
     @Transactional
     public RoomMember joinRoom(Long roomId, String password, Long userId) {
         
-        // 비관적 락으로 방 조회 - 동시 입장 시 정원 초과 방지
+        // 1. 비관적 락으로 방 조회 - 동시 입장 시 정원 초과 방지
         Room room = roomRepository.findByIdWithLock(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        if (!room.isActive()) {
-            throw new CustomException(ErrorCode.ROOM_INACTIVE);
-        }
-
-        if (room.getStatus() == RoomStatus.TERMINATED) {
-            throw new CustomException(ErrorCode.ROOM_TERMINATED);
-        }
-
-        // Redis에서 현재 온라인 사용자 수 조회
+        // 2. Redis에서 현재 온라인 사용자 수 조회
         long currentOnlineCount = roomParticipantService.getParticipantCount(roomId);
 
-        // 정원 확인 (Redis 기반)
+        // 3. 정원 확인 (Redis 기반)
         if (currentOnlineCount >= room.getMaxParticipants()) {
             throw new CustomException(ErrorCode.ROOM_FULL);
         }
 
+        // 4. 방 입장 가능 여부 확인 (활성화 + 입장 가능한 상태)
         if (!room.canJoin()) {
-            throw new CustomException(ErrorCode.ROOM_INACTIVE);
+            if (room.getStatus() == RoomStatus.TERMINATED) {
+                throw new CustomException(ErrorCode.ROOM_TERMINATED);
+            } else if (!room.isActive()) {
+                throw new CustomException(ErrorCode.ROOM_INACTIVE);
+            }
+            throw new CustomException(ErrorCode.ROOM_NOT_JOINABLE);
         }
 
+        // 5. 비밀번호 확인
         if (room.needsPassword() && !room.getPassword().equals(password)) {
             throw new CustomException(ErrorCode.ROOM_PASSWORD_INCORRECT);
         }
@@ -231,12 +230,8 @@ public class RoomService {
                 .map(Room::getId)
                 .collect(java.util.stream.Collectors.toList());
 
-        // Redis에서 참가자 수 일괄 조회
-        java.util.Map<Long, Long> participantCounts = roomIds.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        roomId -> roomId,
-                        roomId -> roomParticipantService.getParticipantCount(roomId)
-                ));
+        // Redis Pipeline으로 일괄 조회 (N+1 해결)
+        java.util.Map<Long, Long> participantCounts = roomParticipantService.getParticipantCounts(roomIds);
         
         return rooms.stream()
                 .map(room -> {
@@ -283,7 +278,10 @@ public class RoomService {
             throw new CustomException(ErrorCode.NOT_ROOM_MANAGER);
         }
 
-        if (maxParticipants < room.getCurrentParticipants()) {
+        // Redis에서 현재 온라인 사용자 수 조회
+        long currentOnlineCount = roomParticipantService.getParticipantCount(roomId);
+        
+        if (maxParticipants < currentOnlineCount) {
             throw new CustomException(ErrorCode.BAD_REQUEST);
         }
 
@@ -605,11 +603,8 @@ public class RoomService {
                 .map(Room::getId)
                 .collect(java.util.stream.Collectors.toList());
 
-        java.util.Map<Long, Long> participantCounts = roomIds.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        roomId -> roomId,
-                        roomId -> roomParticipantService.getParticipantCount(roomId)
-                ));
+        // Redis Pipeline으로 일괄 조회 (N+1 해결)
+        java.util.Map<Long, Long> participantCounts = roomParticipantService.getParticipantCounts(roomIds);
         
         return rooms.stream()
                 .map(room -> com.back.domain.studyroom.dto.RoomResponse.from(
@@ -652,11 +647,8 @@ public class RoomService {
                 .map(Room::getId)
                 .collect(java.util.stream.Collectors.toList());
 
-        java.util.Map<Long, Long> participantCounts = roomIds.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        roomId -> roomId,
-                        roomId -> roomParticipantService.getParticipantCount(roomId)
-                ));
+        // Redis Pipeline으로 일괄 조회 (N+1 해결)
+        java.util.Map<Long, Long> participantCounts = roomParticipantService.getParticipantCounts(roomIds);
         
         return rooms.stream()
                 .map(room -> {
