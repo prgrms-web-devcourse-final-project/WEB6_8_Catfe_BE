@@ -1,6 +1,7 @@
 package com.back.domain.board.post.controller;
 
 import com.back.domain.board.common.dto.PageResponse;
+import com.back.domain.board.post.controller.docs.PostControllerDocs;
 import com.back.domain.board.post.dto.PostDetailResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.dto.PostRequest;

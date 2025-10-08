@@ -1,4 +1,4 @@
-package com.back.domain.board.comment.repository;
+package com.back.domain.board.comment.repository.custom;
 
 import com.back.domain.board.comment.dto.CommentListResponse;
 import org.springframework.data.domain.Page;
