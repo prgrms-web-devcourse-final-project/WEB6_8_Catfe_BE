@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -16,6 +17,8 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -36,12 +39,34 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
      * - /topic: 1:N 브로드캐스트 (방 채팅)
      * - /queue: 1:1 메시지 (개인 DM)
      * - /app: 클라이언트에서 서버로 메시지 전송 시 prefix
+     * 
+     * STOMP 하트비트 설정:
+     * - 25초마다 자동 하트비트 전송 (쓰기 비활성 시)
+     * - 25초 이상 응답 없으면 연결 종료 (읽기 비활성 시)
      */
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic", "/queue");
+        config.enableSimpleBroker("/topic", "/queue")
+                .setHeartbeatValue(new long[]{25000, 25000}) // [서버→클라이언트, 클라이언트→서버]
+                .setTaskScheduler(heartBeatScheduler());
+        
         config.setApplicationDestinationPrefixes("/app");
         config.setUserDestinationPrefix("/user");
+    }
+
+    /**
+     * STOMP 하트비트 전용 스케줄러!!
+     * - 별도 스레드 풀로 하트비트 처리
+     * - 메인 비즈니스 로직에 영향 없음
+     */
+    @Bean
+    public TaskScheduler heartBeatScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1);
+        scheduler.setThreadNamePrefix("wss-heartbeat-");
+        scheduler.initialize();
+        log.info("STOMP 하트비트 스케줄러 초기화 완료 - 주기: 25초");
+        return scheduler;
     }
 
     /**
@@ -124,24 +149,22 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     /**
-     * 메시지 전송 시 인증 상태 확인 및 활동 시간 업데이트
+     * 메시지 전송 시 인증 상태 확인
      */
     private void validateAuthenticationAndUpdateActivity(StompHeaderAccessor accessor) {
         if (accessor.getUser() == null) {
             throw new RuntimeException("인증이 필요합니다");
         }
 
-        // 인증된 사용자 정보 추출 및 활동 시간 업데이트
         Authentication auth = (Authentication) accessor.getUser();
         if (auth.getPrincipal() instanceof CustomUserDetails userDetails) {
             Long userId = userDetails.getUserId();
 
-            // 사용자 활동 시간 업데이트 (Heartbeat 효과)
+            // 전역 세션 활동 시간 업데이트
             try {
                 sessionManager.updateLastActivity(userId);
             } catch (Exception e) {
                 log.warn("활동 시간 업데이트 실패 - 사용자: {}, 오류: {}", userId, e.getMessage());
-                // 활동 시간 업데이트 실패해도 메시지 전송은 계속 진행
             }
 
             log.debug("인증된 사용자 메시지 전송 - 사용자: {} (ID: {}), 목적지: {}",
