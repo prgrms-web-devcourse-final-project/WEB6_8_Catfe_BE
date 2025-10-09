@@ -100,9 +100,9 @@ public class FileService {
 
         FileAttachment fileAttachment = attachmentMapping.getFileAttachment();
 
-        // 파일 수정 권한 체크
+        // 파일 접근 권한 체크
         if (fileAttachment.getUser().getId() != userId) {
-            throw new CustomException(ErrorCode.FILE_UPLOAD_FAILED);
+            throw new CustomException(ErrorCode.FILE_ACCESS_DENIED);
         }
 
         // 현재 저장된(삭제할) 파일 이름
@@ -114,10 +114,32 @@ public class FileService {
         String filePath = s3Upload(newStoredName, multipartFile);
 
         // S3에 기존에 저장된 파일 삭제
-        S3Delete(oldStoredName);
+        s3Delete(oldStoredName);
 
         // fileAttachment 정보 업데이트
         fileAttachment.update(newStoredName, multipartFile, filePath);
+    }
+
+    @Transactional
+    public void deleteFile(EntityType entityType, Long entityId, Long userId) {
+        AttachmentMapping attachmentMapping = attachmentMappingRepository
+                .findByEntityTypeAndEntityId(entityType, entityId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.ATTACHMENT_MAPPING_NOT_FOUND)
+                );
+
+        FileAttachment fileAttachment = attachmentMapping.getFileAttachment();
+
+        // 파일 접근 권한 체크
+        if (fileAttachment.getUser().getId() != userId) {
+            throw new CustomException(ErrorCode.FILE_ACCESS_DENIED);
+        }
+
+        // S3 오브젝트 삭제
+        s3Delete(fileAttachment.getStoredName());
+
+        // fileAttachment 정보 삭제
+        fileAttachmentRepository.delete(fileAttachment);
     }
 
     // S3에 파일을 업로드 하는 함수
@@ -152,7 +174,7 @@ public class FileService {
     }
 
     // S3 파일 삭제 함수
-    private void S3Delete(String fileName) {
+    private void s3Delete(String fileName) {
         amazonS3.deleteObject(new DeleteObjectRequest(bucket, fileName));
     }
 
