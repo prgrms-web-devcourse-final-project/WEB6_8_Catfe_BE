@@ -3,10 +3,13 @@ package com.back.domain.file.service;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.back.domain.file.dto.FileReadResponseDto;
 import com.back.domain.file.dto.FileUploadResponseDto;
+import com.back.domain.file.entity.AttachmentMapping;
 import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.entity.FileAttachment;
-import com.back.domain.file.repository.FileRepository;
+import com.back.domain.file.repository.AttachmentMappingRepository;
+import com.back.domain.file.repository.FileAttachmentRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
@@ -27,9 +30,9 @@ public class FileService {
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
     private final AmazonS3 amazonS3;
-    private final FileRepository fileRepository;
+    private final FileAttachmentRepository fileAttachmentRepository;
     private final UserRepository userRepository;
-
+    private final AttachmentMappingRepository attachmentMappingRepository;
     @Transactional
     public FileUploadResponseDto uploadFile(
             MultipartFile multipartFile,
@@ -51,7 +54,7 @@ public class FileService {
         objectMetadata.setContentType(multipartFile.getContentType());
 
         // S3의 저장된 파일의 public URL
-        String imageUrl = null;
+        String filePath = null;
         try (InputStream inputStream = multipartFile.getInputStream()) {
             // S3에 파일을 업로드
             amazonS3.putObject(
@@ -63,17 +66,17 @@ public class FileService {
                     )
             );
 
-            imageUrl = amazonS3.getUrl(bucket, storedFileName).toString();
+            filePath = amazonS3.getUrl(bucket, storedFileName).toString();
 
             // FileAttachment 정보 저장
-            fileRepository.save(
+            fileAttachmentRepository.save(
                     new FileAttachment(
                             storedFileName,
                             multipartFile,
                             user,
                             entityType,
                             entityId,
-                            imageUrl
+                            filePath
                     )
             );
         } catch (IOException e) {
@@ -81,7 +84,22 @@ public class FileService {
             throw new CustomException(ErrorCode.FILE_UPLOAD_FAILED);
         }
 
-        return new FileUploadResponseDto(imageUrl);
+        return new FileUploadResponseDto(filePath);
+    }
+
+
+    @Transactional(readOnly = true)
+    public FileReadResponseDto getFile(
+            EntityType entityType,
+            Long entityId
+    ) {
+        AttachmentMapping attachmentMapping = attachmentMappingRepository
+                .findByEntityTypeAndEntityId(entityType, entityId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ATTACHMENT_MAPPING_NOT_FOUND));
+
+        String filePath = attachmentMapping.getFileAttachment().getFilePath();
+
+        return new FileReadResponseDto(filePath);
     }
 
     // 파일 이름을 난수화 하기 위한 함수

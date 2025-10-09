@@ -1,7 +1,7 @@
 package com.back.domain.file.controller;
 
-import com.back.domain.file.dto.FileUploadRequestDto;
-import com.back.domain.file.dto.FileUploadResponseDto;
+import com.back.domain.file.dto.*;
+import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.service.FileService;
 import com.back.global.common.dto.RsData;
 import com.back.global.security.user.CustomUserDetails;
@@ -34,5 +34,17 @@ public class FileController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success("파일 업로드 성공", res));
+    }
+
+    @GetMapping(value = "/read")
+    public ResponseEntity<RsData<FileReadResponseDto>> getFile(
+            @RequestParam("entityType") EntityType entityType,
+            @RequestParam("entityId") Long entityId
+    ) {
+        FileReadResponseDto res = fileService.getFile(entityType, entityId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("파일 조회 성공", res));
     }
 }
