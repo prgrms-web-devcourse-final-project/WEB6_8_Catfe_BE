@@ -5,6 +5,7 @@ import com.back.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,10 +20,9 @@ public class FileAttachment extends BaseEntity {
 
     private String filePath;
 
-    private int fileSize;
+    private long fileSize;
 
-    @Enumerated(EnumType.STRING)
-    private MimeType mimeType;
+    private String contentType;
 
     // 업로드 유저
     @ManyToOne(fetch = FetchType.LAZY)
@@ -31,4 +31,22 @@ public class FileAttachment extends BaseEntity {
 
     @OneToMany(mappedBy = "fileAttachment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AttachmentMapping> attachmentMappings = new ArrayList<>();
+
+    public FileAttachment(
+            String storedName,
+            MultipartFile multipartFile,
+            User user,
+            EntityType entityType,
+            Long entityId,
+            String filePath
+    ) {
+        this.storedName = storedName;
+        originalName = multipartFile.getOriginalFilename();
+        this.filePath = filePath;
+        fileSize = multipartFile.getSize();
+        this.contentType = multipartFile.getContentType();
+        this.user = user;
+
+        attachmentMappings.add(new AttachmentMapping(entityType, entityId));
+    }
 }
