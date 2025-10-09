@@ -12,7 +12,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.ActiveProfiles;
 
 @TestConfiguration
-@ActiveProfiles("test")
 public class S3MockConfig {
     @Value("${cloud.aws.s3.bucket}")
     public String bucket;
