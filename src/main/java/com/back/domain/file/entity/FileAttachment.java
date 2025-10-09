@@ -47,6 +47,6 @@ public class FileAttachment extends BaseEntity {
         this.contentType = multipartFile.getContentType();
         this.user = user;
 
-        attachmentMappings.add(new AttachmentMapping(entityType, entityId));
+        attachmentMappings.add(new AttachmentMapping(this ,entityType, entityId));
     }
 }

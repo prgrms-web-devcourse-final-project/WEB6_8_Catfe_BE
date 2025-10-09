@@ -18,7 +18,8 @@ public class AttachmentMapping extends BaseEntity {
 
     private Long entityId;
 
-    public AttachmentMapping(EntityType entityType, Long entityId) {
+    public AttachmentMapping(FileAttachment fileAttachment, EntityType entityType, Long entityId) {
+        this.fileAttachment = fileAttachment;
         this.entityType = entityType;
         this.entityId = entityId;
     }
