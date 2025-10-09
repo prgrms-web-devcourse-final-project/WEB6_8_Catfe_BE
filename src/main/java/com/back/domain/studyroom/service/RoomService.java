@@ -291,6 +291,58 @@ public class RoomService {
         log.info("방 설정 변경 완료 - RoomId: {}, UserId: {}", roomId, userId);
     }
 
+    /**
+     * 방 비밀번호 변경
+     * - 방장만 변경 가능
+     * - 현재 비밀번호 검증 후 변경
+     * @param roomId 방 ID
+     * @param currentPassword 현재 비밀번호
+     * @param newPassword 새 비밀번호
+     * @param userId 요청자 ID (방장)
+     */
+    @Transactional
+    public void updateRoomPassword(Long roomId, String currentPassword, String newPassword, Long userId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        
+        // 방장 권한 확인
+        if (!room.isOwner(userId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_HOST);
+        }
+        
+        // 현재 비밀번호 검증
+        if (!currentPassword.equals(room.getPassword())) {
+            throw new CustomException(ErrorCode.ROOM_PASSWORD_MISMATCH);
+        }
+        
+        // 새 비밀번호 설정
+        room.updatePassword(newPassword);
+        
+        log.info("방 비밀번호 변경 완료 - RoomId: {}, UserId: {}", roomId, userId);
+    }
+
+    /**
+     * 방 비밀번호 제거 (공개방으로 전환)
+     * - 방장만 제거 가능
+     * @param roomId 방 ID
+     * @param userId 요청자 ID (방장)
+     */
+    @Transactional
+    public void removeRoomPassword(Long roomId, Long userId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        
+        // 방장 권한 확인
+        if (!room.isOwner(userId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_HOST);
+        }
+        
+        // 비밀번호 제거
+        room.updatePassword(null);
+        
+        log.info("방 비밀번호 제거 완료 - RoomId: {}, UserId: {}", roomId, userId);
+    }
+
     @Transactional
     public void terminateRoom(Long roomId, Long userId) {
         
