@@ -9,5 +9,5 @@ import org.springframework.web.multipart.MultipartFile;
 public class FileUploadRequestDto {
     private MultipartFile multipartFile;
     private EntityType entityType;
-    private Long entityID;
+    private Long entityId;
 }

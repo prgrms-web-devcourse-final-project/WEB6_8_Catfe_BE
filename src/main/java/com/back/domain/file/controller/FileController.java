@@ -1,5 +1,6 @@
 package com.back.domain.file.controller;
 
+import com.amazonaws.Response;
 import com.back.domain.file.dto.*;
 import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.service.FileService;
@@ -27,7 +28,7 @@ public class FileController {
         FileUploadResponseDto res = fileService.uploadFile(
                 req.getMultipartFile(),
                 req.getEntityType(),
-                req.getEntityID(),
+                req.getEntityId(),
                 user.getUserId()
         );
 
@@ -46,5 +47,22 @@ public class FileController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success("파일 조회 성공", res));
+    }
+
+    @PutMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<RsData<FileUpdateResponseDto>> updateFile(
+            @ModelAttribute FileUpdateRequestDto req,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        fileService.updateFile(
+                req.getMultipartFile(),
+                req.getEntityType(),
+                req.getEntityId(),
+                user.getUserId()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("파일 업데이트 성공"));
     }
 }

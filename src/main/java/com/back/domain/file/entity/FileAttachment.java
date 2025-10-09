@@ -49,4 +49,12 @@ public class FileAttachment extends BaseEntity {
 
         attachmentMappings.add(new AttachmentMapping(this ,entityType, entityId));
     }
+
+    public void update(String storedName, MultipartFile multipartFile, String filePath) {
+        this.storedName = storedName;
+        originalName = multipartFile.getOriginalFilename();
+        this.filePath = filePath;
+        fileSize = multipartFile.getSize();
+        this.contentType = multipartFile.getContentType();
+    }
 }
