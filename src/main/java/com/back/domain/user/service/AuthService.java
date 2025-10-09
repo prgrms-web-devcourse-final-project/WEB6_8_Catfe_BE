@@ -1,5 +1,6 @@
 package com.back.domain.user.service;
 
+import com.back.domain.notification.service.NotificationSettingService;
 import com.back.domain.user.dto.LoginRequest;
 import com.back.domain.user.dto.LoginResponse;
 import com.back.domain.user.dto.UserRegisterRequest;
@@ -37,6 +38,7 @@ public class AuthService {
     private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final NotificationSettingService notificationSettingService;
 
     /**
      * 회원가입 서비스
@@ -44,6 +46,7 @@ public class AuthService {
      * 2. 비밀번호 정책 검증
      * 3. User + UserProfile 생성 및 연관관계 설정
      * 4. 저장 후 UserResponse 변환
+     * 5. 알림 설정 초기화
      */
     public UserResponse register(UserRegisterRequest request) {
 
@@ -76,9 +79,12 @@ public class AuthService {
         // 저장 (cascade로 Profile도 함께 저장됨)
         User saved = userRepository.save(user);
 
+        // 알림 설정 초기화 (모든 알림 타입 기본 활성화)
+        notificationSettingService.initializeDefaultSettings(saved.getId());
+
         // 이메일 인증 토큰 생성 및 이메일 발송
-         String emailToken = tokenService.createEmailVerificationToken(saved.getId());
-         emailService.sendVerificationEmail(saved.getEmail(), emailToken);
+        String emailToken = tokenService.createEmailVerificationToken(saved.getId());
+        emailService.sendVerificationEmail(saved.getEmail(), emailToken);
 
         // UserResponse 변환 및 반환
         return UserResponse.from(saved);

@@ -1,0 +1,253 @@
+package com.back.domain.board.post.controller;
+
+import com.back.domain.board.post.dto.PostBookmarkResponse;
+import com.back.global.common.dto.RsData;
+import com.back.global.security.user.CustomUserDetails;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PathVariable;
+
+@Tag(name = "Post Bookmark API", description = "게시글 북마크 등록/취소 API")
+public interface PostBookmarkControllerDocs {
+
+    @Operation(
+            summary = "게시글 북마크 등록",
+            description = "로그인한 사용자가 특정 게시글을 북마크(즐겨찾기)로 등록합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "게시글 북마크 등록 성공",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "게시글 북마크가 등록되었습니다.",
+                                      "data": {
+                                        "postId": 101,
+                                        "bookmarkCount": 5
+                                      }
+                                    }
+                                    """))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청(파라미터 누락 등)",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_400",
+                                      "message": "잘못된 요청입니다.",
+                                      "data": null
+                                    }
+                                    """))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패 (Access Token 없음/만료/잘못됨)",
+                    content = @Content(mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "토큰 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_001",
+                                              "message": "인증이 필요합니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "잘못된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_002",
+                                              "message": "유효하지 않은 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "만료된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_004",
+                                              "message": "만료된 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            })
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 사용자 또는 게시글",
+                    content = @Content(mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "존재하지 않는 사용자", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_001",
+                                              "message": "존재하지 않는 사용자입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "존재하지 않는 게시글", value = """
+                                            {
+                                              "success": false,
+                                              "code": "POST_001",
+                                              "message": "존재하지 않는 게시글입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            })
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "이미 북마크된 게시글",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "POST_007",
+                                      "message": "이미 북마크한 게시글입니다.",
+                                      "data": null
+                                    }
+                                    """))
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """))
+            )
+    })
+    ResponseEntity<RsData<PostBookmarkResponse>> bookmarkPost(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "게시글 북마크 취소",
+            description = "로그인한 사용자가 특정 게시글의 북마크(즐겨찾기)를 취소합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "게시글 북마크 취소 성공",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "게시글 북마크가 취소되었습니다.",
+                                      "data": {
+                                        "postId": 101,
+                                        "bookmarkCount": 4
+                                      }
+                                    }
+                                    """))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청(파라미터 누락 등)",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_400",
+                                      "message": "잘못된 요청입니다.",
+                                      "data": null
+                                    }
+                                    """))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패 (Access Token 없음/만료/잘못됨)",
+                    content = @Content(mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "토큰 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_001",
+                                              "message": "인증이 필요합니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "잘못된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_002",
+                                              "message": "유효하지 않은 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "만료된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_004",
+                                              "message": "만료된 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            })
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 사용자 / 게시글 / 북마크 내역 없음",
+                    content = @Content(mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "존재하지 않는 사용자", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_001",
+                                              "message": "존재하지 않는 사용자입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "존재하지 않는 게시글", value = """
+                                            {
+                                              "success": false,
+                                              "code": "POST_001",
+                                              "message": "존재하지 않는 게시글입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "북마크 내역 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "POST_008",
+                                              "message": "해당 게시글에 대한 북마크 기록이 없습니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            })
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """))
+            )
+    })
+    ResponseEntity<RsData<PostBookmarkResponse>> cancelBookmarkPost(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+}

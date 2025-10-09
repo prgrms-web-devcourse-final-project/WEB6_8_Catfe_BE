@@ -40,6 +40,7 @@ public enum ErrorCode {
     ROOM_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "ROOM_017", "현재 비밀번호가 일치하지 않습니다."),
     NOT_ROOM_HOST(HttpStatus.FORBIDDEN, "ROOM_018", "방장 권한이 필요합니다."),
 
+
     // ======================== 스터디 플래너 관련 ========================
     PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "PLAN_001", "존재하지 않는 학습 계획입니다."),
     PLAN_FORBIDDEN(HttpStatus.FORBIDDEN, "PLAN_002", "학습 계획에 대한 접근 권한이 없습니다."),
@@ -70,6 +71,10 @@ public enum ErrorCode {
     NOTIFICATION_INVALID_TARGET_TYPE(HttpStatus.BAD_REQUEST, "NOTIFICATION_004", "유효하지 않은 알림 타입입니다."),
     NOTIFICATION_MISSING_ACTOR(HttpStatus.BAD_REQUEST, "NOTIFICATION_005", "발신자 정보가 필요합니다."),
     NOTIFICATION_MISSING_TARGET(HttpStatus.BAD_REQUEST, "NOTIFICATION_006", "수신자 또는 대상 정보가 필요합니다."),
+
+    // ======================== 알림 설정 관련 ========================
+    NOTIFICATION_SETTING_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION_SETTING_001", "알림 설정을 찾을 수 없습니다."),
+    NOTIFICATION_SETTING_FORBIDDEN(HttpStatus.FORBIDDEN, "NOTIFICATION_SETTING_002", "알림 설정에 대한 접근 권한이 없습니다."),
 
     // ======================== 메시지 관련 ========================
     MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MESSAGE_001", "존재하지 않는 메시지입니다."),
@@ -102,6 +107,8 @@ public enum ErrorCode {
     CATEGORY_ALREADY_EXISTS(HttpStatus.CONFLICT, "POST_004", "이미 존재하는 카테고리입니다."),
     POST_ALREADY_LIKED(HttpStatus.CONFLICT, "POST_005", "이미 좋아요한 게시글입니다."),
     POST_LIKE_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_006", "해당 게시글에 대한 좋아요 기록이 없습니다."),
+    BOOKMARK_ALREADY_EXISTS(HttpStatus.CONFLICT, "POST_007", "이미 북마크한 게시글입니다."),
+    BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_008", "해당 게시글에 대한 북마크 기록이 없습니다."),
 
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_001", "존재하지 않는 댓글입니다."),
     COMMENT_NO_PERMISSION(HttpStatus.FORBIDDEN, "COMMENT_002", "댓글 작성자만 수정/삭제할 수 있습니다."),

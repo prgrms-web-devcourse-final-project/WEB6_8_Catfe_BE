@@ -4,6 +4,7 @@ import com.back.domain.notification.dto.NotificationCreateRequest;
 import com.back.domain.notification.dto.NotificationResponse;
 import com.back.domain.notification.dto.NotificationListResponse;
 import com.back.domain.notification.entity.Notification;
+import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.service.NotificationService;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.repository.RoomRepository;
@@ -76,12 +77,14 @@ public class NotificationController {
                 User actor = userRepository.findById(request.actorId())
                         .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+                // 개인 알림 생성
                 yield notificationService.createPersonalNotification(
                         receiver,
                         actor,
                         request.title(),
                         request.message(),
-                        request.redirectUrl()
+                        request.redirectUrl(),
+                        NotificationSettingType.SYSTEM
                 );
             }
             case "ROOM" -> {
@@ -93,12 +96,14 @@ public class NotificationController {
                 User actor = userRepository.findById(request.actorId())
                         .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+                // 스터디룸 알림 생성
                 yield notificationService.createRoomNotification(
                         room,
                         actor,
                         request.title(),
                         request.message(),
-                        request.redirectUrl()
+                        request.redirectUrl(),
+                        NotificationSettingType.ROOM_NOTICE
                 );
             }
             case "COMMUNITY" -> {
@@ -110,12 +115,14 @@ public class NotificationController {
                 User actor = userRepository.findById(request.actorId())
                         .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+                // 커뮤니티 알림 생성
                 yield notificationService.createCommunityNotification(
                         receiver,
                         actor,
                         request.title(),
                         request.message(),
-                        request.redirectUrl()
+                        request.redirectUrl(),
+                        NotificationSettingType.POST_COMMENT
                 );
             }
             case "SYSTEM" -> {
