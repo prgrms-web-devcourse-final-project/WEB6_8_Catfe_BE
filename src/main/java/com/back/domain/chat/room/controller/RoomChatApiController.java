@@ -73,18 +73,6 @@ public class RoomChatApiController {
                 clearedByInfo.role()
         );
 
-        // WebSocket을 통해 실시간 알림 전송
-        ChatClearedNotification notification = ChatClearedNotification.create(
-                roomId,
-                messageCount,
-                clearedByInfo.userId(),
-                clearedByInfo.nickname(),
-                clearedByInfo.profileImageUrl(),
-                clearedByInfo.role()
-        );
-
-        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/chat-cleared", notification);
-
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success("채팅 메시지 일괄 삭제 완료", responseData));
