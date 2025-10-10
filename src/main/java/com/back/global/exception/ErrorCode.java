@@ -37,6 +37,9 @@ public enum ErrorCode {
     CHAT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "ROOM_014", "채팅 삭제 권한이 없습니다. 방장 또는 부방장만 가능합니다."),
     INVALID_DELETE_CONFIRMATION(HttpStatus.BAD_REQUEST, "ROOM_015", "삭제 확인 메시지가 일치하지 않습니다."),
     CHAT_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ROOM_016", "채팅 삭제 중 오류가 발생했습니다."),
+    ROOM_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "ROOM_017", "현재 비밀번호가 일치하지 않습니다."),
+    NOT_ROOM_HOST(HttpStatus.FORBIDDEN, "ROOM_018", "방장 권한이 필요합니다."),
+
 
     // ======================== 스터디 플래너 관련 ========================
     PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "PLAN_001", "존재하지 않는 학습 계획입니다."),
@@ -134,7 +137,8 @@ public enum ErrorCode {
 
     // ======================== 파일 업로드 관련 ========================
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE_001", "파일 업로드에 실패했습니다."),
-
+    ATTACHMENT_MAPPING_NOT_FOUND(HttpStatus.NOT_FOUND, "FILE_002", "매핑된 파일 정보를 찾을 수 없습니다."),
+    FILE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "FILE_003", "파일을 접근할 권한이 없습니다."),
 
     // ======================== 토큰 관련 ========================
     INVALID_EMAIL_TOKEN(HttpStatus.UNAUTHORIZED, "TOKEN_001", "유효하지 않은 이메일 인증 토큰입니다."),

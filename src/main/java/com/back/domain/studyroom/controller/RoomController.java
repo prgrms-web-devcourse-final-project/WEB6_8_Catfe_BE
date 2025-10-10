@@ -370,6 +370,59 @@ public class RoomController {
                 .body(RsData.success("방 설정 변경 완료", null));
     }
 
+    @PutMapping("/{roomId}/password")
+    @Operation(
+        summary = "방 비밀번호 변경",
+        description = "비공개 방의 비밀번호를 변경합니다. 현재 비밀번호 확인 후 새 비밀번호로 변경합니다. 방장만 실행 가능합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "비밀번호 변경 성공"),
+        @ApiResponse(responseCode = "400", description = "현재 비밀번호 불일치"),
+        @ApiResponse(responseCode = "403", description = "방장 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<Void>> updateRoomPassword(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
+            @Valid @RequestBody UpdateRoomPasswordRequest request) {
+
+        Long currentUserId = currentUser.getUserId();
+
+        roomService.updateRoomPassword(
+                roomId,
+                request.getCurrentPassword(),
+                request.getNewPassword(),
+                currentUserId
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("방 비밀번호 변경 완료", null));
+    }
+
+    @DeleteMapping("/{roomId}/password")
+    @Operation(
+        summary = "방 비밀번호 제거",
+        description = "방의 비밀번호를 제거합니다. 비밀번호가 제거되면 누구나 자유롭게 입장할 수 있습니다. 방장만 실행 가능합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "비밀번호 제거 성공"),
+        @ApiResponse(responseCode = "403", description = "방장 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<Void>> removeRoomPassword(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId) {
+
+        Long currentUserId = currentUser.getUserId();
+
+        roomService.removeRoomPassword(roomId, currentUserId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("방 비밀번호 제거 완료", null));
+    }
+
     @DeleteMapping("/{roomId}")
     @Operation(
         summary = "방 종료", 

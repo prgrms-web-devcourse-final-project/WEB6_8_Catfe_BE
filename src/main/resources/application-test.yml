@@ -88,3 +88,15 @@ jwt:
 
 frontend:
   base-url: http://localhost:3000
+
+# AWS S3
+cloud:
+  aws:
+    region:
+      static: ap-northeast-2
+
+    s3:
+      bucket: bucket-name
+
+    stack:
+      auto: false
