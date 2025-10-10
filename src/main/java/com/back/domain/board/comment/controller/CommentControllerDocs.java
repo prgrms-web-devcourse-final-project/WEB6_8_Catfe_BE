@@ -539,7 +539,8 @@ public interface CommentControllerDocs {
                                         "parentId": 25,
                                         "author": {
                                           "id": 7,
-                                          "nickname": "이몽룡"
+                                          "nickname": "이몽룡",
+                                          "profileImageUrl": null
                                         },
                                         "content": "저도 동의합니다!",
                                         "createdAt": "2025-09-22T13:30:00",

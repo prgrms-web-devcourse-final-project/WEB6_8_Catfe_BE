@@ -7,7 +7,9 @@ import com.back.domain.board.post.dto.PostDetailResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.dto.PostRequest;
 import com.back.domain.board.post.dto.PostResponse;
+import com.back.domain.board.post.repository.PostBookmarkRepository;
 import com.back.domain.board.post.repository.PostCategoryRepository;
+import com.back.domain.board.post.repository.PostLikeRepository;
 import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -26,6 +28,8 @@ import java.util.List;
 @Transactional
 public class PostService {
     private final PostRepository postRepository;
+    private final PostLikeRepository postLikeRepository;
+    private final PostBookmarkRepository postBookmarkRepository;
     private final UserRepository userRepository;
     private final PostCategoryRepository postCategoryRepository;
 
@@ -83,6 +87,18 @@ public class PostService {
 
         // 응답 반환
         return PostDetailResponse.from(post);
+    }
+
+    // TODO: 로그인 회원용 게시글 단건 조회 서비스, 추후 리팩토링 필요
+    @Transactional(readOnly = true)
+    public PostDetailResponse getPostWithUser(Long postId, Long userId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+
+        boolean likedByMe = postLikeRepository.existsByUserIdAndPostId(userId, postId);
+        boolean bookmarkedByMe = postBookmarkRepository.existsByUserIdAndPostId(userId, postId);
+
+        return PostDetailResponse.from(post, likedByMe, bookmarkedByMe);
     }
 
     /**

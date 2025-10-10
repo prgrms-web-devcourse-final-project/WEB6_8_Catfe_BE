@@ -29,10 +29,16 @@ public record PostDetailResponse(
         long likeCount,
         long bookmarkCount,
         long commentCount,
+        Boolean likedByMe,
+        Boolean bookmarkedByMe,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
     public static PostDetailResponse from(Post post) {
+        return from(post, false, false);
+    }
+
+    public static PostDetailResponse from(Post post, boolean likedByMe, boolean bookmarkedByMe) {
         return new PostDetailResponse(
                 post.getId(),
                 AuthorResponse.from(post.getUser()),
@@ -44,6 +50,8 @@ public record PostDetailResponse(
                 post.getPostLikes().size(),
                 post.getPostBookmarks().size(),
                 post.getComments().size(),
+                likedByMe,
+                bookmarkedByMe,
                 post.getCreatedAt(),
                 post.getUpdatedAt()
         );
