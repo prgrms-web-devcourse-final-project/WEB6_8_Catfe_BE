@@ -29,18 +29,20 @@ public class StudyRecord extends BaseEntity {
     private StudyPlan studyPlan;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "room_id")
+    @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 
     // 초 단위
     @Column(nullable = false)
     private Long duration;
 
+    @Column(nullable = false)
     private LocalDateTime startTime;
 
     @OneToMany(mappedBy = "studyRecord", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PauseInfo> pauseInfos = new ArrayList<>();
 
+    @Column(nullable = false)
     private LocalDateTime endTime;
 
     public static StudyRecord create(User user, StudyPlan studyPlan, Room room,

@@ -2,7 +2,7 @@ package com.back.global.websocket.controller;
 
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
-import com.back.global.websocket.dto.HeartbeatMessage;
+import com.back.global.security.user.CustomUserDetails;
 import com.back.global.websocket.service.WebSocketSessionManager;
 import com.back.global.websocket.util.WebSocketErrorHelper;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +14,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
+import java.security.Principal;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -33,17 +37,23 @@ class WebSocketMessageControllerTest {
 
     private SimpMessageHeaderAccessor headerAccessor;
     private Long userId;
-    private Long roomId;
     private String sessionId;
 
     @BeforeEach
     void setUp() {
         userId = 10L;
-        roomId = 1L;
         sessionId = "test-session-id";
 
         headerAccessor = mock(SimpMessageHeaderAccessor.class);
         lenient().when(headerAccessor.getSessionId()).thenReturn(sessionId);
+    }
+
+    // 테스트용 Mock Principal 객체를 생성하는 헬퍼 메소드
+    private Principal createMockPrincipal(Long userId) {
+        CustomUserDetails mockUserDetails = mock(CustomUserDetails.class);
+        when(mockUserDetails.getUserId()).thenReturn(userId);
+
+        return new UsernamePasswordAuthenticationToken(mockUserDetails, null, null);
     }
 
     @Nested
@@ -51,214 +61,66 @@ class WebSocketMessageControllerTest {
     class HandleHeartbeatTest {
 
         @Test
-        @DisplayName("정상 - Heartbeat 처리")
+        @DisplayName("성공 - 인증된 사용자의 Heartbeat 처리")
         void t1() {
             // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
+            Principal mockPrincipal = createMockPrincipal(userId);
             doNothing().when(sessionManager).updateLastActivity(userId);
 
             // when
-            controller.handleHeartbeat(message, headerAccessor);
+            controller.handleHeartbeat(mockPrincipal, headerAccessor);
 
             // then
             verify(sessionManager).updateLastActivity(userId);
-            verify(errorHelper, never()).sendInvalidRequestError(anyString(), anyString());
-            verify(errorHelper, never()).sendCustomExceptionToUser(anyString(), any());
-            verify(errorHelper, never()).sendGenericErrorToUser(anyString(), any(), anyString());
+            verifyNoInteractions(errorHelper);
         }
 
         @Test
-        @DisplayName("실패 - userId가 null")
+        @DisplayName("실패 - 인증 정보가 없는 경우")
         void t2() {
             // given
-            HeartbeatMessage message = new HeartbeatMessage(null);
+            Principal principal = null;
 
             // when
-            controller.handleHeartbeat(message, headerAccessor);
+            controller.handleHeartbeat(principal, headerAccessor);
 
             // then
             verify(sessionManager, never()).updateLastActivity(any());
-            verify(errorHelper).sendInvalidRequestError(sessionId, "사용자 ID가 필요합니다");
+            verify(errorHelper).sendUnauthorizedError(sessionId);
         }
 
         @Test
-        @DisplayName("실패 - CustomException 발생")
+        @DisplayName("실패 - CustomException 발생 시 예외를 그대로 던짐")
         void t3() {
             // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
-            CustomException exception = new CustomException(ErrorCode.BAD_REQUEST);
-            doThrow(exception).when(sessionManager).updateLastActivity(userId);
+            Principal mockPrincipal = createMockPrincipal(userId);
+            CustomException expectedException = new CustomException(ErrorCode.BAD_REQUEST);
+            doThrow(expectedException).when(sessionManager).updateLastActivity(userId);
 
-            // when
-            controller.handleHeartbeat(message, headerAccessor);
+            // when & then
+            assertThrows(CustomException.class, () -> {
+                controller.handleHeartbeat(mockPrincipal, headerAccessor);
+            });
 
-            // then
             verify(sessionManager).updateLastActivity(userId);
-            verify(errorHelper).sendCustomExceptionToUser(sessionId, exception);
+            verifyNoInteractions(errorHelper);
         }
 
         @Test
-        @DisplayName("실패 - 일반 Exception 발생")
+        @DisplayName("실패 - 일반 Exception 발생 시 예외를 그대로 던짐")
         void t4() {
             // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
-            RuntimeException exception = new RuntimeException("예상치 못한 오류");
-            doThrow(exception).when(sessionManager).updateLastActivity(userId);
+            Principal mockPrincipal = createMockPrincipal(userId);
+            RuntimeException expectedException = new RuntimeException("예상치 못한 오류");
+            doThrow(expectedException).when(sessionManager).updateLastActivity(userId);
 
-            // when
-            controller.handleHeartbeat(message, headerAccessor);
+            // when & then
+            assertThrows(RuntimeException.class, () -> {
+                controller.handleHeartbeat(mockPrincipal, headerAccessor);
+            });
 
-            // then
             verify(sessionManager).updateLastActivity(userId);
-            verify(errorHelper).sendGenericErrorToUser(
-                    eq(sessionId),
-                    any(Exception.class),
-                    eq("Heartbeat 처리 중 오류가 발생했습니다")
-            );
-        }
-    }
-
-    @Nested
-    @DisplayName("방 입장 처리")
-    class HandleJoinRoomTest {
-
-        @Test
-        @DisplayName("정상 - 방 입장")
-        void t5() {
-            // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
-            doNothing().when(sessionManager).joinRoom(userId, roomId);
-
-            // when
-            controller.handleJoinRoom(roomId, message, headerAccessor);
-
-            // then
-            verify(sessionManager).joinRoom(userId, roomId);
-            verify(errorHelper, never()).sendInvalidRequestError(anyString(), anyString());
-            verify(errorHelper, never()).sendCustomExceptionToUser(anyString(), any());
-            verify(errorHelper, never()).sendGenericErrorToUser(anyString(), any(), anyString());
-        }
-
-        @Test
-        @DisplayName("실패 - userId가 null")
-        void t6() {
-            // given
-            HeartbeatMessage message = new HeartbeatMessage(null);
-
-            // when
-            controller.handleJoinRoom(roomId, message, headerAccessor);
-
-            // then
-            verify(sessionManager, never()).joinRoom(any(), any());
-            verify(errorHelper).sendInvalidRequestError(sessionId, "사용자 ID가 필요합니다");
-        }
-
-        @Test
-        @DisplayName("실패 - CustomException 발생")
-        void t7() {
-            // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
-            CustomException exception = new CustomException(ErrorCode.NOT_ROOM_MEMBER);
-            doThrow(exception).when(sessionManager).joinRoom(userId, roomId);
-
-            // when
-            controller.handleJoinRoom(roomId, message, headerAccessor);
-
-            // then
-            verify(sessionManager).joinRoom(userId, roomId);
-            verify(errorHelper).sendCustomExceptionToUser(sessionId, exception);
-        }
-
-        @Test
-        @DisplayName("실패 - 일반 Exception 발생")
-        void t8() {
-            // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
-            RuntimeException exception = new RuntimeException("예상치 못한 오류");
-            doThrow(exception).when(sessionManager).joinRoom(userId, roomId);
-
-            // when
-            controller.handleJoinRoom(roomId, message, headerAccessor);
-
-            // then
-            verify(sessionManager).joinRoom(userId, roomId);
-            verify(errorHelper).sendGenericErrorToUser(
-                    eq(sessionId),
-                    any(Exception.class),
-                    eq("방 입장 중 오류가 발생했습니다")
-            );
-        }
-    }
-
-    @Nested
-    @DisplayName("방 퇴장 처리")
-    class HandleLeaveRoomTest {
-
-        @Test
-        @DisplayName("정상 - 방 퇴장")
-        void t9() {
-            // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
-            doNothing().when(sessionManager).leaveRoom(userId, roomId);
-
-            // when
-            controller.handleLeaveRoom(roomId, message, headerAccessor);
-
-            // then
-            verify(sessionManager).leaveRoom(userId, roomId);
-            verify(errorHelper, never()).sendInvalidRequestError(anyString(), anyString());
-            verify(errorHelper, never()).sendCustomExceptionToUser(anyString(), any());
-            verify(errorHelper, never()).sendGenericErrorToUser(anyString(), any(), anyString());
-        }
-
-        @Test
-        @DisplayName("실패 - userId가 null")
-        void t10() {
-            // given
-            HeartbeatMessage message = new HeartbeatMessage(null);
-
-            // when
-            controller.handleLeaveRoom(roomId, message, headerAccessor);
-
-            // then
-            verify(sessionManager, never()).leaveRoom(any(), any());
-            verify(errorHelper).sendInvalidRequestError(sessionId, "사용자 ID가 필요합니다");
-        }
-
-        @Test
-        @DisplayName("실패 - CustomException 발생")
-        void t11() {
-            // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
-            CustomException exception = new CustomException(ErrorCode.NOT_ROOM_MEMBER);
-            doThrow(exception).when(sessionManager).leaveRoom(userId, roomId);
-
-            // when
-            controller.handleLeaveRoom(roomId, message, headerAccessor);
-
-            // then
-            verify(sessionManager).leaveRoom(userId, roomId);
-            verify(errorHelper).sendCustomExceptionToUser(sessionId, exception);
-        }
-
-        @Test
-        @DisplayName("실패 - 일반 Exception 발생")
-        void t12() {
-            // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
-            RuntimeException exception = new RuntimeException("예상치 못한 오류");
-            doThrow(exception).when(sessionManager).leaveRoom(userId, roomId);
-
-            // when
-            controller.handleLeaveRoom(roomId, message, headerAccessor);
-
-            // then
-            verify(sessionManager).leaveRoom(userId, roomId);
-            verify(errorHelper).sendGenericErrorToUser(
-                    eq(sessionId),
-                    any(Exception.class),
-                    eq("방 퇴장 중 오류가 발생했습니다")
-            );
+            verifyNoInteractions(errorHelper);
         }
     }
 
@@ -267,30 +129,28 @@ class WebSocketMessageControllerTest {
     class HandleActivityTest {
 
         @Test
-        @DisplayName("정상 - 활동 신호 처리")
-        void t13() {
+        @DisplayName("성공 - 인증된 사용자의 활동 신호 처리")
+        void t1() {
             // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
+            Principal mockPrincipal = createMockPrincipal(userId);
             doNothing().when(sessionManager).updateLastActivity(userId);
 
             // when
-            controller.handleActivity(message, headerAccessor);
+            controller.handleActivity(mockPrincipal, headerAccessor);
 
             // then
             verify(sessionManager).updateLastActivity(userId);
-            verify(errorHelper, never()).sendInvalidRequestError(anyString(), anyString());
-            verify(errorHelper, never()).sendCustomExceptionToUser(anyString(), any());
-            verify(errorHelper, never()).sendGenericErrorToUser(anyString(), any(), anyString());
+            verifyNoInteractions(errorHelper);
         }
 
         @Test
-        @DisplayName("실패 - userId가 null")
-        void t14() {
+        @DisplayName("실패 - 인증 정보가 없는 경우")
+        void t2() {
             // given
-            HeartbeatMessage message = new HeartbeatMessage(null);
+            Principal principal = null;
 
             // when
-            controller.handleActivity(message, headerAccessor);
+            controller.handleActivity(principal, headerAccessor);
 
             // then
             verify(sessionManager, never()).updateLastActivity(any());
@@ -298,39 +158,37 @@ class WebSocketMessageControllerTest {
         }
 
         @Test
-        @DisplayName("실패 - CustomException 발생")
-        void t15() {
+        @DisplayName("실패 - CustomException 발생 시 예외를 그대로 던짐")
+        void t3() {
             // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
-            CustomException exception = new CustomException(ErrorCode.BAD_REQUEST);
-            doThrow(exception).when(sessionManager).updateLastActivity(userId);
+            Principal mockPrincipal = createMockPrincipal(userId);
+            CustomException expectedException = new CustomException(ErrorCode.BAD_REQUEST);
+            doThrow(expectedException).when(sessionManager).updateLastActivity(userId);
 
-            // when
-            controller.handleActivity(message, headerAccessor);
+            // when & then
+            assertThrows(CustomException.class, () -> {
+                controller.handleActivity(mockPrincipal, headerAccessor);
+            });
 
-            // then
             verify(sessionManager).updateLastActivity(userId);
-            verify(errorHelper).sendCustomExceptionToUser(sessionId, exception);
+            verifyNoInteractions(errorHelper);
         }
 
         @Test
-        @DisplayName("실패 - 일반 Exception 발생")
-        void t16() {
+        @DisplayName("실패 - 일반 Exception 발생 시 예외를 그대로 던짐")
+        void t4() {
             // given
-            HeartbeatMessage message = new HeartbeatMessage(userId);
-            RuntimeException exception = new RuntimeException("예상치 못한 오류");
-            doThrow(exception).when(sessionManager).updateLastActivity(userId);
+            Principal mockPrincipal = createMockPrincipal(userId);
+            RuntimeException expectedException = new RuntimeException("예상치 못한 오류");
+            doThrow(expectedException).when(sessionManager).updateLastActivity(userId);
 
-            // when
-            controller.handleActivity(message, headerAccessor);
+            // when & then
+            assertThrows(RuntimeException.class, () -> {
+                controller.handleActivity(mockPrincipal, headerAccessor);
+            });
 
-            // then
             verify(sessionManager).updateLastActivity(userId);
-            verify(errorHelper).sendGenericErrorToUser(
-                    eq(sessionId),
-                    any(Exception.class),
-                    eq("활동 신호 처리 중 오류가 발생했습니다")
-            );
+            verifyNoInteractions(errorHelper);
         }
     }
 }

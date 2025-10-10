@@ -46,6 +46,13 @@ public final class WebSocketConstants {
     public static final String ROOM_USERS_KEY_PREFIX = "ws:room:";
     public static final String ROOM_USERS_KEY_SUFFIX = ":users";
 
+    /**
+     * 전체 온라인 사용자 수 저장 Key
+     * - 패턴: ws:online_users:count
+     * - 값: Long (카운트)
+     */
+    public static final String ONLINE_USER_COUNT_KEY = "ws:online_users:count";
+
     // ===== Key 빌더 헬퍼 메서드 =====
 
     public static String buildUserSessionKey(Long userId) {
