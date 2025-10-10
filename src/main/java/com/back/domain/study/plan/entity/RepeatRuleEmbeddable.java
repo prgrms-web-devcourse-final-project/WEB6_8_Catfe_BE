@@ -24,4 +24,15 @@ public class RepeatRuleEmbeddable {
     private Integer repeatInterval;
     private List<DayOfWeek> byDay = new ArrayList<>();
     private LocalDate untilDate; // LocalDateTime → LocalDate 변경
+
+    // 정적 팩토리 메서드
+    public static RepeatRuleEmbeddable create(Frequency frequency, Integer repeatInterval,
+                                              List<DayOfWeek> byDay, LocalDate untilDate) {
+        RepeatRuleEmbeddable embeddable = new RepeatRuleEmbeddable();
+        embeddable.frequency = frequency;
+        embeddable.repeatInterval = repeatInterval;
+        embeddable.byDay = byDay != null ? byDay : new ArrayList<>();
+        embeddable.untilDate = untilDate;
+        return embeddable;
+    }
 }
