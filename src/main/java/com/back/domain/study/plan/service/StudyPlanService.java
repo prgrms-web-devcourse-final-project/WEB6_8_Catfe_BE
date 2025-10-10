@@ -16,8 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -439,15 +437,14 @@ public class StudyPlanService {
 
     // 원본의 반복 룰 수정 (엔티티)
     private void updateRepeatRule(RepeatRule repeatRule, StudyPlanRequest.RepeatRuleRequest request, StudyPlan studyPlan) {
-        // byDay, untilDate 처리
+        // byDay 처리
         List<DayOfWeek> byDay = getByDayForWeekly(request, studyPlan.getStartDate());
-        LocalDate untilDate = request.getUntilDate();
 
         repeatRule.update(
                 request.getFrequency(),
                 request.getIntervalValue(),
                 byDay,
-                untilDate
+                request.getUntilDate()
         );
     }
 
@@ -497,30 +494,20 @@ public class StudyPlanService {
                 if (selectedDate.equals(studyPlan.getStartDate().toLocalDate())) {
                     studyPlanRepository.delete(studyPlan); // CASCADE로 RepeatRule, Exception 모두 삭제
                 } else {
-                    // 기존 예외 확인
-                    Optional<StudyPlanException> existingException = studyPlanExceptionRepository
-                            .findByPlanIdAndDate(studyPlan.getId(), selectedDate);
-
-                    if (existingException.isPresent()) {
-                        // 기존 예외가 있다면 삭제 타입으로 변경
-                        existingException.get().changeToDeleted(ApplyScope.FROM_THIS_DATE);
-                        studyPlanExceptionRepository.save(existingException.get());
-                    } else {
-                        // 예외가 없다면 새로 생성
-                        StudyPlanException exception = StudyPlanException.createDeleted(
-                                studyPlan, selectedDate, ApplyScope.FROM_THIS_DATE
-                        );
-                        studyPlanExceptionRepository.save(exception);
-                    }
-
-                    // untilDate 수정
+                    /* 선택한 날짜가 원본 날짜 이후인 경우
+                     * untilDate 조정만으로도 조회가 안되게 설정이 가능하기 때문에
+                     * 예외를 안 만들고 untilDate 수정으로 처리
+                     */
                     RepeatRule repeatRule = studyPlan.getRepeatRule();
                     LocalDate newUntilDate = selectedDate.minusDays(1);
                     repeatRule.update(null, null, null, newUntilDate);
                     studyPlanRepository.save(studyPlan);
 
-                    studyPlanExceptionRepository.deleteByStudyPlanIdAndExceptionDateAfter(
-                            studyPlan.getId(), selectedDate);
+                    // 선택한 날짜 포함 이후의 예외들은 모두 삭제
+                    studyPlanExceptionRepository.deleteByStudyPlanIdAndExceptionDateGreaterThanEqual(
+                            studyPlan.getId(),
+                            selectedDate
+                    );
                 }
                 break;
 
@@ -651,7 +638,7 @@ public class StudyPlanService {
             throw new CustomException(ErrorCode.REPEAT_INVALID_UNTIL_DATE);
         }
     }
-    // WEEKLY인 경우 빈 byDay 처리 메서드 (RepeatRule용)
+    // WEEKLY인 경우 빈 byDay 처리 메서드 (RepeatRule, RepeatRuleEmbeddable 둘 다 사용 가능)
     private List<DayOfWeek> getByDayForWeekly(StudyPlanRequest.RepeatRuleRequest request, LocalDateTime startDate) {
         if (request.getFrequency() == Frequency.WEEKLY) {
             if (request.getByDay() == null || request.getByDay().isEmpty()) {
@@ -661,17 +648,6 @@ public class StudyPlanService {
             return request.getByDay();
         }
         return new ArrayList<>();
-    }
-    // WEEKLY인 경우 빈 byDay 처리 메서드 (RepeatRuleEmbeddable용 - 오버로딩)
-    private void getByDayInWeekly(StudyPlanRequest.RepeatRuleRequest request, LocalDateTime startDate, RepeatRuleEmbeddable embeddable) {
-        if (request.getFrequency() == Frequency.WEEKLY) {
-            if (request.getByDay() == null || request.getByDay().isEmpty()) {
-                DayOfWeek startDay = DayOfWeek.valueOf(startDate.getDayOfWeek().name().substring(0, 3));
-                embeddable.setByDay(List.of(startDay));
-            } else {
-                embeddable.setByDay(request.getByDay());
-            }
-        }
     }
 
     // THIS_ONLY로 FROM_THIS_DATE 예외를 삭제할 때 다음 빈 날짜 찾기 (재귀탐색)
