@@ -92,7 +92,8 @@ class RoomServiceTest {
                 10,
                 testUser,
                 null,
-                true  // useWebRTC
+                true,  // useWebRTC
+                null   // thumbnailUrl
         );
 
         // 테스트 멤버 생성
@@ -115,7 +116,8 @@ class RoomServiceTest {
                 null,
                 10,
                 1L,
-                true  // useWebRTC
+                true,  // useWebRTC
+                null   // thumbnailUrl
         );
 
         // then
@@ -140,7 +142,8 @@ class RoomServiceTest {
                 null,
                 10,
                 999L,
-                true  // useWebRTC
+                true,  // useWebRTC
+                null   // thumbnailUrl
         ))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
@@ -189,7 +192,8 @@ class RoomServiceTest {
                 10,
                 testUser,
                 null,
-                true  // useWebRTC
+                true,  // useWebRTC
+                null   // thumbnailUrl
         );
         given(roomRepository.findByIdWithLock(1L)).willReturn(Optional.of(privateRoom));
         given(roomParticipantService.getParticipantCount(1L)).willReturn(0L); // Redis 카운트
@@ -260,7 +264,8 @@ class RoomServiceTest {
                 10,
                 testUser,
                 null,
-                true  // useWebRTC
+                true,  // useWebRTC
+                null   // thumbnailUrl
         );
         given(roomRepository.findById(1L)).willReturn(Optional.of(privateRoom));
         given(roomMemberRepository.existsByRoomIdAndUserId(1L, 2L)).willReturn(false);
@@ -276,6 +281,7 @@ class RoomServiceTest {
     void updateRoomSettings_Success() {
         // given
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
+        given(roomParticipantService.getParticipantCount(1L)).willReturn(0L);
 
         // when
         roomService.updateRoomSettings(
@@ -283,9 +289,7 @@ class RoomServiceTest {
                 "변경된 제목",
                 "변경된 설명",
                 15,
-                true,
-                true,
-                false,
+                "https://example.com/new-thumbnail.jpg",  // thumbnailUrl
                 1L
         );
 
@@ -293,6 +297,7 @@ class RoomServiceTest {
         assertThat(testRoom.getTitle()).isEqualTo("변경된 제목");
         assertThat(testRoom.getDescription()).isEqualTo("변경된 설명");
         assertThat(testRoom.getMaxParticipants()).isEqualTo(15);
+        assertThat(testRoom.getThumbnailUrl()).isEqualTo("https://example.com/new-thumbnail.jpg");
     }
 
     @Test
@@ -307,9 +312,7 @@ class RoomServiceTest {
                 "변경된 제목",
                 "변경된 설명",
                 15,
-                true,
-                true,
-                false,
+                null,  // thumbnailUrl
                 999L // 다른 사용자
         ))
                 .isInstanceOf(CustomException.class)
@@ -421,7 +424,8 @@ class RoomServiceTest {
                 null,
                 10,
                 1L,
-                true  // WebRTC 사용
+                true,  // WebRTC 사용
+                "https://example.com/webrtc-room.jpg"  // thumbnailUrl
         );
 
         // then
@@ -429,6 +433,7 @@ class RoomServiceTest {
         assertThat(createdRoom.isAllowCamera()).isTrue();
         assertThat(createdRoom.isAllowAudio()).isTrue();
         assertThat(createdRoom.isAllowScreenShare()).isTrue();
+        assertThat(createdRoom.getThumbnailUrl()).isEqualTo("https://example.com/webrtc-room.jpg");
     }
 
     @Test
@@ -447,7 +452,8 @@ class RoomServiceTest {
                 null,
                 50,  // WebRTC 없으면 더 많은 인원 가능
                 1L,
-                false  // WebRTC 미사용
+                false,  // WebRTC 미사용
+                null    // thumbnailUrl 없음
         );
 
         // then
@@ -455,5 +461,9 @@ class RoomServiceTest {
         assertThat(createdRoom.isAllowCamera()).isFalse();
         assertThat(createdRoom.isAllowAudio()).isFalse();
         assertThat(createdRoom.isAllowScreenShare()).isFalse();
+        // thumbnailUrl이 null이면 디폴트 이미지가 반환됨
+        assertThat(createdRoom.getThumbnailUrl()).isEqualTo("/images/default-room-thumbnail.png");
+        // 원본 값(DB 저장값)은 null이어야 함
+        assertThat(createdRoom.getRawThumbnailUrl()).isNull();
     }
 }

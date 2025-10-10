@@ -20,7 +20,15 @@ public class UpdateRoomSettingsRequest {
     @Max(value = 100, message = "최대 100명까지 가능합니다")
     private Integer maxParticipants;
     
-    private Boolean allowCamera = true;
-    private Boolean allowAudio = true;
-    private Boolean allowScreenShare = true;
+    // 방 썸네일 이미지 URL (선택)
+    @Size(max = 500, message = "썸네일 URL은 500자를 초과할 수 없습니다")
+    private String thumbnailUrl;
+    
+    // ===== WebRTC 설정 (추후 팀원 구현 시 주석 해제) =====
+    // WebRTC 기능은 방 생성 이후 별도 API로 관리 예정
+    // 현재는 방 생성 시의 useWebRTC 값으로만 초기 설정됨
+    
+    // private Boolean allowCamera = true;
+    // private Boolean allowAudio = true;
+    // private Boolean allowScreenShare = true;
 }

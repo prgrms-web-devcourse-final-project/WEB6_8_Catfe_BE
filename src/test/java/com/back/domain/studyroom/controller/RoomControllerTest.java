@@ -75,7 +75,8 @@ class RoomControllerTest {
                 10,
                 testUser,
                 null,
-                true  // useWebRTC
+                true,  // useWebRTC
+                null   // thumbnailUrl
         );
 
         // 테스트 멤버 생성
@@ -93,6 +94,7 @@ class RoomControllerTest {
         CreateRoomRequest request = new CreateRoomRequest(
                 "테스트 방",
                 "테스트 설명",
+                null,  // thumbnailUrl
                 false,
                 null,
                 10,
@@ -106,7 +108,8 @@ class RoomControllerTest {
                 any(),
                 anyInt(),
                 eq(1L),
-                anyBoolean()  // useWebRTC 파라미터 추가
+                anyBoolean(),  // useWebRTC
+                any()          // thumbnailUrl
         )).willReturn(testRoom);
         
         RoomResponse roomResponse = RoomResponse.from(testRoom, 1);
@@ -129,7 +132,8 @@ class RoomControllerTest {
                 any(),
                 anyInt(),
                 eq(1L),
-                anyBoolean()  // useWebRTC 파라미터 추가
+                anyBoolean(),  // useWebRTC
+                any()          // thumbnailUrl
         );
         verify(roomService, times(1)).toRoomResponse(any(Room.class));
     }
@@ -278,9 +282,7 @@ class RoomControllerTest {
                 "변경된 제목",
                 "변경된 설명",
                 15,
-                true,
-                true,
-                false
+                "https://example.com/new-thumbnail.jpg"  // thumbnailUrl
         );
 
         // when
@@ -297,9 +299,7 @@ class RoomControllerTest {
                 anyString(),
                 anyString(),
                 anyInt(),
-                anyBoolean(),
-                anyBoolean(),
-                anyBoolean(),
+                anyString(),  // thumbnailUrl
                 eq(1L)
         );
     }
@@ -381,6 +381,7 @@ class RoomControllerTest {
         CreateRoomRequest request = new CreateRoomRequest(
                 "WebRTC 방",
                 "화상 채팅 가능",
+                "https://example.com/webrtc.jpg",  // thumbnailUrl
                 false,
                 null,
                 10,
@@ -395,7 +396,8 @@ class RoomControllerTest {
                 10,
                 testUser,
                 null,
-                true
+                true,  // useWebRTC
+                "https://example.com/webrtc.jpg"  // thumbnailUrl
         );
 
         given(roomService.createRoom(
@@ -405,7 +407,8 @@ class RoomControllerTest {
                 any(),
                 anyInt(),
                 eq(1L),
-                eq(true)  // WebRTC true 검증
+                eq(true),  // WebRTC true 검증
+                anyString() // thumbnailUrl
         )).willReturn(webRTCRoom);
         
         RoomResponse roomResponse = RoomResponse.from(webRTCRoom, 1);
@@ -428,7 +431,8 @@ class RoomControllerTest {
                 any(),
                 anyInt(),
                 eq(1L),
-                eq(true)
+                eq(true),    // WebRTC
+                anyString()  // thumbnailUrl
         );
     }
 
@@ -441,6 +445,7 @@ class RoomControllerTest {
         CreateRoomRequest request = new CreateRoomRequest(
                 "채팅 전용 방",
                 "텍스트만 가능",
+                null,  // thumbnailUrl 없음
                 false,
                 null,
                 50,
@@ -455,7 +460,8 @@ class RoomControllerTest {
                 50,
                 testUser,
                 null,
-                false
+                false,  // useWebRTC
+                null    // thumbnailUrl
         );
 
         given(roomService.createRoom(
@@ -465,7 +471,8 @@ class RoomControllerTest {
                 any(),
                 anyInt(),
                 eq(1L),
-                eq(false)  // WebRTC false 검증
+                eq(false),  // WebRTC false 검증
+                any()       // thumbnailUrl
         )).willReturn(chatOnlyRoom);
         
         RoomResponse roomResponse = RoomResponse.from(chatOnlyRoom, 1);
@@ -488,7 +495,8 @@ class RoomControllerTest {
                 any(),
                 anyInt(),
                 eq(1L),
-                eq(false)
+                eq(false),  // WebRTC
+                any()       // thumbnailUrl
         );
     }
 }
