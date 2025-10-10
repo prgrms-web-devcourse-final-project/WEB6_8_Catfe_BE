@@ -5,6 +5,8 @@ import com.back.domain.study.plan.entity.Frequency;
 import com.back.domain.study.plan.entity.RepeatRule;
 import com.back.domain.study.plan.entity.StudyPlan;
 import com.back.domain.study.plan.repository.StudyPlanRepository;
+import com.back.domain.studyroom.entity.Room;
+import com.back.domain.studyroom.repository.RoomRepository;
 import com.back.domain.user.entity.Role;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserStatus;
@@ -53,8 +55,11 @@ class StudyRecordControllerTest {
     private StudyPlanRepository studyPlanRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private RoomRepository roomRepository;
 
     private User testUser;
+    private Room testRoom;
     private StudyPlan singlePlan;
     private StudyPlan dailyPlan;
 
@@ -73,6 +78,7 @@ class StudyRecordControllerTest {
 
         singlePlan = createSinglePlan();
         dailyPlan = createDailyPlan();
+        testRoom = createRoom(testUser);
     }
 
     private void setupJwtMock(User user) {
@@ -115,7 +121,23 @@ class StudyRecordControllerTest {
         plan.setRepeatRule(repeatRule);
 
         return studyPlanRepository.save(plan);
+    }
 
+    private Room createRoom(User owner) {
+
+        testRoom = Room.create(
+                "코딩테스트 준비",
+                "알고리즘 문제 풀이 및 코드 리뷰",
+                false,  // 공개방
+                null,   // 비밀번호 없음
+                20,     // 최대 20명
+                owner,
+                null,   // 테마 없음
+                true    // WebRTC 활성화
+        );
+
+        testRoom = roomRepository.save(testRoom);
+        return testRoom;
     }
 
     @Test
@@ -127,12 +149,13 @@ class StudyRecordControllerTest {
                         .content("""
                     {
                         "planId": %d,
+                        "roomId": %d,
                         "startTime": "2025-10-03T10:00:00",
                         "endTime": "2025-10-03T12:00:00",
                         "duration": 7200,
                         "pauseInfos": []
                     }
-                    """.formatted(singlePlan.getId())))
+                    """.formatted(singlePlan.getId(), testRoom.getId())))
                 .andDo(print());
 
         resultActions
@@ -142,6 +165,7 @@ class StudyRecordControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("학습 기록이 생성되었습니다."))
                 .andExpect(jsonPath("$.data.planId").value(singlePlan.getId()))
+                .andExpect(jsonPath("$.data.roomId").value(testRoom.getId()))
                 .andExpect(jsonPath("$.data.startTime").value("2025-10-03T10:00:00"))
                 .andExpect(jsonPath("$.data.endTime").value("2025-10-03T12:00:00"))
                 .andExpect(jsonPath("$.data.duration").value(7200))
@@ -156,6 +180,7 @@ class StudyRecordControllerTest {
                         .content("""
                                 {
                                     "planId": %d,
+                                    "roomId": %d,
                                     "startTime": "2025-10-03T14:00:00",
                                     "endTime": "2025-10-03T17:00:00",
                                     "duration": "7500",
@@ -172,7 +197,7 @@ class StudyRecordControllerTest {
                                         }
                                     ]
                                 }
-                                """.formatted(dailyPlan.getId())))
+                                """.formatted(singlePlan.getId(), testRoom.getId())))
                 .andDo(print());
 
         resultActions
@@ -192,6 +217,7 @@ class StudyRecordControllerTest {
                         .content("""
                                 {
                                     "planId": %d,
+                                    "roomId": %d,
                                     "startTime": "2025-10-03T14:00:00",
                                     "endTime": "2025-10-03T17:00:00",
                                     "duration": "7200",
@@ -207,7 +233,7 @@ class StudyRecordControllerTest {
                                         }
                                     ]
                                 }
-                                """.formatted(dailyPlan.getId())))
+                                """.formatted(singlePlan.getId(), testRoom.getId())))
                 .andDo(print());
 
         resultActions
@@ -227,12 +253,13 @@ class StudyRecordControllerTest {
                         .content("""
                                 {
                                     "planId": %d,
+                                    "roomId": %d,
                                     "startTime": "2025-10-03T10:00:00",
                                     "endTime": "2025-10-03T12:00:00",
                                     "duration": 7200,
                                     "pauseInfos": []
                                 }
-                                """.formatted(singlePlan.getId())))
+                                """.formatted(singlePlan.getId(), testRoom.getId())))
                 .andExpect(status().isOk());
 
         // 조회
@@ -258,12 +285,13 @@ class StudyRecordControllerTest {
                         .content("""
                                 {
                                     "planId": %d,
+                                    "roomId": %d,
                                     "startTime": "2025-10-02T23:00:00",
                                     "endTime": "2025-10-03T05:00:00",
                                     "duration": 21600,
                                     "pauseInfos": []
                                 }
-                                """.formatted(singlePlan.getId())))
+                                """.formatted(singlePlan.getId(), testRoom.getId())))
                 .andExpect(status().isOk());
         // 10월 2일 조회
         ResultActions resultActions = mvc.perform(get("/api/plans/records?date=2025-10-02")
