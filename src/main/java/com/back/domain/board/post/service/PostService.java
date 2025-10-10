@@ -47,7 +47,7 @@ public class PostService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // Post 생성
-        Post post = new Post(user, request.title(), request.content());
+        Post post = new Post(user, request.title(), request.content(), request.thumbnailUrl());
 
         // Category 매핑
         if (request.categoryIds() != null) {

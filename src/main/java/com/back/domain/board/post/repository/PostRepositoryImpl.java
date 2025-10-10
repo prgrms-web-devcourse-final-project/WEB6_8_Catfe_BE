@@ -162,6 +162,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                         post.id,
                         new QAuthorResponse(user.id, profile.nickname, profile.profileImageUrl), // 작성자 정보 (N+1 방지 join)
                         post.title,
+                        post.thumbnailUrl,
                         Expressions.constant(Collections.emptyList()), // categories는 별도 주입
                         likeCount,
                         bookmarkCount,
