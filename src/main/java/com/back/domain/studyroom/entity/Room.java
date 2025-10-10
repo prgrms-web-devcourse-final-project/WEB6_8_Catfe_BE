@@ -54,10 +54,6 @@ public class Room extends BaseEntity {
     private boolean allowAudio;
     private boolean allowScreenShare;
 
-    @Builder.Default
-    @Column(nullable = false)
-    private Integer currentParticipants = 0;
-
     // 방 상태
     @Builder.Default
     @Enumerated(EnumType.STRING)
@@ -191,7 +187,6 @@ public class Room extends BaseEntity {
         room.allowAudio = useWebRTC;   // WebRTC 사용 여부에 따라 설정
         room.allowScreenShare = useWebRTC;  // WebRTC 사용 여부에 따라 설정
         room.status = RoomStatus.WAITING;  // 생성 시 대기 상태
-        room.currentParticipants = 0;
         room.createdBy = creator;
         room.theme = theme;
         

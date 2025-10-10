@@ -61,7 +61,7 @@ public enum ErrorCode {
     // ======================== 학습 기록 관련 ========================
     DURATION_MISMATCH(HttpStatus.BAD_REQUEST, "RECORD_001", "받은 duration과 계산된 duration이 5초 이상 차이납니다."),
 
-    // ======================== 알림 관련 ========================
+    // ======================== 메모 관련 ========================
     MEMO_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMO_001", "존재하지 않는 메모입니다."),
 
     // ======================== 알림 관련 ========================
@@ -99,6 +99,7 @@ public enum ErrorCode {
     WS_INVALID_REQUEST(HttpStatus.BAD_REQUEST, "WS_014", "잘못된 WebSocket 요청입니다."),
     WS_INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "WS_015", "WebSocket 내부 오류가 발생했습니다."),
     WS_CHAT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "WS_016", "채팅 삭제 권한이 없습니다. 방장 또는 부방장만 가능합니다."),
+    WS_TARGET_OFFLINE(HttpStatus.NOT_FOUND, "WS_017", "상대방이 오프라인 상태이거나 연결할 수 없습니다."),
 
     // ======================== 커뮤니티 관련 ========================
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_001", "존재하지 않는 게시글입니다."),
