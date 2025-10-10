@@ -13,6 +13,7 @@ import java.util.List;
  * @param author        작성자 정보
  * @param title         게시글 제목
  * @param content       게시글 내용
+ * @param thumbnailUrl  썸네일 URL
  * @param categories    게시글 카테고리 목록
  * @param likeCount     좋아요 수
  * @param bookmarkCount 북마크 수
@@ -25,6 +26,7 @@ public record PostDetailResponse(
         AuthorResponse author,
         String title,
         String content,
+        String thumbnailUrl,
         List<CategoryResponse> categories,
         long likeCount,
         long bookmarkCount,
@@ -44,6 +46,7 @@ public record PostDetailResponse(
                 AuthorResponse.from(post.getUser()),
                 post.getTitle(),
                 post.getContent(),
+                post.getThumbnailUrl(),
                 post.getCategories().stream()
                         .map(CategoryResponse::from)
                         .toList(),
