@@ -4,6 +4,9 @@ import com.back.domain.study.plan.entity.Color;
 import com.back.domain.study.plan.entity.DayOfWeek;
 import com.back.domain.study.plan.entity.Frequency;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.persistence.Column;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,10 +22,13 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 public class StudyPlanRequest {
+    @NotBlank
+    @Column(nullable = false, length = 100)
     private String subject;
 
+    @NotNull
     private LocalDateTime startDate;
-
+    @NotNull
     private LocalDateTime endDate;
 
     private Color color;

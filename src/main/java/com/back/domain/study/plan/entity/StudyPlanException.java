@@ -35,7 +35,7 @@ public class StudyPlanException extends BaseEntity {
 
     // 적용 범위 (이 날짜만 / 이후 모든 날짜)
     @Enumerated(EnumType.STRING)
-    @Column(name = "apply_scope")
+    @Column(name = "apply_scope", nullable = false)
     private ApplyScope applyScope;
 
     // 수정된 내용 (MODIFIED 타입인 경우)
