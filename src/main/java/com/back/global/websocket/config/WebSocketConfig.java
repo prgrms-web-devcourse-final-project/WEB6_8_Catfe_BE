@@ -40,25 +40,25 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
      * - /queue: 1:1 메시지 (개인 DM)
      * - /app: 클라이언트에서 서버로 메시지 전송 시 prefix
      * 
-     * STOMP 하트비트 설정:
+     * STOMP 하트비트 설정(임시 주석 상태):
      * - 25초마다 자동 하트비트 전송 (쓰기 비활성 시)
      * - 25초 이상 응답 없으면 연결 종료 (읽기 비활성 시)
      */
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic", "/queue")
-                .setHeartbeatValue(new long[]{25000, 25000}) // [서버→클라이언트, 클라이언트→서버]
-                .setTaskScheduler(heartBeatScheduler());
+        config.enableSimpleBroker("/topic", "/queue");
+                //.setHeartbeatValue(new long[]{25000, 25000}) // [서버→클라이언트, 클라이언트→서버]
+                //.setTaskScheduler(heartBeatScheduler());
         
         config.setApplicationDestinationPrefixes("/app");
         config.setUserDestinationPrefix("/user");
     }
 
-    /**
+    /**(임시 주석 상태)
      * STOMP 하트비트 전용 스케줄러!!
      * - 별도 스레드 풀로 하트비트 처리
      * - 메인 비즈니스 로직에 영향 없음
-     */
+
     @Bean
     public TaskScheduler heartBeatScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
@@ -68,6 +68,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         log.info("STOMP 하트비트 스케줄러 초기화 완료 - 주기: 25초");
         return scheduler;
     }
+     */
 
     /**
      * STOMP 엔드포인트 등록
