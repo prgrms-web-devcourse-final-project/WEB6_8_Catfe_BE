@@ -61,7 +61,7 @@ class PostServiceTest {
         PostCategory category = new PostCategory("공지");
         postCategoryRepository.save(category);
 
-        PostRequest request = new PostRequest("제목", "내용", List.of(category.getId()));
+        PostRequest request = new PostRequest("제목", "내용", null, List.of(category.getId()));
 
         // when
         PostResponse response = postService.createPost(request, user.getId());
@@ -78,7 +78,7 @@ class PostServiceTest {
     @DisplayName("게시글 생성 실패 - 존재하지 않는 유저")
     void createPost_fail_userNotFound() {
         // given
-        PostRequest request = new PostRequest("제목", "내용", null);
+        PostRequest request = new PostRequest("제목", "내용", null, null);
 
         // when & then
         assertThatThrownBy(() -> postService.createPost(request, 999L))
@@ -96,7 +96,7 @@ class PostServiceTest {
         userRepository.save(user);
 
         // 실제 저장 안 된 카테고리 ID 요청
-        PostRequest request = new PostRequest("제목", "내용", List.of(100L, 200L));
+        PostRequest request = new PostRequest("제목", "내용", null, List.of(100L, 200L));
 
         // when & then
         assertThatThrownBy(() -> postService.createPost(request, user.getId()))
@@ -197,7 +197,7 @@ class PostServiceTest {
         post.updateCategories(List.of(oldCategory));
         postRepository.save(post);
 
-        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", List.of(newCategory.getId()));
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", null, List.of(newCategory.getId()));
 
         // when
         PostResponse response = postService.updatePost(post.getId(), request, user.getId());
@@ -218,7 +218,7 @@ class PostServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        PostRequest request = new PostRequest("제목", "내용", List.of());
+        PostRequest request = new PostRequest("제목", "내용", null, List.of());
 
         // when & then
         assertThatThrownBy(() -> postService.updatePost(999L, request, user.getId()))
@@ -248,7 +248,7 @@ class PostServiceTest {
         post.updateCategories(List.of(category));
         postRepository.save(post);
 
-        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", List.of(category.getId()));
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", null, List.of(category.getId()));
 
         // when & then
         assertThatThrownBy(() -> postService.updatePost(post.getId(), request, another.getId()))
@@ -273,7 +273,7 @@ class PostServiceTest {
         postRepository.save(post);
 
         // 실제 DB에는 없는 카테고리 ID 전달
-        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", List.of(999L));
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", null, List.of(999L));
 
         // when & then
         assertThatThrownBy(() -> postService.updatePost(post.getId(), request, user.getId()))
