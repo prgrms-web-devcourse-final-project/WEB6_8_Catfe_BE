@@ -112,9 +112,10 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         comment.id,
                         comment.post.id,
                         comment.parent.id,
-                        new QAuthorResponse(user.id, profile.nickname),
+                        new QAuthorResponse(user.id, profile.nickname, profile.profileImageUrl),
                         comment.content,
                         Expressions.constant(0L), // likeCount는 별도 주입
+                        Expressions.constant(false),
                         comment.createdAt,
                         comment.updatedAt,
                         Expressions.constant(Collections.emptyList()) // children은 별도 주입
