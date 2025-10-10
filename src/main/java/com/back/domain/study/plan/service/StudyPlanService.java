@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -103,6 +105,7 @@ public class StudyPlanService {
                 }
             }
         }
+
         return result;
     }
 
@@ -167,6 +170,7 @@ public class StudyPlanService {
             // 수정 타입의 경우 수정된 내용으로 가상 정보 생성 후 반환
             return createModifiedVirtualPlan(originalPlan, exception, targetDate);
         }
+
         //예외 사항 없으면 기본 가상 계획 생성
         return createBasicVirtualPlan(originalPlan, targetDate);
     }
