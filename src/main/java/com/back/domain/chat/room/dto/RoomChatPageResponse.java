@@ -3,7 +3,7 @@ package com.back.domain.chat.room.dto;
 import java.util.List;
 
 public record RoomChatPageResponse(
-        List<RoomChatMessageDto> content,
+        List<RoomChatMessageResponse> content,
         PageableDto pageable,
         long totalElements
 ) {
@@ -18,7 +18,7 @@ public record RoomChatPageResponse(
     // 페이지 응답 생성
     public static RoomChatPageResponse from(
             org.springframework.data.domain.Page<?> page,
-            List<RoomChatMessageDto> convertedContent) {
+            List<RoomChatMessageResponse> convertedContent) {
 
         return new RoomChatPageResponse(
                 convertedContent,
@@ -41,7 +41,7 @@ public record RoomChatPageResponse(
     }
 
     // 단일 페이지 응답 생성 (테스트용)
-    public static RoomChatPageResponse of(List<RoomChatMessageDto> content,
+    public static RoomChatPageResponse of(List<RoomChatMessageResponse> content,
                                           int page,
                                           int size,
                                           boolean hasNext,
