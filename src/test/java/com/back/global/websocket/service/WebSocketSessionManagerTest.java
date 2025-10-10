@@ -34,12 +34,14 @@ class WebSocketSessionManagerTest {
     private WebSocketSessionManager sessionManager;
 
     private Long userId;
+    private String username;
     private String sessionId;
     private Long roomId;
 
     @BeforeEach
     void setUp() {
         userId = 1L;
+        username = "testuser";
         sessionId = "test-session-123";
         roomId = 100L;
     }
@@ -48,10 +50,10 @@ class WebSocketSessionManagerTest {
     @DisplayName("세션 추가")
     void addSession() {
         // when
-        sessionManager.addSession(userId, sessionId);
+        sessionManager.addSession(userId, username, sessionId);
 
         // then
-        verify(userSessionService).registerSession(userId, sessionId);
+        verify(userSessionService).registerSession(userId, username, sessionId);
     }
 
     @Test
@@ -102,7 +104,8 @@ class WebSocketSessionManagerTest {
     @DisplayName("사용자 세션 정보 조회")
     void getSessionInfo() {
         // given
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        // 생성자 변경
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, username, sessionId);
         given(userSessionService.getSessionInfo(userId)).willReturn(sessionInfo);
 
         // when
@@ -111,6 +114,7 @@ class WebSocketSessionManagerTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.userId()).isEqualTo(userId);
+        assertThat(result.username()).isEqualTo(username);
         verify(userSessionService).getSessionInfo(userId);
     }
 
@@ -225,8 +229,8 @@ class WebSocketSessionManagerTest {
 
         // when & then
         // 1. 연결
-        sessionManager.addSession(userId, sessionId);
-        verify(userSessionService).registerSession(userId, sessionId);
+        sessionManager.addSession(userId, username, sessionId);
+        verify(userSessionService).registerSession(userId, username, sessionId);
 
         // 2. 방 입장
         sessionManager.joinRoom(userId, roomId);
@@ -256,8 +260,8 @@ class WebSocketSessionManagerTest {
 
         // when & then
         // 1. 연결
-        sessionManager.addSession(userId, sessionId);
-        verify(userSessionService).registerSession(userId, sessionId);
+        sessionManager.addSession(userId, username, sessionId);
+        verify(userSessionService).registerSession(userId, username, sessionId);
 
         // 2. 방 A 입장
         sessionManager.joinRoom(userId, roomA);
@@ -280,19 +284,24 @@ class WebSocketSessionManagerTest {
         Long userId1 = 1L;
         Long userId2 = 2L;
         Long userId3 = 3L;
+
+        String username1 = "user1";
+        String username2 = "user2";
+        String username3 = "user3";
+
         String sessionId1 = "session-1";
         String sessionId2 = "session-2";
         String sessionId3 = "session-3";
 
         // when
-        sessionManager.addSession(userId1, sessionId1);
-        sessionManager.addSession(userId2, sessionId2);
-        sessionManager.addSession(userId3, sessionId3);
+        sessionManager.addSession(userId1, username1, sessionId1);
+        sessionManager.addSession(userId2, username2, sessionId2);
+        sessionManager.addSession(userId3, username3, sessionId3);
 
         // then
-        verify(userSessionService).registerSession(userId1, sessionId1);
-        verify(userSessionService).registerSession(userId2, sessionId2);
-        verify(userSessionService).registerSession(userId3, sessionId3);
+        verify(userSessionService).registerSession(userId1, username1, sessionId1);
+        verify(userSessionService).registerSession(userId2, username2, sessionId2);
+        verify(userSessionService).registerSession(userId3, username3, sessionId3);
     }
 
     @Test
@@ -321,12 +330,12 @@ class WebSocketSessionManagerTest {
         String newSessionId = "new-session-456";
 
         // when
-        sessionManager.addSession(userId, sessionId);
-        sessionManager.addSession(userId, newSessionId);
+        sessionManager.addSession(userId, username, sessionId);
+        sessionManager.addSession(userId, username, newSessionId);
 
         // then
-        verify(userSessionService).registerSession(userId, sessionId);
-        verify(userSessionService).registerSession(userId, newSessionId);
+        verify(userSessionService).registerSession(userId, username, sessionId);
+        verify(userSessionService).registerSession(userId, username, newSessionId);
         // UserSessionService 내부에서 기존 세션 종료 처리
     }
 
@@ -337,7 +346,7 @@ class WebSocketSessionManagerTest {
         given(userSessionService.getUserIdBySessionId(sessionId)).willReturn(userId);
 
         // when
-        sessionManager.addSession(userId, sessionId);
+        sessionManager.addSession(userId, username, sessionId);
         sessionManager.joinRoom(userId, roomId);
         // 명시적 leaveRoom 없이 바로 연결 종료
         sessionManager.removeSession(sessionId);
@@ -464,6 +473,10 @@ class WebSocketSessionManagerTest {
         // given
         Long userA = 1L;
         Long userB = 2L;
+
+        String usernameA = "userA";
+        String usernameB = "userB";
+
         String sessionA = "session-A";
         String sessionB = "session-B";
 
@@ -473,22 +486,22 @@ class WebSocketSessionManagerTest {
 
         // when & then
         // 1. 사용자 A 연결 및 방 입장
-        sessionManager.addSession(userA, sessionA);
+        sessionManager.addSession(userA, usernameA, sessionA);
         sessionManager.joinRoom(userA, roomId);
 
         Set<Long> usersAfterA = sessionManager.getOnlineUsersInRoom(roomId);
         assertThat(usersAfterA).containsExactly(userA);
 
         // 2. 사용자 B 연결 및 같은 방 입장
-        sessionManager.addSession(userB, sessionB);
+        sessionManager.addSession(userB, usernameB, sessionB);
         sessionManager.joinRoom(userB, roomId);
 
         Set<Long> usersAfterB = sessionManager.getOnlineUsersInRoom(roomId);
         assertThat(usersAfterB).containsExactlyInAnyOrder(userA, userB);
 
         // 3. 검증
-        verify(userSessionService).registerSession(userA, sessionA);
-        verify(userSessionService).registerSession(userB, sessionB);
+        verify(userSessionService).registerSession(userA, usernameA, sessionA);
+        verify(userSessionService).registerSession(userB, usernameB, sessionB);
         verify(roomParticipantService).enterRoom(userA, roomId);
         verify(roomParticipantService).enterRoom(userB, roomId);
         verify(roomParticipantService, times(2)).getParticipants(roomId);
@@ -503,7 +516,7 @@ class WebSocketSessionManagerTest {
 
         // when & then
         // 1. 초기 연결 및 방 입장
-        sessionManager.addSession(userId, sessionId);
+        sessionManager.addSession(userId, username, sessionId);
         sessionManager.joinRoom(userId, roomId);
 
         // 2. 갑작스런 연결 끊김
@@ -511,8 +524,8 @@ class WebSocketSessionManagerTest {
         verify(roomParticipantService).exitAllRooms(userId);
 
         // 3. 재연결 (새 세션 ID로)
-        sessionManager.addSession(userId, newSessionId);
-        verify(userSessionService).registerSession(userId, newSessionId);
+        sessionManager.addSession(userId, username, newSessionId);
+        verify(userSessionService).registerSession(userId, username, newSessionId);
 
         // 4. 다시 방 입장
         sessionManager.joinRoom(userId, roomId);

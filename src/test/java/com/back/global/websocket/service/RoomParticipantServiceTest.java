@@ -33,6 +33,7 @@ class RoomParticipantServiceTest {
     private RoomParticipantService roomParticipantService;
 
     private Long userId;
+    private String username;
     private String sessionId;
     private Long roomId;
     private WebSocketSessionInfo sessionInfo;
@@ -40,9 +41,10 @@ class RoomParticipantServiceTest {
     @BeforeEach
     void setUp() {
         userId = 1L;
+        username = "testUser";
         sessionId = "test-session-123";
         roomId = 100L;
-        sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        sessionInfo = WebSocketSessionInfo.createNewSession(userId, username, sessionId);
     }
 
     @Test
@@ -62,6 +64,7 @@ class RoomParticipantServiceTest {
         WebSocketSessionInfo updatedSession = sessionCaptor.getValue();
         assertThat(updatedSession.currentRoomId()).isEqualTo(roomId);
         assertThat(updatedSession.userId()).isEqualTo(userId);
+        assertThat(updatedSession.username()).isEqualTo(username);
     }
 
     @Test

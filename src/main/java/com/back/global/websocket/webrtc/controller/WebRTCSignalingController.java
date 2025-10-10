@@ -61,7 +61,7 @@ public class WebRTCSignalingController {
                 WebRTCSignalType.OFFER, fromUserId, targetUserId, request.roomId(), request.sdp(), request.mediaType()
         );
 
-        messagingTemplate.convertAndSendToUser(targetSessionInfo.sessionId(), "/queue/webrtc", response);
+        messagingTemplate.convertAndSendToUser(targetSessionInfo.username(), "/queue/webrtc", response);
     }
 
     // WebRTC Answer 메시지 처리
@@ -92,7 +92,7 @@ public class WebRTCSignalingController {
                 WebRTCSignalType.ANSWER, fromUserId, targetUserId, request.roomId(), request.sdp(), request.mediaType()
         );
 
-        messagingTemplate.convertAndSendToUser(targetSessionInfo.sessionId(), "/queue/webrtc", response);
+        messagingTemplate.convertAndSendToUser(targetSessionInfo.username(), "/queue/webrtc", response);
     }
 
     // ICE Candidate 메시지 처리
@@ -122,7 +122,7 @@ public class WebRTCSignalingController {
                 fromUserId, targetUserId, request.roomId(), request.candidate(), request.sdpMid(), request.sdpMLineIndex()
         );
 
-        messagingTemplate.convertAndSendToUser(targetSessionInfo.sessionId(), "/queue/webrtc", response);
+        messagingTemplate.convertAndSendToUser(targetSessionInfo.username(), "/queue/webrtc", response);
     }
 
     // 미디어 상태 토글 처리 (방 전체에 상태 공유)

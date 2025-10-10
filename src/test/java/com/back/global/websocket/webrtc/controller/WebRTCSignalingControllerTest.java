@@ -54,7 +54,9 @@ class WebRTCSignalingControllerTest {
     private Authentication authentication;
     private Long roomId;
     private Long fromUserId;
+    private String fromUsername;
     private Long targetUserId;
+    private String targetUsername;
     private String fromSessionId;
     private String targetSessionId;
 
@@ -62,13 +64,15 @@ class WebRTCSignalingControllerTest {
     void setUp() {
         roomId = 1L;
         fromUserId = 10L;
+        fromUsername = "userA";
         targetUserId = 20L;
+        targetUsername = "userB";
         fromSessionId = "from-session-id";
         targetSessionId = "target-session-id";
 
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
         lenient().when(userDetails.getUserId()).thenReturn(fromUserId);
-        lenient().when(userDetails.getUsername()).thenReturn("testUser");
+        lenient().when(userDetails.getUsername()).thenReturn(fromUsername);
         authentication = new UsernamePasswordAuthenticationToken(userDetails, null, null);
 
         headerAccessor = mock(SimpMessageHeaderAccessor.class);
@@ -84,7 +88,7 @@ class WebRTCSignalingControllerTest {
         void t1() {
             // given
             WebRTCOfferRequest request = new WebRTCOfferRequest(roomId, targetUserId, "sdp", WebRTCMediaType.AUDIO);
-            WebSocketSessionInfo targetSession = new WebSocketSessionInfo(targetUserId, targetSessionId, LocalDateTime.now(), LocalDateTime.now(), null);
+            WebSocketSessionInfo targetSession = new WebSocketSessionInfo(targetUserId, targetUsername, targetSessionId, LocalDateTime.now(), LocalDateTime.now(), null);
             when(sessionManager.getSessionInfo(targetUserId)).thenReturn(targetSession);
 
             // when
@@ -92,7 +96,7 @@ class WebRTCSignalingControllerTest {
 
             // then
             verify(validator).validateSignal(roomId, fromUserId, targetUserId);
-            verify(messagingTemplate).convertAndSendToUser(eq(targetSessionId), eq("/queue/webrtc"), any(WebRTCSignalResponse.class));
+            verify(messagingTemplate).convertAndSendToUser(eq(targetUsername), eq("/queue/webrtc"), any(WebRTCSignalResponse.class));
             verifyNoInteractions(errorHelper);
         }
 
@@ -154,7 +158,7 @@ class WebRTCSignalingControllerTest {
         void t1() {
             // given
             WebRTCAnswerRequest request = new WebRTCAnswerRequest(roomId, targetUserId, "sdp", WebRTCMediaType.AUDIO);
-            WebSocketSessionInfo targetSession = new WebSocketSessionInfo(targetUserId, targetSessionId, LocalDateTime.now(), LocalDateTime.now(), null);
+            WebSocketSessionInfo targetSession = new WebSocketSessionInfo(targetUserId, targetUsername, targetSessionId, LocalDateTime.now(), LocalDateTime.now(), null);
             when(sessionManager.getSessionInfo(targetUserId)).thenReturn(targetSession);
 
             // when
@@ -162,7 +166,7 @@ class WebRTCSignalingControllerTest {
 
             // then
             verify(validator).validateSignal(roomId, fromUserId, targetUserId);
-            verify(messagingTemplate).convertAndSendToUser(eq(targetSessionId), eq("/queue/webrtc"), any(WebRTCSignalResponse.class));
+            verify(messagingTemplate).convertAndSendToUser(eq(targetUsername), eq("/queue/webrtc"), any(WebRTCSignalResponse.class));
             verifyNoInteractions(errorHelper);
         }
 
@@ -195,7 +199,7 @@ class WebRTCSignalingControllerTest {
         void t1() {
             // given
             WebRTCIceCandidateRequest request = new WebRTCIceCandidateRequest(roomId, targetUserId, "candidate", "audio", 0);
-            WebSocketSessionInfo targetSession = new WebSocketSessionInfo(targetUserId, targetSessionId, LocalDateTime.now(), LocalDateTime.now(), null);
+            WebSocketSessionInfo targetSession = new WebSocketSessionInfo(targetUserId, targetUsername, targetSessionId, LocalDateTime.now(), LocalDateTime.now(), null);
             when(sessionManager.getSessionInfo(targetUserId)).thenReturn(targetSession);
 
             // when
@@ -203,7 +207,7 @@ class WebRTCSignalingControllerTest {
 
             // then
             verify(validator).validateSignal(roomId, fromUserId, targetUserId);
-            verify(messagingTemplate).convertAndSendToUser(eq(targetSessionId), eq("/queue/webrtc"), any(WebRTCSignalResponse.class));
+            verify(messagingTemplate).convertAndSendToUser(eq(targetUsername), eq("/queue/webrtc"), any(WebRTCSignalResponse.class));
             verifyNoInteractions(errorHelper);
         }
 

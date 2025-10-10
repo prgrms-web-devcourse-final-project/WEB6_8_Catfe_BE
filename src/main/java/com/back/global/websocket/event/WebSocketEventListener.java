@@ -31,9 +31,10 @@ public class WebSocketEventListener {
 
                 String sessionId = headerAccessor.getSessionId();
                 Long userId = userDetails.getUserId();
+                String username = userDetails.getUsername();
 
                 // 세션 매니저에 등록 (TTL 10분 자동 설정)
-                sessionManager.addSession(userId, sessionId);
+                sessionManager.addSession(userId, username, sessionId);
 
                 log.info("WebSocket 연결 완료 - 사용자: {} ({}), 세션: {}",
                         userDetails.getUsername(), userId, sessionId);
