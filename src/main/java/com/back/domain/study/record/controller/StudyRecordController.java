@@ -5,6 +5,8 @@ import com.back.domain.study.record.dto.StudyRecordResponseDto;
 import com.back.domain.study.record.service.StudyRecordService;
 import com.back.global.common.dto.RsData;
 import com.back.global.security.user.CustomUserDetails;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -18,12 +20,15 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/plans/records")
+@Tag(name = "StudyPlan", description = "학습 계획 관련 API")
 public class StudyRecordController {
     private final StudyRecordService studyRecordService;
 
     // ======================= 생성 ======================
     // 학습 기록 생성
     @PostMapping
+    @Operation( summary = "학습 기록 생성",
+            description = "기록을 생성합니다.")
     public ResponseEntity<RsData<StudyRecordResponseDto>> createStudyRecord(
             @AuthenticationPrincipal CustomUserDetails user,
             @Valid @RequestBody StudyRecordRequestDto request

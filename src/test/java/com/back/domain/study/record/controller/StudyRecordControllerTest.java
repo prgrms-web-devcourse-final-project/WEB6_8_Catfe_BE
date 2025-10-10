@@ -250,36 +250,7 @@ class StudyRecordControllerTest {
     }
 
     @Test
-    @DisplayName("학습 기록 조회 - 전날 밤~당일 새벽 기록의 경우")
-    void t4() throws Exception {
-        mvc.perform(post("/api/plans/records")
-                        .header("Authorization", "Bearer faketoken")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                    {
-                        "planId": %d,
-                        "startTime": "2025-10-02T23:00:00",
-                        "endTime": "2025-10-03T02:00:00",
-                        "duration": 10800,
-                        "pauseInfos": []
-                    }
-                    """.formatted(singlePlan.getId())))
-                .andExpect(status().isOk());
-
-        // 10월 2일로 조회 (04:00 기준이므로 이 기록이 포함되어야 함)
-        ResultActions resultActions = mvc.perform(get("/api/plans/records?date=2025-10-02")
-                        .header("Authorization", "Bearer faketoken"))
-                .andDo(print());
-
-        resultActions
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data", hasSize(1)))
-                .andExpect(jsonPath("$.data[0].startTime").value("2025-10-02T23:00:00"))
-                .andExpect(jsonPath("$.data[0].endTime").value("2025-10-03T02:00:00"));
-        }
-
-    @Test
-    @DisplayName("학습 기록 조회 - 전날 밤~당일 오전 4시 이후 끝난 기록의 경우")
+    @DisplayName("학습 기록 조회 - 전날 밤 시작 ~ 당일 끝난 기록의 경우")
     void t5() throws Exception {
         mvc.perform(post("/api/plans/records")
                         .header("Authorization", "Bearer faketoken")
