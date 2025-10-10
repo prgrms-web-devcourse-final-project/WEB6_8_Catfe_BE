@@ -66,4 +66,56 @@ public class StudyPlanException extends BaseEntity {
             @AttributeOverride(name = "untilDate", column = @Column(name = "modified_until_date"))
     })
     private RepeatRuleEmbeddable modifiedRepeatRule;
+
+    // 정적 팩토리 메서드 - 수정 예외
+    public static StudyPlanException createModified(StudyPlan studyPlan, LocalDate exceptionDate,
+                                                    ApplyScope applyScope, String modifiedSubject,
+                                                    LocalDateTime modifiedStartDate, LocalDateTime modifiedEndDate,
+                                                    Color modifiedColor, RepeatRuleEmbeddable modifiedRepeatRule) {
+        StudyPlanException exception = new StudyPlanException();
+        exception.studyPlan = studyPlan;
+        exception.exceptionDate = exceptionDate;
+        exception.exceptionType = ExceptionType.MODIFIED;
+        exception.applyScope = applyScope;
+        exception.modifiedSubject = modifiedSubject;
+        exception.modifiedStartDate = modifiedStartDate;
+        exception.modifiedEndDate = modifiedEndDate;
+        exception.modifiedColor = modifiedColor;
+        exception.modifiedRepeatRule = modifiedRepeatRule;
+        return exception;
+    }
+
+    // 정적 팩토리 메서드 - 삭제 예외
+    public static StudyPlanException createDeleted(StudyPlan studyPlan, LocalDate exceptionDate,
+                                                   ApplyScope applyScope) {
+        StudyPlanException exception = new StudyPlanException();
+        exception.studyPlan = studyPlan;
+        exception.exceptionDate = exceptionDate;
+        exception.exceptionType = ExceptionType.DELETED;
+        exception.applyScope = applyScope;
+        return exception;
+    }
+
+    // 수정 내용 업데이트
+    public void updateModifiedContent(String subject, LocalDateTime startDate,
+                                      LocalDateTime endDate, Color color,
+                                      RepeatRuleEmbeddable repeatRule, ApplyScope applyScope) {
+        if (subject != null) this.modifiedSubject = subject;
+        if (startDate != null) this.modifiedStartDate = startDate;
+        if (endDate != null) this.modifiedEndDate = endDate;
+        if (color != null) this.modifiedColor = color;
+        if (repeatRule != null) this.modifiedRepeatRule = repeatRule;
+        if (applyScope != null) this.applyScope = applyScope;
+    }
+
+    // 삭제 타입으로 변경
+    public void changeToDeleted(ApplyScope applyScope) {
+        this.exceptionType = ExceptionType.DELETED;
+        this.applyScope = applyScope;
+        this.modifiedSubject = null;
+        this.modifiedStartDate = null;
+        this.modifiedEndDate = null;
+        this.modifiedColor = null;
+        this.modifiedRepeatRule = null;
+    }
 }
