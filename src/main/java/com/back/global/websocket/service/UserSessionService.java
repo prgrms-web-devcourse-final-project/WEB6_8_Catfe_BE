@@ -34,6 +34,8 @@ public class UserSessionService {
         redisSessionStore.saveUserSession(userId, newSession);
         redisSessionStore.saveSessionUserMapping(sessionId, userId);
 
+        redisSessionStore.incrementOnlineUserCount();
+
         log.info("WebSocket 세션 등록 완료 - 사용자: {}, 세션: {}", userId, sessionId);
     }
 
@@ -44,6 +46,9 @@ public class UserSessionService {
         if (userId != null) {
             redisSessionStore.deleteUserSession(userId);
             redisSessionStore.deleteSessionUserMapping(sessionId);
+
+            redisSessionStore.decrementOnlineUserCount();
+
             log.info("WebSocket 세션 종료 완료 - 세션: {}, 사용자: {}", sessionId, userId);
         } else {
             log.warn("종료할 세션을 찾을 수 없음 - 세션: {}", sessionId);
