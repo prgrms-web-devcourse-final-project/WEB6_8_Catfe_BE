@@ -26,6 +26,7 @@ import org.springframework.security.core.Authentication;
 
 import java.time.LocalDateTime;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -36,10 +37,13 @@ class WebRTCSignalingControllerTest {
 
     @Mock
     private SimpMessagingTemplate messagingTemplate;
+
     @Mock
     private WebSocketErrorHelper errorHelper;
+
     @Mock
     private WebRTCSignalValidator validator;
+
     @Mock
     private WebSocketSessionManager sessionManager;
 
@@ -93,18 +97,21 @@ class WebRTCSignalingControllerTest {
         }
 
         @Test
-        @DisplayName("실패 - 대상 사용자가 오프라인")
+        @DisplayName("실패 - 대상 사용자가 오프라인일 때 예외를 던짐")
         void t2() {
             // given
             WebRTCOfferRequest request = new WebRTCOfferRequest(roomId, targetUserId, "sdp", WebRTCMediaType.AUDIO);
             when(sessionManager.getSessionInfo(targetUserId)).thenReturn(null);
 
-            // when
-            controller.handleOffer(request, headerAccessor, authentication);
+            // when & then
+            CustomException exception = assertThrows(CustomException.class, () ->
+                    controller.handleOffer(request, headerAccessor, authentication)
+            );
 
-            // then
+            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WS_TARGET_OFFLINE);
+
             verify(validator).validateSignal(roomId, fromUserId, targetUserId);
-            verify(errorHelper).sendErrorToUser(eq(fromSessionId), eq("WEBRTC_TARGET_OFFLINE"), anyString());
+            verifyNoInteractions(errorHelper);
             verify(messagingTemplate, never()).convertAndSendToUser(anyString(), anyString(), any());
         }
 
@@ -160,18 +167,21 @@ class WebRTCSignalingControllerTest {
         }
 
         @Test
-        @DisplayName("실패 - 대상 사용자가 오프라인")
+        @DisplayName("실패 - 대상 사용자가 오프라인일 때 예외를 던짐")
         void t2() {
             // given
             WebRTCAnswerRequest request = new WebRTCAnswerRequest(roomId, targetUserId, "sdp", WebRTCMediaType.AUDIO);
             when(sessionManager.getSessionInfo(targetUserId)).thenReturn(null);
 
-            // when
-            controller.handleAnswer(request, headerAccessor, authentication);
+            // when & then
+            CustomException exception = assertThrows(CustomException.class, () ->
+                    controller.handleAnswer(request, headerAccessor, authentication)
+            );
 
-            // then
+            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WS_TARGET_OFFLINE);
+
             verify(validator).validateSignal(roomId, fromUserId, targetUserId);
-            verify(errorHelper).sendErrorToUser(eq(fromSessionId), eq("WEBRTC_TARGET_OFFLINE"), anyString());
+            verifyNoInteractions(errorHelper);
             verify(messagingTemplate, never()).convertAndSendToUser(anyString(), anyString(), any());
         }
     }

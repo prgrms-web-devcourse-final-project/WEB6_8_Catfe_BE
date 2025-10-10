@@ -1,5 +1,6 @@
 package com.back.global.websocket.webrtc.controller;
 
+import com.back.global.exception.ErrorCode;
 import com.back.global.exception.CustomException;
 import com.back.global.security.user.CustomUserDetails;
 import com.back.global.websocket.dto.WebSocketSessionInfo;
@@ -53,8 +54,7 @@ public class WebRTCSignalingController {
         WebSocketSessionInfo targetSessionInfo = sessionManager.getSessionInfo(targetUserId);
         if (targetSessionInfo == null) {
             log.warn("WebRTC Offer 전송 실패 - 대상이 오프라인 상태입니다. User ID: {}", targetUserId);
-            errorHelper.sendErrorToUser(headerAccessor.getSessionId(), "WEBRTC_TARGET_OFFLINE", "상대방이 오프라인 상태입니다.");
-            return;
+            throw new CustomException(ErrorCode.WS_TARGET_OFFLINE);
         }
 
         WebRTCSignalResponse response = WebRTCSignalResponse.offerOrAnswer(
@@ -85,8 +85,7 @@ public class WebRTCSignalingController {
         WebSocketSessionInfo targetSessionInfo = sessionManager.getSessionInfo(targetUserId);
         if (targetSessionInfo == null) {
             log.warn("WebRTC Answer 전송 실패 - 대상이 오프라인 상태입니다. User ID: {}", targetUserId);
-            errorHelper.sendErrorToUser(headerAccessor.getSessionId(), "WEBRTC_TARGET_OFFLINE", "상대방이 오프라인 상태입니다.");
-            return;
+            throw new CustomException(ErrorCode.WS_TARGET_OFFLINE);
         }
 
         WebRTCSignalResponse response = WebRTCSignalResponse.offerOrAnswer(
