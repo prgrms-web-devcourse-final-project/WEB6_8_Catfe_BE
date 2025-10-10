@@ -30,7 +30,6 @@ public class DevInitData {
     private final CommentRepository commentRepository;
     private final PostCategoryRepository postCategoryRepository;
     private final PasswordEncoder passwordEncoder;
-    private final Environment environment;
 
     @Bean
     ApplicationRunner DevInitDataApplicationRunner() {
