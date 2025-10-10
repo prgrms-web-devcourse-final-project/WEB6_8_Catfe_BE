@@ -32,4 +32,29 @@ public class RepeatRule extends BaseEntity {
     private List<DayOfWeek> byDay = new ArrayList<>();
 
     private LocalDate untilDate;
+
+    // 정적 팩토리 메서드
+    public static RepeatRule create(Frequency frequency, int repeatInterval,
+                                    List<DayOfWeek> byDay, LocalDate untilDate) {
+        RepeatRule rule = new RepeatRule();
+        rule.frequency = frequency;
+        rule.repeatInterval = repeatInterval;
+        rule.byDay = byDay != null ? byDay : new ArrayList<>();
+        rule.untilDate = untilDate;
+        return rule;
+    }
+
+    // 수정 메서드
+    public void update(Frequency frequency, Integer repeatInterval,
+                       List<DayOfWeek> byDay, LocalDate untilDate) {
+        if (frequency != null) this.frequency = frequency;
+        if (repeatInterval != null) this.repeatInterval = repeatInterval;
+        if (byDay != null) this.byDay = byDay;
+        if (untilDate != null) this.untilDate = untilDate;
+    }
+
+    // 계획 연결 메서드
+    public void setStudyPlan(StudyPlan studyPlan) {
+        this.studyPlan = studyPlan;
+    }
 }

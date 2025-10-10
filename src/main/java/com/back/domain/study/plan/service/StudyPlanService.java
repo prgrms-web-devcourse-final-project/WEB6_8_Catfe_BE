@@ -16,8 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -46,13 +44,13 @@ public class StudyPlanService {
         // 시간 겹침 검증
         validateTimeConflict(userId, null, request.getStartDate(), request.getEndDate());
 
-        StudyPlan studyPlan = new StudyPlan();
-
-        studyPlan.setUser(user);
-        studyPlan.setSubject(request.getSubject());
-        studyPlan.setStartDate(request.getStartDate());
-        studyPlan.setEndDate(request.getEndDate());
-        studyPlan.setColor(request.getColor());
+        StudyPlan studyPlan = StudyPlan.create(
+                user,
+                request.getSubject(),
+                request.getStartDate(),
+                request.getEndDate(),
+                request.getColor()
+        );
 
         // 반복 규칙 설정
         if (request.getRepeatRule() != null) {
@@ -65,31 +63,21 @@ public class StudyPlanService {
     }
 
     private RepeatRule createRepeatRule(StudyPlanRequest.RepeatRuleRequest request, StudyPlan studyPlan) {
-        RepeatRule repeatRule = new RepeatRule();
-        repeatRule.setStudyPlan(studyPlan);
-        repeatRule.setFrequency(request.getFrequency());
-        repeatRule.setRepeatInterval(request.getIntervalValue() != null ? request.getIntervalValue() : 1);
-        // byDay 설정 (WEEKLY인 경우에만 의미 있음)
-        getByDayInWeekly(request, studyPlan, repeatRule);
+        // byDay 처리
+        List<DayOfWeek> byDay = getByDayForWeekly(request, studyPlan.getStartDate());
 
-        // untilDate 설정 및 검증
-        LocalDate untilDate;
-
-        // 1. 날짜 형식 파싱 및 검증
-        if (request.getUntilDate() != null && !request.getUntilDate().isEmpty()) {
-            try {
-                untilDate = LocalDate.parse(request.getUntilDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            } catch (Exception e) {
-                throw new CustomException(ErrorCode.INVALID_DATE_FORMAT);
-            }
-
-            // 2. 유효성 검사 실행
-            repeatRule.setUntilDate(untilDate);
+        // untilDate 처리
+        LocalDate untilDate = request.getUntilDate();
+        if (untilDate != null) {
             validateRepeatRuleDate(studyPlan, untilDate);
-            return repeatRule;
-        } else {
-            return repeatRule; // untilDate가 없으면 바로 반환
         }
+
+        return RepeatRule.create(
+                request.getFrequency(),
+                request.getIntervalValue() != null ? request.getIntervalValue() : 1,
+                byDay,
+                untilDate
+        );
 
     }
 
@@ -115,7 +103,6 @@ public class StudyPlanService {
                 }
             }
         }
-
         return result;
     }
 
@@ -180,7 +167,6 @@ public class StudyPlanService {
             // 수정 타입의 경우 수정된 내용으로 가상 정보 생성 후 반환
             return createModifiedVirtualPlan(originalPlan, exception, targetDate);
         }
-
         //예외 사항 없으면 기본 가상 계획 생성
         return createBasicVirtualPlan(originalPlan, targetDate);
     }
@@ -243,7 +229,7 @@ public class StudyPlanService {
     private StudyPlanResponse createModifiedVirtualPlan(StudyPlan originalPlan, StudyPlanException exception, LocalDate targetDate) {
         StudyPlanResponse response = createBasicVirtualPlan(originalPlan, targetDate);
 
-        // 수정된 내용 적용
+        // 수정된 내용 적용 (dto는 setter 유지)
         if (exception.getModifiedSubject() != null) {
             response.setSubject(exception.getModifiedSubject());
         }
@@ -381,12 +367,13 @@ public class StudyPlanService {
 
     // 원본 계획 수정
     private StudyPlanResponse updateOriginalPlan(StudyPlan originalPlan, StudyPlanRequest request) {
-        // 원본 계획 직접 수정
-        if (request.getSubject() != null) originalPlan.setSubject(request.getSubject());
-        if (request.getStartDate() != null) originalPlan.setStartDate(request.getStartDate());
-        if (request.getEndDate() != null) originalPlan.setEndDate(request.getEndDate());
-        if (request.getColor() != null) originalPlan.setColor(request.getColor());
-
+        // 수정 메서드 호출
+        originalPlan.update(
+                request.getSubject(),
+                request.getStartDate(),
+                request.getEndDate(),
+                request.getColor()
+        );
         StudyPlan savedPlan = studyPlanRepository.save(originalPlan);
         return new StudyPlanResponse(savedPlan);
     }
@@ -400,23 +387,21 @@ public class StudyPlanService {
             throw new CustomException(ErrorCode.PLAN_ORIGINAL_REPEAT_NOT_FOUND);
         }
 
-        StudyPlanException exception = new StudyPlanException();
-        exception.setStudyPlan(originalPlan);
-        exception.setExceptionDate(exceptionDate);
-        exception.setExceptionType(StudyPlanException.ExceptionType.MODIFIED);
-        exception.setApplyScope(applyScope);
-
-        // 수정된 내용 설정
-        if (request.getSubject() != null) exception.setModifiedSubject(request.getSubject());
-        if (request.getStartDate() != null) exception.setModifiedStartDate(request.getStartDate());
-        if (request.getEndDate() != null) exception.setModifiedEndDate(request.getEndDate());
-        if (request.getColor() != null) exception.setModifiedColor(request.getColor());
-
-        // 반복 규칙 수정. 요청에 반복 규칙이 있으면 설정
+        RepeatRuleEmbeddable modifiedRepeatRule = null;
         if (request.getRepeatRule() != null) {
-            RepeatRuleEmbeddable embeddable = createRepeatRuleEmbeddable(request.getRepeatRule(), request.getStartDate());
-            exception.setModifiedRepeatRule(embeddable);
+            modifiedRepeatRule = createRepeatRuleEmbeddable(request.getRepeatRule(), request.getStartDate());
         }
+
+        StudyPlanException exception = StudyPlanException.createModified(
+                originalPlan,
+                exceptionDate,
+                applyScope,
+                request.getSubject(),
+                request.getStartDate(),
+                request.getEndDate(),
+                request.getColor(),
+                modifiedRepeatRule
+        );
 
         studyPlanExceptionRepository.save(exception);
         return createVirtualPlanForDate(originalPlan, exceptionDate);
@@ -430,20 +415,21 @@ public class StudyPlanService {
                 .findByPlanIdAndDate(originalPlan.getId(), exceptionDate)
                 .orElseThrow(() -> new CustomException(ErrorCode.PLAN_EXCEPTION_NOT_FOUND));
 
-        // 기존 예외 정보 업데이트
-        if (request.getSubject() != null) existingException.setModifiedSubject(request.getSubject());
-        if (request.getStartDate() != null) existingException.setModifiedStartDate(request.getStartDate());
-        if (request.getEndDate() != null) existingException.setModifiedEndDate(request.getEndDate());
-        if (request.getColor() != null) existingException.setModifiedColor(request.getColor());
-
-        // ApplyScope도 업데이트
-        existingException.setApplyScope(applyScope);
-
-        // 반복 규칙 수정사항 있으면 예외 안에 추가 (embeddable)
+        // 반복 계획이 변경된 사항이 있는지 확인
+        // 변경 사항 존재 시 반복 변경사항 객체 생성
+        RepeatRuleEmbeddable modifiedRepeatRule = null;
         if (request.getRepeatRule() != null) {
-            RepeatRuleEmbeddable embeddable = createRepeatRuleEmbeddable(request.getRepeatRule(), request.getStartDate());
-            existingException.setModifiedRepeatRule(embeddable);
+            modifiedRepeatRule = createRepeatRuleEmbeddable(request.getRepeatRule(), request.getStartDate());
         }
+        // 기존 예외 정보 업데이트
+        existingException.updateModifiedContent(
+                request.getSubject(),
+                request.getStartDate(),
+                request.getEndDate(),
+                request.getColor(),
+                modifiedRepeatRule,
+                applyScope
+        );
 
         studyPlanExceptionRepository.save(existingException);
         return createVirtualPlanForDate(originalPlan, exceptionDate);
@@ -451,41 +437,27 @@ public class StudyPlanService {
 
     // 원본의 반복 룰 수정 (엔티티)
     private void updateRepeatRule(RepeatRule repeatRule, StudyPlanRequest.RepeatRuleRequest request, StudyPlan studyPlan) {
-        if (request.getFrequency() != null) repeatRule.setFrequency(request.getFrequency());
-        if (request.getIntervalValue() != null) repeatRule.setRepeatInterval(request.getIntervalValue());
+        // byDay 처리
+        List<DayOfWeek> byDay = getByDayForWeekly(request, studyPlan.getStartDate());
 
-        // byDay 자동 설정 (기존 메서드 재사용)
-        getByDayInWeekly(request, studyPlan, repeatRule);
-
-        if (request.getUntilDate() != null && !request.getUntilDate().isEmpty()) {
-            try {
-                LocalDate untilDate = LocalDate.parse(request.getUntilDate());
-                repeatRule.setUntilDate(untilDate);
-            } catch (Exception e) {
-                throw new CustomException(ErrorCode.INVALID_DATE_FORMAT);
-            }
-        }
+        repeatRule.update(
+                request.getFrequency(),
+                request.getIntervalValue(),
+                byDay,
+                request.getUntilDate()
+        );
     }
 
     // RepeatRuleEmbeddable 생성 헬퍼 메서드 (중복 코드 제거)
     private RepeatRuleEmbeddable createRepeatRuleEmbeddable(StudyPlanRequest.RepeatRuleRequest request, LocalDateTime startDate) {
-        RepeatRuleEmbeddable embeddable = new RepeatRuleEmbeddable();
-        embeddable.setFrequency(request.getFrequency());
-        embeddable.setRepeatInterval(request.getIntervalValue());
+        List<DayOfWeek> byDay = getByDayForWeekly(request, startDate);
 
-        // byDay 자동 설정 (오버로딩된 메서드 사용)
-        getByDayInWeekly(request, startDate, embeddable);
-
-        if (request.getUntilDate() != null && !request.getUntilDate().isEmpty()) {
-            try {
-                LocalDate untilDate = LocalDate.parse(request.getUntilDate());
-                embeddable.setUntilDate(untilDate);
-            } catch (Exception e) {
-                throw new CustomException(ErrorCode.INVALID_DATE_FORMAT);
-            }
-        }
-
-        return embeddable;
+        return RepeatRuleEmbeddable.create(
+                request.getFrequency(),
+                request.getIntervalValue(),
+                byDay,
+                request.getUntilDate()
+        );
     }
 
     // ==================== 삭제 ===================
@@ -522,40 +494,20 @@ public class StudyPlanService {
                 if (selectedDate.equals(studyPlan.getStartDate().toLocalDate())) {
                     studyPlanRepository.delete(studyPlan); // CASCADE로 RepeatRule, Exception 모두 삭제
                 } else {
-                    // 기존 예외 확인
-                    Optional<StudyPlanException> existingException = studyPlanExceptionRepository
-                            .findByPlanIdAndDate(studyPlan.getId(), selectedDate);
-
-                    if (existingException.isPresent()) {
-                        // 기존 예외가 있다면 삭제 타입으로 변경
-                        StudyPlanException exception = existingException.get();
-                        exception.setExceptionType(StudyPlanException.ExceptionType.DELETED);
-                        exception.setApplyScope(ApplyScope.FROM_THIS_DATE);
-                        exception.setModifiedSubject(null);
-                        exception.setModifiedStartDate(null);
-                        exception.setModifiedEndDate(null);
-                        exception.setModifiedColor(null);
-                        exception.setModifiedRepeatRule(null);
-                        studyPlanExceptionRepository.save(exception);
-                    } else {
-                        // 예외가 없다면 새로 생성
-                        StudyPlanException exception = new StudyPlanException();
-                        exception.setStudyPlan(studyPlan);
-                        exception.setExceptionDate(selectedDate);
-                        exception.setExceptionType(StudyPlanException.ExceptionType.DELETED);
-                        exception.setApplyScope(ApplyScope.FROM_THIS_DATE);
-                        studyPlanExceptionRepository.save(exception);
-                    }
-
-                    // untilDate 수정 (기존 로직)
+                    /* 선택한 날짜가 원본 날짜 이후인 경우
+                     * untilDate 조정만으로도 조회가 안되게 설정이 가능하기 때문에
+                     * 예외를 안 만들고 untilDate 수정으로 처리
+                     */
                     RepeatRule repeatRule = studyPlan.getRepeatRule();
                     LocalDate newUntilDate = selectedDate.minusDays(1);
-                    repeatRule.setUntilDate(newUntilDate);
+                    repeatRule.update(null, null, null, newUntilDate);
                     studyPlanRepository.save(studyPlan);
 
-                    // 변경된 untilDate 이후의 다른 예외 기록들 삭제 (selectedDate의 예외는 제외)
-                    studyPlanExceptionRepository.deleteByStudyPlanIdAndExceptionDateAfter(
-                            studyPlan.getId(), selectedDate);
+                    // 선택한 날짜 포함 이후의 예외들은 모두 삭제
+                    studyPlanExceptionRepository.deleteByStudyPlanIdAndExceptionDateGreaterThanEqual(
+                            studyPlan.getId(),
+                            selectedDate
+                    );
                 }
                 break;
 
@@ -567,11 +519,12 @@ public class StudyPlanService {
                 if (existingException.isPresent()) {
                     StudyPlanException exception = existingException.get();
 
-                    // FROM_THIS_DATE 범위의 MODIFIED를 THIS_ONLY 삭제하는 경우
+                    // 기존 예외가 FROM_THIS_DATE MODIFIED인 경우
+                    // 기존 예외를 다음 날로 옮기고 현재 날짜는 삭제로 변경
                     if (exception.getApplyScope() == ApplyScope.FROM_THIS_DATE
                             && exception.getExceptionType() == StudyPlanException.ExceptionType.MODIFIED) {
 
-                        // 다음 빈 날짜 찾기
+                        // 다음 빈 날짜로 옮기기 (다음날에 예외 존재 시 그 다음날...반복)
                         LocalDate availableDate = findNextAvailableDateForException(
                                 studyPlan,
                                 selectedDate.plusDays(1)
@@ -579,46 +532,37 @@ public class StudyPlanService {
 
                         // 빈 날짜가 있으면 FROM_THIS_DATE 예외 생성
                         if (availableDate != null) {
-                            StudyPlanException continuedException = new StudyPlanException();
-                            continuedException.setStudyPlan(studyPlan);
-                            continuedException.setExceptionDate(availableDate);
-                            continuedException.setExceptionType(StudyPlanException.ExceptionType.MODIFIED);
-                            continuedException.setApplyScope(ApplyScope.FROM_THIS_DATE);
-
                             // 기존 수정 내용 복사 (날짜는 availableDate로 조정)
                             long daysDiff = ChronoUnit.DAYS.between(selectedDate, availableDate);
-                            continuedException.setModifiedSubject(exception.getModifiedSubject());
-                            if (exception.getModifiedStartDate() != null) {
-                                continuedException.setModifiedStartDate(
-                                        exception.getModifiedStartDate().plusDays(daysDiff));
-                            }
-                            if (exception.getModifiedEndDate() != null) {
-                                continuedException.setModifiedEndDate(
-                                        exception.getModifiedEndDate().plusDays(daysDiff));
-                            }
-                            continuedException.setModifiedColor(exception.getModifiedColor());
-                            continuedException.setModifiedRepeatRule(exception.getModifiedRepeatRule());
 
+                            RepeatRuleEmbeddable modifiedRule = exception.getModifiedRepeatRule();
+                            LocalDateTime adjustedStart = exception.getModifiedStartDate() != null
+                                    ? exception.getModifiedStartDate().plusDays(daysDiff) : null;
+                            LocalDateTime adjustedEnd = exception.getModifiedEndDate() != null
+                                    ? exception.getModifiedEndDate().plusDays(daysDiff) : null;
+
+                            StudyPlanException continuedException = StudyPlanException.createModified(
+                                    studyPlan,
+                                    availableDate,
+                                    ApplyScope.FROM_THIS_DATE,
+                                    exception.getModifiedSubject(),
+                                    adjustedStart,
+                                    adjustedEnd,
+                                    exception.getModifiedColor(),
+                                    modifiedRule
+                            );
                             studyPlanExceptionRepository.save(continuedException);
                         }
                     }
 
                     // 현재 날짜는 삭제로 변경
-                    exception.setExceptionType(StudyPlanException.ExceptionType.DELETED);
-                    exception.setApplyScope(THIS_ONLY);
-                    exception.setModifiedSubject(null);
-                    exception.setModifiedStartDate(null);
-                    exception.setModifiedEndDate(null);
-                    exception.setModifiedColor(null);
-                    exception.setModifiedRepeatRule(null);
+                    exception.changeToDeleted(THIS_ONLY);
                     studyPlanExceptionRepository.save(exception);
                 } else {
-                    // 새로운 예외 생성 (기존 로직 유지)
-                    StudyPlanException exception = new StudyPlanException();
-                    exception.setStudyPlan(studyPlan);
-                    exception.setExceptionDate(selectedDate);
-                    exception.setExceptionType(StudyPlanException.ExceptionType.DELETED);
-                    exception.setApplyScope(THIS_ONLY);
+                    // 새로운 예외 생성
+                    StudyPlanException exception = StudyPlanException.createDeleted(
+                            studyPlan, selectedDate, THIS_ONLY
+                    );
                     studyPlanExceptionRepository.save(exception);
                 }
                 break;
@@ -694,30 +638,16 @@ public class StudyPlanService {
             throw new CustomException(ErrorCode.REPEAT_INVALID_UNTIL_DATE);
         }
     }
-    // WEEKLY인 경우 빈 byDay 처리 메서드 (RepeatRule용)
-    private void getByDayInWeekly(StudyPlanRequest.RepeatRuleRequest request, StudyPlan studyPlan, RepeatRule repeatRule) {
-        // byDay 설정 (WEEKLY 인 경우에만)
-        if (request.getFrequency() == Frequency.WEEKLY) {
-            // 1. byDay가 없으면 시작일 요일을 자동으로 설정
-            if(request.getByDay() == null || request.getByDay().isEmpty()) {
-                DayOfWeek startDay = DayOfWeek.valueOf(studyPlan.getStartDate().getDayOfWeek().name().substring(0,3));
-                repeatRule.setByDay(List.of(startDay));
-            } else {
-                // 2. byDay가 있다면 요청 값을 사용
-                repeatRule.setByDay(request.getByDay());
-            }
-        }
-    }
-    // WEEKLY인 경우 빈 byDay 처리 메서드 (RepeatRuleEmbeddable용 - 오버로딩)
-    private void getByDayInWeekly(StudyPlanRequest.RepeatRuleRequest request, LocalDateTime startDate, RepeatRuleEmbeddable embeddable) {
+    // WEEKLY인 경우 빈 byDay 처리 메서드 (RepeatRule, RepeatRuleEmbeddable 둘 다 사용 가능)
+    private List<DayOfWeek> getByDayForWeekly(StudyPlanRequest.RepeatRuleRequest request, LocalDateTime startDate) {
         if (request.getFrequency() == Frequency.WEEKLY) {
             if (request.getByDay() == null || request.getByDay().isEmpty()) {
                 DayOfWeek startDay = DayOfWeek.valueOf(startDate.getDayOfWeek().name().substring(0, 3));
-                embeddable.setByDay(List.of(startDay));
-            } else {
-                embeddable.setByDay(request.getByDay());
+                return List.of(startDay);
             }
+            return request.getByDay();
         }
+        return new ArrayList<>();
     }
 
     // THIS_ONLY로 FROM_THIS_DATE 예외를 삭제할 때 다음 빈 날짜 찾기 (재귀탐색)

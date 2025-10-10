@@ -44,4 +44,31 @@ public class StudyPlan extends BaseEntity {
     //반복 주기 설정 시 예외 리스트
     @OneToMany(mappedBy = "studyPlan", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<StudyPlanException> exceptions = new ArrayList<>();
+
+    // 정적 팩토리 메서드
+    public static StudyPlan create(User user, String subject, LocalDateTime startDate,
+                                   LocalDateTime endDate, Color color) {
+        StudyPlan plan = new StudyPlan();
+        plan.user = user;
+        plan.subject = subject;
+        plan.startDate = startDate;
+        plan.endDate = endDate;
+        plan.color = color;
+        return plan;
+    }
+
+    // 수정 메서드
+    public void update(String subject, LocalDateTime startDate, LocalDateTime endDate, Color color) {
+        if (subject != null) this.subject = subject;
+        if (startDate != null) this.startDate = startDate;
+        if (endDate != null) this.endDate = endDate;
+        if (color != null) this.color = color;
+    }
+    // 반복 규칙 설정 메서드
+    public void setRepeatRule(RepeatRule repeatRule) {
+        this.repeatRule = repeatRule;
+        if (repeatRule != null) {
+            repeatRule.setStudyPlan(this);
+        }
+    }
 }

@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -56,6 +57,6 @@ public class StudyPlanRequest {
         private List<DayOfWeek> byDay = new ArrayList<>();
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
-        private String untilDate; // "2025-12-31" 형태
+        private LocalDate untilDate; // "2025-12-31" 형태
     }
 }
