@@ -41,7 +41,8 @@ public interface CommentControllerDocs {
                                         "postId": 101,
                                         "author": {
                                           "id": 5,
-                                          "nickname": "홍길동"
+                                          "nickname": "홍길동",
+                                          "profileImageUrl": null
                                         },
                                         "content": "좋은 글 감사합니다!",
                                         "createdAt": "2025-09-22T11:30:00",
@@ -170,10 +171,12 @@ public interface CommentControllerDocs {
                                             "parentId": null,
                                             "author": {
                                               "id": 5,
-                                              "nickname": "홍길동"
+                                              "nickname": "홍길동",
+                                              "profileImageUrl": null
                                             },
                                             "content": "부모 댓글",
                                             "likeCount": 2,
+                                            "likedByMe": true,
                                             "createdAt": "2025-09-22T11:30:00",
                                             "updatedAt": "2025-09-22T11:30:00",
                                             "children": [
@@ -183,10 +186,12 @@ public interface CommentControllerDocs {
                                                 "parentId": 1,
                                                 "author": {
                                                   "id": 5,
-                                                  "nickname": "홍길동"
+                                                  "nickname": "홍길동",
+                                                  "profileImageUrl": null
                                                 },
                                                 "content": "자식 댓글",
                                                 "likeCount": 0,
+                                                "likedByMe": false,
                                                 "createdAt": "2025-09-22T11:35:00",
                                                 "updatedAt": "2025-09-22T11:35:00",
                                                 "children": []
@@ -252,6 +257,7 @@ public interface CommentControllerDocs {
     })
     ResponseEntity<RsData<PageResponse<CommentListResponse>>> getComments(
             @PathVariable Long postId,
+            @AuthenticationPrincipal CustomUserDetails user,
             Pageable pageable
     );
 
@@ -275,7 +281,8 @@ public interface CommentControllerDocs {
                                         "postId": 101,
                                         "author": {
                                           "id": 5,
-                                          "nickname": "홍길동"
+                                          "nickname": "홍길동",
+                                          "profileImageUrl": null
                                         },
                                         "content": "수정된 댓글 내용입니다.",
                                         "createdAt": "2025-09-22T11:30:00",

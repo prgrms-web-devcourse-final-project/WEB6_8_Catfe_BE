@@ -44,9 +44,11 @@ public class CommentController implements CommentControllerDocs {
     @GetMapping
     public ResponseEntity<RsData<PageResponse<CommentListResponse>>> getComments(
             @PathVariable Long postId,
+            @AuthenticationPrincipal CustomUserDetails user,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        PageResponse<CommentListResponse> response = commentService.getComments(postId, pageable);
+        Long userId = (user != null) ? user.getUserId() : null;
+        PageResponse<CommentListResponse> response = commentService.getComments(postId, userId, pageable);
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success(

@@ -22,6 +22,9 @@ public class CommentListResponse {
     @Setter
     private long likeCount;
 
+    @Setter
+    private Boolean likedByMe;
+
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
@@ -35,6 +38,7 @@ public class CommentListResponse {
                                AuthorResponse author,
                                String content,
                                long likeCount,
+                               Boolean likedByMe,
                                LocalDateTime createdAt,
                                LocalDateTime updatedAt,
                                List<CommentListResponse> children) {
@@ -43,6 +47,7 @@ public class CommentListResponse {
         this.parentId = parentId;
         this.author = author;
         this.content = content;
+        this.likedByMe = likedByMe;
         this.likeCount = likeCount;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;

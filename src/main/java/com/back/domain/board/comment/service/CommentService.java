@@ -4,6 +4,8 @@ import com.back.domain.board.comment.dto.CommentListResponse;
 import com.back.domain.board.comment.dto.CommentRequest;
 import com.back.domain.board.comment.dto.CommentResponse;
 import com.back.domain.board.comment.dto.ReplyResponse;
+import com.back.domain.board.comment.entity.CommentLike;
+import com.back.domain.board.comment.repository.CommentLikeRepository;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.comment.entity.Comment;
 import com.back.domain.board.post.entity.Post;
@@ -22,11 +24,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class CommentService {
     private final CommentRepository commentRepository;
+    private final CommentLikeRepository commentLikeRepository;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -83,6 +90,41 @@ public class CommentService {
         Page<CommentListResponse> comments = commentRepository.getCommentsByPostId(postId, pageable);
 
         return PageResponse.from(comments);
+    }
+
+    // TODO: 추후 메서드 통합 및 리팩토링
+    @Transactional(readOnly = true)
+    public PageResponse<CommentListResponse> getComments(Long postId, Long userId, Pageable pageable) {
+        // 기본 댓글 목록
+        PageResponse<CommentListResponse> response = getComments(postId, pageable);
+
+        // 로그인 사용자용 로직
+        if (userId != null) {
+            // 댓글 ID 수집
+            List<Long> commentIds = response.items().stream()
+                    .map(CommentListResponse::getCommentId)
+                    .toList();
+
+            if (commentIds.isEmpty()) return response;
+
+            // QueryDSL 기반 좋아요 ID 조회 (단일 쿼리)
+            List<Long> likedIds = commentLikeRepository.findLikedCommentIdsIn(userId, commentIds);
+            Set<Long> likedSet = new HashSet<>(likedIds);
+
+            // likedByMe 세팅
+            response.items().forEach(c -> c.setLikedByMe(likedSet.contains(c.getCommentId())));
+
+            // 자식 댓글에도 동일 적용
+            response.items().forEach(parent -> {
+                if (parent.getChildren() != null) {
+                    parent.getChildren().forEach(child ->
+                            child.setLikedByMe(likedSet.contains(child.getCommentId()))
+                    );
+                }
+            });
+        }
+
+        return response;
     }
 
     /**
