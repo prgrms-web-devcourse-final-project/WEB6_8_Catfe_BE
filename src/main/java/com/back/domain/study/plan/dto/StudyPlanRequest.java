@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,7 +24,7 @@ import java.util.List;
 @NoArgsConstructor
 public class StudyPlanRequest {
     @NotBlank
-    @Column(nullable = false, length = 100)
+    @Size(max = 100)
     private String subject;
 
     @NotNull
