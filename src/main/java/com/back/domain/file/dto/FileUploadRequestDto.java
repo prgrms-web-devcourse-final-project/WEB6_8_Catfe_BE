@@ -8,6 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Data
 public class FileUploadRequestDto {
+    @NotNull(message = "파일 입력은 필수입니다.")
     private MultipartFile multipartFile;
 
     @NotBlank(message = "entityType은 필수입니다.")
