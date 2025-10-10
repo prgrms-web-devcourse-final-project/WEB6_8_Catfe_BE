@@ -70,6 +70,7 @@ dependencies {
     testImplementation("net.ttddyy:datasource-proxy:1.8.1")
     testImplementation("org.testcontainers:junit-jupiter:1.19.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation ("io.findify:s3mock_2.13:0.2.6")
 
     // Redis
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
@@ -77,6 +78,7 @@ dependencies {
 
     // AWS S3
     implementation ("org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE")
+
 }
 
 tasks.withType<Test> {
