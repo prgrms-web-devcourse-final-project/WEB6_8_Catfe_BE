@@ -20,7 +20,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/plans/records")
-@Tag(name = "StudyPlan", description = "학습 계획 관련 API")
+@Tag(name = "StudyRecord", description = "학습 조회 관련 API")
 public class StudyRecordController {
     private final StudyRecordService studyRecordService;
 
@@ -40,6 +40,8 @@ public class StudyRecordController {
     // ======================= 조회 ======================
     // 일별 학습 기록 조회
     @GetMapping
+    @Operation( summary = "학습 기록 조회",
+            description = "날짜별 기록을 조회합니다.")
     public ResponseEntity<RsData<List<StudyRecordResponseDto>>> getDailyStudyRecord(
             @AuthenticationPrincipal CustomUserDetails user,
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date

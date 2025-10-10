@@ -197,15 +197,15 @@ public class StudyRecordService {
 
     // ===================== 유틸 =====================
     // 시간 범위 검증
-    private void validateTimeRange(java.time.LocalDateTime startTime, java.time.LocalDateTime endTime) {
+    private void validateTimeRange(LocalDateTime startTime, LocalDateTime endTime) {
         if (startTime.isAfter(endTime) || startTime.isEqual(endTime)) {
             throw new CustomException(ErrorCode.INVALID_TIME_RANGE);
         }
     }
 
     // 일시정지 시간이 학습 시간 내에 있는지 검증
-    private void validatePauseInStudyRange(java.time.LocalDateTime studyStart, java.time.LocalDateTime studyEnd,
-                                           java.time.LocalDateTime pauseStart, java.time.LocalDateTime pauseEnd) {
+    private void validatePauseInStudyRange(LocalDateTime studyStart, LocalDateTime studyEnd,
+                                           LocalDateTime pauseStart, LocalDateTime pauseEnd) {
         if (pauseStart.isBefore(studyStart) || pauseEnd.isAfter(studyEnd)) {
             throw new CustomException(ErrorCode.INVALID_TIME_RANGE);
         }
