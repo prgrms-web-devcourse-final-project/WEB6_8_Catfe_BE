@@ -18,6 +18,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 
 import java.security.Principal;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -89,39 +90,37 @@ class WebSocketMessageControllerTest {
         }
 
         @Test
-        @DisplayName("실패 - CustomException 발생")
+        @DisplayName("실패 - CustomException 발생 시 예외를 그대로 던짐")
         void t3() {
             // given
             Principal mockPrincipal = createMockPrincipal(userId);
-            CustomException exception = new CustomException(ErrorCode.BAD_REQUEST);
-            doThrow(exception).when(sessionManager).updateLastActivity(userId);
+            CustomException expectedException = new CustomException(ErrorCode.BAD_REQUEST);
+            doThrow(expectedException).when(sessionManager).updateLastActivity(userId);
 
-            // when
-            controller.handleHeartbeat(mockPrincipal, headerAccessor);
+            // when & then
+            assertThrows(CustomException.class, () -> {
+                controller.handleHeartbeat(mockPrincipal, headerAccessor);
+            });
 
-            // then
             verify(sessionManager).updateLastActivity(userId);
-            verify(errorHelper).sendCustomExceptionToUser(sessionId, exception);
+            verifyNoInteractions(errorHelper);
         }
 
         @Test
-        @DisplayName("실패 - 일반 Exception 발생")
+        @DisplayName("실패 - 일반 Exception 발생 시 예외를 그대로 던짐")
         void t4() {
             // given
             Principal mockPrincipal = createMockPrincipal(userId);
-            RuntimeException exception = new RuntimeException("예상치 못한 오류");
-            doThrow(exception).when(sessionManager).updateLastActivity(userId);
+            RuntimeException expectedException = new RuntimeException("예상치 못한 오류");
+            doThrow(expectedException).when(sessionManager).updateLastActivity(userId);
 
-            // when
-            controller.handleHeartbeat(mockPrincipal, headerAccessor);
+            // when & then
+            assertThrows(RuntimeException.class, () -> {
+                controller.handleHeartbeat(mockPrincipal, headerAccessor);
+            });
 
-            // then
             verify(sessionManager).updateLastActivity(userId);
-            verify(errorHelper).sendGenericErrorToUser(
-                    eq(sessionId),
-                    any(Exception.class),
-                    eq("Heartbeat 처리 중 오류가 발생했습니다")
-            );
+            verifyNoInteractions(errorHelper);
         }
     }
 
@@ -155,45 +154,41 @@ class WebSocketMessageControllerTest {
 
             // then
             verify(sessionManager, never()).updateLastActivity(any());
-
-            // handleActivity의 else 블록에 맞춰 검증 로직 수정
             verify(errorHelper).sendInvalidRequestError(sessionId, "사용자 ID가 필요합니다");
         }
 
         @Test
-        @DisplayName("실패 - CustomException 발생")
+        @DisplayName("실패 - CustomException 발생 시 예외를 그대로 던짐")
         void t3() {
             // given
             Principal mockPrincipal = createMockPrincipal(userId);
-            CustomException exception = new CustomException(ErrorCode.BAD_REQUEST);
-            doThrow(exception).when(sessionManager).updateLastActivity(userId);
+            CustomException expectedException = new CustomException(ErrorCode.BAD_REQUEST);
+            doThrow(expectedException).when(sessionManager).updateLastActivity(userId);
 
-            // when
-            controller.handleActivity(mockPrincipal, headerAccessor);
+            // when & then
+            assertThrows(CustomException.class, () -> {
+                controller.handleActivity(mockPrincipal, headerAccessor);
+            });
 
-            // then
             verify(sessionManager).updateLastActivity(userId);
-            verify(errorHelper).sendCustomExceptionToUser(sessionId, exception);
+            verifyNoInteractions(errorHelper);
         }
 
         @Test
-        @DisplayName("실패 - 일반 Exception 발생")
+        @DisplayName("실패 - 일반 Exception 발생 시 예외를 그대로 던짐")
         void t4() {
             // given
             Principal mockPrincipal = createMockPrincipal(userId);
-            RuntimeException exception = new RuntimeException("예상치 못한 오류");
-            doThrow(exception).when(sessionManager).updateLastActivity(userId);
+            RuntimeException expectedException = new RuntimeException("예상치 못한 오류");
+            doThrow(expectedException).when(sessionManager).updateLastActivity(userId);
 
-            // when
-            controller.handleActivity(mockPrincipal, headerAccessor);
+            // when & then
+            assertThrows(RuntimeException.class, () -> {
+                controller.handleActivity(mockPrincipal, headerAccessor);
+            });
 
-            // then
             verify(sessionManager).updateLastActivity(userId);
-            verify(errorHelper).sendGenericErrorToUser(
-                    eq(sessionId),
-                    any(Exception.class),
-                    eq("활동 신호 처리 중 오류가 발생했습니다")
-            );
+            verifyNoInteractions(errorHelper);
         }
     }
 }
