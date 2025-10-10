@@ -1,10 +1,12 @@
 package com.back.global.websocket.webrtc.controller;
 
 import com.back.global.security.user.CustomUserDetails;
-import com.back.global.websocket.webrtc.dto.media.WebRTCMediaToggleRequest;
+import com.back.global.websocket.dto.WebSocketSessionInfo;
 import com.back.global.websocket.webrtc.dto.media.WebRTCMediaStateResponse;
+import com.back.global.websocket.webrtc.dto.media.WebRTCMediaToggleRequest;
 import com.back.global.websocket.webrtc.dto.signal.*;
 import com.back.global.websocket.webrtc.service.WebRTCSignalValidator;
+import com.back.global.websocket.service.WebSocketSessionManager;
 import com.back.global.websocket.util.WebSocketErrorHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ public class WebRTCSignalingController {
     private final SimpMessagingTemplate messagingTemplate;
     private final WebSocketErrorHelper errorHelper;
     private final WebRTCSignalValidator validator;
+    private final WebSocketSessionManager sessionManager;
 
     // WebRTC Offer 메시지 처리
     @MessageMapping("/webrtc/offer")
@@ -33,7 +36,6 @@ public class WebRTCSignalingController {
                             SimpMessageHeaderAccessor headerAccessor,
                             Principal principal) {
         try {
-            // WebSocket에서 인증된 사용자 정보 추출
             CustomUserDetails userDetails = extractUserDetails(principal);
             if (userDetails == null) {
                 errorHelper.sendUnauthorizedError(headerAccessor.getSessionId());
@@ -41,26 +43,36 @@ public class WebRTCSignalingController {
             }
 
             Long fromUserId = userDetails.getUserId();
+            Long targetUserId = request.targetUserId();
 
             // 시그널 검증
-            validator.validateSignal(request.roomId(), fromUserId, request.targetUserId());
+            validator.validateSignal(request.roomId(), fromUserId, targetUserId);
 
-            log.info("WebRTC Offer received - Room: {}, From: {}, To: {}, MediaType: {}",
-                    request.roomId(), fromUserId, request.targetUserId(), request.mediaType());
+            // 상대방의 온라인 세션 정보 조회
+            WebSocketSessionInfo targetSessionInfo = sessionManager.getSessionInfo(targetUserId);
+            if (targetSessionInfo == null) {
+                log.warn("WebRTC Offer 전송 실패 - 대상이 오프라인 상태입니다. User ID: {}", targetUserId);
+                errorHelper.sendErrorToUser(headerAccessor.getSessionId(), "WEBRTC_TARGET_OFFLINE", "상대방이 오프라인 상태입니다.");
+                return;
+            }
 
-            // Offer 메시지 생성
+            log.info("WebRTC Offer received - Room: {}, From: {}, To: {}",
+                    request.roomId(), fromUserId, targetUserId);
+
+            // 응답 메시지 생성
             WebRTCSignalResponse response = WebRTCSignalResponse.offerOrAnswer(
                     WebRTCSignalType.OFFER,
                     fromUserId,
-                    request.targetUserId(),
+                    targetUserId,
                     request.roomId(),
                     request.sdp(),
                     request.mediaType()
             );
 
-            // 방 전체에 브로드캐스트 (P2P Mesh 연결)
-            messagingTemplate.convertAndSend(
-                    "/topic/room/" + request.roomId() + "/webrtc",
+            // 특정 사용자에게만 1:1로 메시지 전송
+            messagingTemplate.convertAndSendToUser(
+                    targetSessionInfo.sessionId(),
+                    "/queue/webrtc",
                     response
             );
 
@@ -76,7 +88,6 @@ public class WebRTCSignalingController {
                              SimpMessageHeaderAccessor headerAccessor,
                              Principal principal) {
         try {
-            // WebSocket에서 인증된 사용자 정보 추출
             CustomUserDetails userDetails = extractUserDetails(principal);
             if (userDetails == null) {
                 errorHelper.sendUnauthorizedError(headerAccessor.getSessionId());
@@ -84,26 +95,32 @@ public class WebRTCSignalingController {
             }
 
             Long fromUserId = userDetails.getUserId();
+            Long targetUserId = request.targetUserId();
+            validator.validateSignal(request.roomId(), fromUserId, targetUserId);
 
-            // 시그널 검증
-            validator.validateSignal(request.roomId(), fromUserId, request.targetUserId());
+            WebSocketSessionInfo targetSessionInfo = sessionManager.getSessionInfo(targetUserId);
+            if (targetSessionInfo == null) {
+                log.warn("WebRTC Answer 전송 실패 - 대상이 오프라인 상태입니다. User ID: {}", targetUserId);
+                errorHelper.sendErrorToUser(headerAccessor.getSessionId(), "WEBRTC_TARGET_OFFLINE", "상대방이 오프라인 상태입니다.");
+                return;
+            }
 
-            log.info("WebRTC Answer received - Room: {}, From: {}, To: {}, MediaType: {}",
-                    request.roomId(), fromUserId, request.targetUserId(), request.mediaType());
+            log.info("WebRTC Answer received - Room: {}, From: {}, To: {}",
+                    request.roomId(), fromUserId, targetUserId);
 
-            // Answer 메시지 생성
             WebRTCSignalResponse response = WebRTCSignalResponse.offerOrAnswer(
                     WebRTCSignalType.ANSWER,
                     fromUserId,
-                    request.targetUserId(),
+                    targetUserId,
                     request.roomId(),
                     request.sdp(),
                     request.mediaType()
             );
 
-            // 방 전체에 브로드캐스트 (P2P Mesh 연결)
-            messagingTemplate.convertAndSend(
-                    "/topic/room/" + request.roomId() + "/webrtc",
+            // 특정 사용자에게만 1:1로 메시지 전송
+            messagingTemplate.convertAndSendToUser(
+                    targetSessionInfo.sessionId(),
+                    "/queue/webrtc",
                     response
             );
 
@@ -119,7 +136,6 @@ public class WebRTCSignalingController {
                                    SimpMessageHeaderAccessor headerAccessor,
                                    Principal principal) {
         try {
-            // WebSocket에서 인증된 사용자 정보 추출
             CustomUserDetails userDetails = extractUserDetails(principal);
             if (userDetails == null) {
                 errorHelper.sendUnauthorizedError(headerAccessor.getSessionId());
@@ -127,26 +143,32 @@ public class WebRTCSignalingController {
             }
 
             Long fromUserId = userDetails.getUserId();
+            Long targetUserId = request.targetUserId();
+            validator.validateSignal(request.roomId(), fromUserId, targetUserId);
 
-            // 시그널 검증
-            validator.validateSignal(request.roomId(), fromUserId, request.targetUserId());
+            WebSocketSessionInfo targetSessionInfo = sessionManager.getSessionInfo(targetUserId);
+            if (targetSessionInfo == null) {
+                log.warn("ICE Candidate 전송 실패 - 대상이 오프라인 상태입니다. User ID: {}", targetUserId);
+                // ICE Candidate는 연결 과정에서 다수 발생하므로 상대가 없어도 에러 전송은 생략 가능
+                return;
+            }
 
             log.info("ICE Candidate received - Room: {}, From: {}, To: {}",
-                    request.roomId(), fromUserId, request.targetUserId());
+                    request.roomId(), fromUserId, targetUserId);
 
-            // ICE Candidate 메시지 생성
             WebRTCSignalResponse response = WebRTCSignalResponse.iceCandidate(
                     fromUserId,
-                    request.targetUserId(),
+                    targetUserId,
                     request.roomId(),
                     request.candidate(),
                     request.sdpMid(),
                     request.sdpMLineIndex()
             );
 
-            // 방 전체에 브로드캐스트 (P2P Mesh 연결)
-            messagingTemplate.convertAndSend(
-                    "/topic/room/" + request.roomId() + "/webrtc",
+            // 특정 사용자에게만 1:1로 메시지 전송
+            messagingTemplate.convertAndSendToUser(
+                    targetSessionInfo.sessionId(),
+                    "/queue/webrtc",
                     response
             );
 
@@ -156,13 +178,12 @@ public class WebRTCSignalingController {
         }
     }
 
-    // 미디어 상태 토글 처리
+    // 미디어 상태 토글 처리 (방 전체에 상태 공유)
     @MessageMapping("/webrtc/media/toggle")
     public void handleMediaToggle(@Validated @Payload WebRTCMediaToggleRequest request,
                                   SimpMessageHeaderAccessor headerAccessor,
                                   Principal principal) {
         try {
-            // 인증된 사용자 정보 추출
             CustomUserDetails userDetails = extractUserDetails(principal);
             if (userDetails == null) {
                 errorHelper.sendUnauthorizedError(headerAccessor.getSessionId());
@@ -170,23 +191,19 @@ public class WebRTCSignalingController {
             }
 
             Long userId = userDetails.getUserId();
-            String nickname = userDetails.getUsername();
-
-            // 미디어 상태 변경 검증
             validator.validateMediaStateChange(request.roomId(), userId);
 
             log.info("미디어 상태 변경 - Room: {}, User: {}, MediaType: {}, Enabled: {}",
                     request.roomId(), userId, request.mediaType(), request.enabled());
 
-            // 미디어 상태 응답 생성
             WebRTCMediaStateResponse response = WebRTCMediaStateResponse.of(
                     userId,
-                    nickname,
+                    userDetails.getUsername(),
                     request.mediaType(),
                     request.enabled()
             );
 
-            // 방 전체에 브로드캐스트
+            // 미디어 상태는 방 전체에 브로드캐스트
             messagingTemplate.convertAndSend(
                     "/topic/room/" + request.roomId() + "/media-status",
                     response
@@ -200,11 +217,8 @@ public class WebRTCSignalingController {
 
     // Principal에서 CustomUserDetails 추출 헬퍼 메서드
     private CustomUserDetails extractUserDetails(Principal principal) {
-        if (principal instanceof Authentication auth) {
-            Object principalObj = auth.getPrincipal();
-            if (principalObj instanceof CustomUserDetails userDetails) {
-                return userDetails;
-            }
+        if (principal instanceof Authentication auth && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
+            return userDetails;
         }
         return null;
     }
