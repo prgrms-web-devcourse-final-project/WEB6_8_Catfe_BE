@@ -46,13 +46,13 @@ public class StudyPlanService {
         // 시간 겹침 검증
         validateTimeConflict(userId, null, request.getStartDate(), request.getEndDate());
 
-        StudyPlan studyPlan = new StudyPlan();
-
-        studyPlan.setUser(user);
-        studyPlan.setSubject(request.getSubject());
-        studyPlan.setStartDate(request.getStartDate());
-        studyPlan.setEndDate(request.getEndDate());
-        studyPlan.setColor(request.getColor());
+        StudyPlan studyPlan = StudyPlan.create(
+                user,
+                request.getSubject(),
+                request.getStartDate(),
+                request.getEndDate(),
+                request.getColor()
+        );
 
         // 반복 규칙 설정
         if (request.getRepeatRule() != null) {
@@ -65,31 +65,21 @@ public class StudyPlanService {
     }
 
     private RepeatRule createRepeatRule(StudyPlanRequest.RepeatRuleRequest request, StudyPlan studyPlan) {
-        RepeatRule repeatRule = new RepeatRule();
-        repeatRule.setStudyPlan(studyPlan);
-        repeatRule.setFrequency(request.getFrequency());
-        repeatRule.setRepeatInterval(request.getIntervalValue() != null ? request.getIntervalValue() : 1);
-        // byDay 설정 (WEEKLY인 경우에만 의미 있음)
-        getByDayInWeekly(request, studyPlan, repeatRule);
+        // byDay 처리
+        List<DayOfWeek> byDay = getByDayForWeekly(request, studyPlan.getStartDate());
 
-        // untilDate 설정 및 검증
-        LocalDate untilDate;
-
-        // 1. 날짜 형식 파싱 및 검증
-        if (request.getUntilDate() != null && !request.getUntilDate().isEmpty()) {
-            try {
-                untilDate = LocalDate.parse(request.getUntilDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            } catch (Exception e) {
-                throw new CustomException(ErrorCode.INVALID_DATE_FORMAT);
-            }
-
-            // 2. 유효성 검사 실행
-            repeatRule.setUntilDate(untilDate);
+        // untilDate 처리
+        LocalDate untilDate = parseUntilDate(request.getUntilDate());
+        if (untilDate != null) {
             validateRepeatRuleDate(studyPlan, untilDate);
-            return repeatRule;
-        } else {
-            return repeatRule; // untilDate가 없으면 바로 반환
         }
+
+        return RepeatRule.create(
+                request.getFrequency(),
+                request.getIntervalValue() != null ? request.getIntervalValue() : 1,
+                byDay,
+                untilDate
+        );
 
     }
 
@@ -695,18 +685,15 @@ public class StudyPlanService {
         }
     }
     // WEEKLY인 경우 빈 byDay 처리 메서드 (RepeatRule용)
-    private void getByDayInWeekly(StudyPlanRequest.RepeatRuleRequest request, StudyPlan studyPlan, RepeatRule repeatRule) {
-        // byDay 설정 (WEEKLY 인 경우에만)
+    private List<DayOfWeek> getByDayForWeekly(StudyPlanRequest.RepeatRuleRequest request, LocalDateTime startDate) {
         if (request.getFrequency() == Frequency.WEEKLY) {
-            // 1. byDay가 없으면 시작일 요일을 자동으로 설정
-            if(request.getByDay() == null || request.getByDay().isEmpty()) {
-                DayOfWeek startDay = DayOfWeek.valueOf(studyPlan.getStartDate().getDayOfWeek().name().substring(0,3));
-                repeatRule.setByDay(List.of(startDay));
-            } else {
-                // 2. byDay가 있다면 요청 값을 사용
-                repeatRule.setByDay(request.getByDay());
+            if (request.getByDay() == null || request.getByDay().isEmpty()) {
+                DayOfWeek startDay = DayOfWeek.valueOf(startDate.getDayOfWeek().name().substring(0, 3));
+                return List.of(startDay);
             }
+            return request.getByDay();
         }
+        return new ArrayList<>();
     }
     // WEEKLY인 경우 빈 byDay 처리 메서드 (RepeatRuleEmbeddable용 - 오버로딩)
     private void getByDayInWeekly(StudyPlanRequest.RepeatRuleRequest request, LocalDateTime startDate, RepeatRuleEmbeddable embeddable) {
@@ -718,6 +705,18 @@ public class StudyPlanService {
                 embeddable.setByDay(request.getByDay());
             }
         }
+    }
+
+    // untilDate 파싱 헬퍼 메서드
+    private LocalDate parseUntilDate(String untilDateStr) {
+        if (untilDateStr != null && !untilDateStr.isEmpty()) {
+            try {
+                return LocalDate.parse(untilDateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            } catch (Exception e) {
+                throw new CustomException(ErrorCode.INVALID_DATE_FORMAT);
+            }
+        }
+        return null;
     }
 
     // THIS_ONLY로 FROM_THIS_DATE 예외를 삭제할 때 다음 빈 날짜 찾기 (재귀탐색)
