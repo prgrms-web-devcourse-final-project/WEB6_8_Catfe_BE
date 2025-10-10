@@ -11,6 +11,7 @@ import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.entity.FileAttachment;
 import com.back.domain.file.repository.AttachmentMappingRepository;
 import com.back.domain.file.repository.FileAttachmentRepository;
+import com.back.domain.file.util.EntityValidator;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
@@ -34,6 +35,7 @@ public class FileService {
     private final FileAttachmentRepository fileAttachmentRepository;
     private final UserRepository userRepository;
     private final AttachmentMappingRepository attachmentMappingRepository;
+    private final EntityValidator entityValidator;
 
     @Transactional
     public FileUploadResponseDto uploadFile(
@@ -47,10 +49,12 @@ public class FileService {
                         new CustomException(ErrorCode.USER_NOT_FOUND)
                 );
 
+        entityValidator.validate(entityType, entityId);
+
         // S3에 저장할 파일 이름
         String storedFileName = createFileName(multipartFile.getOriginalFilename());
 
-        // S3의 저장된 파일의 public URL
+        // S3의 저장된 파일의 PublicURL
         String filePath = s3Upload(storedFileName, multipartFile);
 
         // FileAttachment 정보 저장
@@ -74,13 +78,11 @@ public class FileService {
             EntityType entityType,
             Long entityId
     ) {
-        AttachmentMapping attachmentMapping = attachmentMappingRepository
-                .findByEntityTypeAndEntityId(entityType, entityId)
-                .orElseThrow(() ->
-                        new CustomException(ErrorCode.ATTACHMENT_MAPPING_NOT_FOUND)
-                );
+        entityValidator.validate(entityType, entityId);
 
-        String filePath = attachmentMapping.getFileAttachment().getFilePath();
+        FileAttachment fileAttachment = getFileAttachmentOrThrow(entityType, entityId);
+
+        String filePath = fileAttachment.getFilePath();
 
         return new FileReadResponseDto(filePath);
     }
@@ -92,18 +94,11 @@ public class FileService {
             Long entityId,
             Long userId
     ) {
-        AttachmentMapping attachmentMapping = attachmentMappingRepository
-                .findByEntityTypeAndEntityId(entityType, entityId)
-                .orElseThrow(() ->
-                        new CustomException(ErrorCode.ATTACHMENT_MAPPING_NOT_FOUND)
-                );
+        entityValidator.validate(entityType, entityId);
 
-        FileAttachment fileAttachment = attachmentMapping.getFileAttachment();
+        FileAttachment fileAttachment = getFileAttachmentOrThrow(entityType, entityId);
 
-        // 파일 접근 권한 체크
-        if (fileAttachment.getUser().getId() != userId) {
-            throw new CustomException(ErrorCode.FILE_ACCESS_DENIED);
-        }
+        checkAccessPermission(fileAttachment, userId);
 
         // 현재 저장된(삭제할) 파일 이름
         String oldStoredName = fileAttachment.getStoredName();
@@ -113,7 +108,6 @@ public class FileService {
 
         String filePath = s3Upload(newStoredName, multipartFile);
 
-        // S3에 기존에 저장된 파일 삭제
         s3Delete(oldStoredName);
 
         // fileAttachment 정보 업데이트
@@ -122,6 +116,8 @@ public class FileService {
 
     @Transactional
     public void deleteFile(EntityType entityType, Long entityId, Long userId) {
+        entityValidator.validate(entityType, entityId);
+
         AttachmentMapping attachmentMapping = attachmentMappingRepository
                 .findByEntityTypeAndEntityId(entityType, entityId)
                 .orElseThrow(() ->
@@ -130,19 +126,15 @@ public class FileService {
 
         FileAttachment fileAttachment = attachmentMapping.getFileAttachment();
 
-        // 파일 접근 권한 체크
-        if (fileAttachment.getUser().getId() != userId) {
-            throw new CustomException(ErrorCode.FILE_ACCESS_DENIED);
-        }
+        checkAccessPermission(fileAttachment, userId);
 
-        // S3 오브젝트 삭제
         s3Delete(fileAttachment.getStoredName());
 
         // fileAttachment 정보 삭제
         fileAttachmentRepository.delete(fileAttachment);
     }
 
-    // S3에 파일을 업로드 하는 함수
+    // S3 오브젝트 생성
     private String s3Upload(
             String storedFileName,
             MultipartFile multipartFile
@@ -173,13 +165,31 @@ public class FileService {
         return filePath;
     }
 
-    // S3 파일 삭제 함수
+    // S3 오브젝트 삭제
     private void s3Delete(String fileName) {
         amazonS3.deleteObject(new DeleteObjectRequest(bucket, fileName));
     }
 
-    // 파일 이름을 난수화 하기 위한 함수
+    // 파일 이름을 난수화
     private String createFileName(String fileName) {
         return UUID.randomUUID().toString().concat(fileName);
+    }
+
+    // 파일 접근 권한 체크
+    private void checkAccessPermission(FileAttachment fileAttachment, Long userId) {
+        if (fileAttachment.getUser().getId() != userId) {
+            throw new CustomException(ErrorCode.FILE_ACCESS_DENIED);
+        }
+    }
+
+    // AttachmentMapping -> fileAttachment 추출
+    private FileAttachment getFileAttachmentOrThrow(EntityType entityType, Long entityId) {
+        AttachmentMapping attachmentMapping = attachmentMappingRepository
+                .findByEntityTypeAndEntityId(entityType, entityId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.ATTACHMENT_MAPPING_NOT_FOUND)
+                );
+
+        return attachmentMapping.getFileAttachment();
     }
 }
