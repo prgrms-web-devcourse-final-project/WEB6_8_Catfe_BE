@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Entity
 @Getter
@@ -20,7 +22,11 @@ public class Post extends BaseEntity {
 
     private String title;
 
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
+
+    @Column(length = 500)
+    private String thumbnailUrl;
 
     // TODO: 추후 PostRepositoryImpl#searchPosts 로직 개선 필요, ERD에도 반영할 것
     @Column(nullable = false)
@@ -49,6 +55,14 @@ public class Post extends BaseEntity {
         this.user = user;
         this.title = title;
         this.content = content;
+        this.thumbnailUrl = null;
+    }
+
+    public Post(User user, String title, String content, String thumbnailUrl) {
+        this.user = user;
+        this.title = title;
+        this.content = content;
+        this.thumbnailUrl = thumbnailUrl;
     }
 
     // -------------------- 비즈니스 메서드 --------------------
