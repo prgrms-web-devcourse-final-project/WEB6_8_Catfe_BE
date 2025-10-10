@@ -64,7 +64,8 @@ public class RoomController {
                 request.getPassword(),
                 request.getMaxParticipants() != null ? request.getMaxParticipants() : 10,
                 currentUserId,
-                request.getUseWebRTC() != null ? request.getUseWebRTC() : true  // 디폴트: true
+                request.getUseWebRTC() != null ? request.getUseWebRTC() : true,  // 디폴트: true
+                request.getThumbnailUrl()  // 썸네일 URL
         );
         
         RoomResponse response = roomService.toRoomResponse(room);
@@ -339,7 +340,7 @@ public class RoomController {
     @PutMapping("/{roomId}")
     @Operation(
         summary = "방 설정 수정", 
-        description = "방의 제목, 설명, 정원, RTC 설정 등을 수정합니다. 방장만 수정 가능합니다."
+        description = "방의 제목, 설명, 정원, 썸네일을 수정합니다. 방장만 수정 가능합니다. WebRTC 설정은 현재 수정 불가합니다."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "수정 성공"),
@@ -359,9 +360,7 @@ public class RoomController {
                 request.getTitle(),
                 request.getDescription(),
                 request.getMaxParticipants(),
-                request.getAllowCamera() != null ? request.getAllowCamera() : true,
-                request.getAllowAudio() != null ? request.getAllowAudio() : true,
-                request.getAllowScreenShare() != null ? request.getAllowScreenShare() : true,
+                request.getThumbnailUrl(),
                 currentUserId
         );
 

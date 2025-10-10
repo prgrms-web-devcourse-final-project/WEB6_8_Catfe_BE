@@ -133,7 +133,8 @@ class StudyRecordControllerTest {
                 20,     // 최대 20명
                 owner,
                 null,   // 테마 없음
-                true    // WebRTC 활성화
+                true,   // WebRTC 활성화
+                null    // thumbnailUrl
         );
 
         testRoom = roomRepository.save(testRoom);
