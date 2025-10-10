@@ -7,6 +7,7 @@ import com.back.domain.board.post.dto.PostDetailResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.dto.PostRequest;
 import com.back.domain.board.post.dto.PostResponse;
+import com.back.domain.board.post.enums.CategoryType;
 import com.back.domain.board.post.repository.PostCategoryRepository;
 import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.user.entity.User;
@@ -57,7 +58,7 @@ class PostServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        PostCategory category = new PostCategory("공지");
+        PostCategory category = new PostCategory("공지", CategoryType.SUBJECT);
         postCategoryRepository.save(category);
 
         PostRequest request = new PostRequest("제목", "내용", null, List.of(category.getId()));
@@ -115,15 +116,15 @@ class PostServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        PostCategory c1 = new PostCategory("공지사항");
-        PostCategory c2 = new PostCategory("자유게시판");
+        PostCategory c1 = new PostCategory("공지사항", CategoryType.SUBJECT);
+        PostCategory c2 = new PostCategory("자유게시판", CategoryType.SUBJECT);
         postCategoryRepository.saveAll(List.of(c1, c2));
 
-        Post post1 = new Post(user, "첫 번째 글", "내용1");
+        Post post1 = new Post(user, "첫 번째 글", "내용1", null);
         post1.updateCategories(List.of(c1));
         postRepository.save(post1);
 
-        Post post2 = new Post(user, "두 번째 글", "내용2");
+        Post post2 = new Post(user, "두 번째 글", "내용2", null);
         post2.updateCategories(List.of(c2));
         postRepository.save(post2);
 
@@ -147,10 +148,10 @@ class PostServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        PostCategory category = new PostCategory("공지");
+        PostCategory category = new PostCategory("공지", CategoryType.SUBJECT);
         postCategoryRepository.save(category);
 
-        Post post = new Post(user, "조회용 제목", "조회용 내용");
+        Post post = new Post(user, "조회용 제목", "조회용 내용", null);
         post.updateCategories(List.of(category));
         postRepository.save(post);
 
@@ -188,11 +189,11 @@ class PostServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        PostCategory oldCategory = new PostCategory("공지");
-        PostCategory newCategory = new PostCategory("자유");
+        PostCategory oldCategory = new PostCategory("공지", CategoryType.SUBJECT);
+        PostCategory newCategory = new PostCategory("자유", CategoryType.SUBJECT);
         postCategoryRepository.saveAll(List.of(oldCategory, newCategory));
 
-        Post post = new Post(user, "원래 제목", "원래 내용");
+        Post post = new Post(user, "원래 제목", "원래 내용", null);
         post.updateCategories(List.of(oldCategory));
         postRepository.save(post);
 
@@ -240,10 +241,10 @@ class PostServiceTest {
         another.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(another);
 
-        PostCategory category = new PostCategory("공지");
+        PostCategory category = new PostCategory("공지", CategoryType.SUBJECT);
         postCategoryRepository.save(category);
 
-        Post post = new Post(writer, "원래 제목", "원래 내용");
+        Post post = new Post(writer, "원래 제목", "원래 내용", null);
         post.updateCategories(List.of(category));
         postRepository.save(post);
 
@@ -264,10 +265,10 @@ class PostServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        PostCategory category = new PostCategory("공지");
+        PostCategory category = new PostCategory("공지", CategoryType.SUBJECT);
         postCategoryRepository.save(category);
 
-        Post post = new Post(user, "원래 제목", "원래 내용");
+        Post post = new Post(user, "원래 제목", "원래 내용", null);
         post.updateCategories(List.of(category));
         postRepository.save(post);
 
@@ -291,7 +292,7 @@ class PostServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "삭제 대상 제목", "삭제 대상 내용");
+        Post post = new Post(user, "삭제 대상 제목", "삭제 대상 내용", null);
         postRepository.save(post);
 
         // when
@@ -330,7 +331,7 @@ class PostServiceTest {
         another.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(another);
 
-        Post post = new Post(writer, "원래 제목", "원래 내용");
+        Post post = new Post(writer, "원래 제목", "원래 내용", null);
         postRepository.save(post);
 
         // when & then

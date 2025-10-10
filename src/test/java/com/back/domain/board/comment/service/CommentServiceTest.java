@@ -63,7 +63,7 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         CommentRequest request = new CommentRequest("댓글 내용");
@@ -86,7 +86,7 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         CommentRequest request = new CommentRequest("댓글 내용");
@@ -125,15 +125,15 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         // 부모 댓글
-        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
         commentRepository.save(parent);
 
         // 자식 댓글
-        Comment child = new Comment(post, user, "자식 댓글", parent);
+        Comment child = Comment.createChild(post, user, "자식 댓글", parent);
         commentRepository.save(child);
 
         Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "createdAt"));
@@ -171,10 +171,10 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, user, "원래 댓글");
+        Comment comment = Comment.createRoot(post, user, "원래 댓글");
         commentRepository.save(comment);
 
         CommentRequest updateRequest = new CommentRequest("수정된 댓글");
@@ -196,10 +196,10 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, user, "댓글");
+        Comment comment = Comment.createRoot(post, user, "댓글");
         commentRepository.save(comment);
 
         CommentRequest updateRequest = new CommentRequest("수정된 댓글");
@@ -220,7 +220,7 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         CommentRequest updateRequest = new CommentRequest("수정된 댓글");
@@ -246,10 +246,10 @@ class CommentServiceTest {
         other.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(other);
 
-        Post post = new Post(writer, "제목", "내용");
+        Post post = new Post(writer, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, writer, "원래 댓글");
+        Comment comment = Comment.createRoot(post, writer, "원래 댓글");
         commentRepository.save(comment);
 
         CommentRequest updateRequest = new CommentRequest("수정된 댓글");
@@ -272,10 +272,10 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, user, "삭제할 댓글");
+        Comment comment = Comment.createRoot(post, user, "삭제할 댓글");
         commentRepository.save(comment);
 
         // when
@@ -294,10 +294,10 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, user, "댓글");
+        Comment comment = Comment.createRoot(post, user, "댓글");
         commentRepository.save(comment);
 
         // when & then
@@ -316,7 +316,7 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         // when & then
@@ -340,10 +340,10 @@ class CommentServiceTest {
         other.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(other);
 
-        Post post = new Post(writer, "제목", "내용");
+        Post post = new Post(writer, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, writer, "원래 댓글");
+        Comment comment = Comment.createRoot(post, writer, "원래 댓글");
         commentRepository.save(comment);
 
         // when & then
@@ -364,10 +364,10 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
         commentRepository.save(parent);
 
         CommentRequest request = new CommentRequest("대댓글 내용");
@@ -391,11 +391,11 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post1 = new Post(user, "게시글1", "내용1");
-        Post post2 = new Post(user, "게시글2", "내용2");
+        Post post1 = new Post(user, "게시글1", "내용1", null);
+        Post post2 = new Post(user, "게시글2", "내용2", null);
         postRepository.saveAll(List.of(post1, post2));
 
-        Comment parent = new Comment(post1, user, "부모 댓글", null);
+        Comment parent = Comment.createRoot(post1, user, "부모 댓글");
         commentRepository.save(parent);
 
         CommentRequest request = new CommentRequest("대댓글 내용");
@@ -415,12 +415,12 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         // 부모 댓글 + 그 부모의 대댓글까지 생성
-        Comment parent = new Comment(post, user, "부모 댓글", null);
-        Comment child = new Comment(post, user, "대댓글1", parent);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
+        Comment child = Comment.createChild(post, user, "대댓글1", parent);
         commentRepository.saveAll(List.of(parent, child));
 
         CommentRequest request = new CommentRequest("대댓글2 내용");
@@ -440,7 +440,7 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         CommentRequest request = new CommentRequest("대댓글 내용");
@@ -460,11 +460,11 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment parent = new Comment(post, user, "부모 댓글", null);
-        Comment reply = new Comment(post, user, "대댓글", parent);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
+        Comment reply = Comment.createChild(post, user, "대댓글", parent);
         commentRepository.saveAll(List.of(parent, reply));
 
         CommentRequest updateRequest = new CommentRequest("수정된 대댓글 내용");
@@ -487,11 +487,11 @@ class CommentServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment parent = new Comment(post, user, "부모 댓글", null);
-        Comment reply = new Comment(post, user, "삭제할 대댓글", parent);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
+        Comment reply = Comment.createChild(post, user, "삭제할 대댓글", parent);
         commentRepository.saveAll(List.of(parent, reply));
 
         // when

@@ -53,7 +53,6 @@ class RoomControllerTest {
     void setUp() {
         // 테스트 사용자 생성
         testUser = User.builder()
-                .id(1L)
                 .username("testuser")
                 .email("test@test.com")
                 .password("password123")

@@ -38,12 +38,15 @@ public class CommentService {
     private final PostRepository postRepository;
     private final ApplicationEventPublisher eventPublisher;
 
+    // TODO: 연관관계 고려, 메서드 명, 중복 코드 제거, 주석 통일
+    // TODO: comment 끝나면 post도 해야 함.. entity > DTO > Repo > Service > Controller > Docs 순으로..
     /**
      * 댓글 생성 서비스
      * 1. User 조회
      * 2. Post 조회
-     * 3. Comment 생성
-     * 4. Comment 저장 및 CommentResponse 반환
+     * 3. Comment 생성 및 저장
+     * 4. 댓글 작성 이벤트 발행
+     * 5. CommentResponse 반환
      */
     public CommentResponse createComment(Long postId, CommentRequest request, Long userId) {
         // User 조회
@@ -54,10 +57,11 @@ public class CommentService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
-        // Comment 생성
-        Comment comment = new Comment(post, user, request.content());
+        // CommentCount 증가
+        post.increaseCommentCount();
 
-        // Comment 저장 및 응답 반환
+        // Comment 생성 및 저장
+        Comment comment = Comment.createRoot(post, user, request.content());
         commentRepository.save(comment);
 
         // 댓글 작성 이벤트 발행

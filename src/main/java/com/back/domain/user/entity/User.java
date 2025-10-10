@@ -26,7 +26,7 @@ import java.util.List;
 @Entity
 @Getter
 @Setter
-@SuperBuilder
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "USERS")
@@ -86,7 +86,6 @@ public class User extends BaseEntity {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PostBookmark> postBookmarks = new ArrayList<>();
 
-    @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments = new ArrayList<>();
 
@@ -130,6 +129,46 @@ public class User extends BaseEntity {
     public void setUserProfile(UserProfile profile) {
         this.userProfile = profile;
         profile.setUser(this);
+    }
+
+    public void addPost(Post post) {
+        this.posts.add(post);
+    }
+
+    public void removePost(Post post) {
+        this.posts.remove(post);
+    }
+
+    public void addPostLike(PostLike like) {
+        this.postLikes.add(like);
+    }
+
+    public void removePostLike(PostLike like) {
+        this.postLikes.remove(like);
+    }
+
+    public void addPostBookmark(PostBookmark bookmark) {
+        this.postBookmarks.add(bookmark);
+    }
+
+    public void removePostBookmark(PostBookmark bookmark) {
+        this.postBookmarks.remove(bookmark);
+    }
+
+    public void addComment(Comment comment) {
+        this.comments.add(comment);
+    }
+
+    public void removeComment(Comment comment) {
+        this.comments.remove(comment);
+    }
+
+    public void addCommentLike(CommentLike like) {
+        this.commentLikes.add(like);
+    }
+
+    public void removeCommentLike(CommentLike like) {
+        this.commentLikes.remove(like);
     }
 
     // -------------------- 헬퍼 메서드 --------------------

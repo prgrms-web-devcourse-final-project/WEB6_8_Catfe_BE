@@ -70,7 +70,6 @@ class RoomServiceTest {
     void setUp() {
         // 테스트 사용자 생성
         testUser = User.builder()
-                .id(1L)
                 .username("testuser")
                 .email("test@test.com")
                 .password("password123")
@@ -372,7 +371,6 @@ class RoomServiceTest {
         RoomMember hostMember = RoomMember.createHost(testRoom, testUser);
         
         User targetUser = User.builder()
-                .id(2L)
                 .username("target")
                 .email("target@test.com")
                 .role(Role.USER)

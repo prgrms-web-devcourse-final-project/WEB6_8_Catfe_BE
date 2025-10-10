@@ -70,7 +70,6 @@ class RoomChatServiceTest {
 
         // User 생성 및 userProfiles 필드 설정
         testUser = User.builder()
-                .id(1L)
                 .email("test@example.com")
                 .username("테스터")
                 .build();

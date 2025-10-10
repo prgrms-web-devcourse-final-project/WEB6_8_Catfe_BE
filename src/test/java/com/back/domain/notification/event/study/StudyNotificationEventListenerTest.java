@@ -37,7 +37,6 @@ class StudyNotificationEventListenerTest {
     @BeforeEach
     void setUp() {
         testUser = User.builder()
-                .id(1L)
                 .username("testuser")
                 .email("test@test.com")
                 .build();

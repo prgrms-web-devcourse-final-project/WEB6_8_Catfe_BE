@@ -61,14 +61,12 @@ class NotificationServiceTest {
     @BeforeEach
     void setUp() {
         user = User.builder()
-                .id(1L)
                 .email("test@test.com")
                 .username("테스터")
                 .password("password123")
                 .build();
 
         actor = User.builder()
-                .id(2L)
                 .email("actor@test.com")
                 .username("발신자")
                 .password("password123")

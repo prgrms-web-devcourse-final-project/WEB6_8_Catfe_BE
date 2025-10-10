@@ -37,13 +37,11 @@ class CommunityNotificationEventListenerTest {
     @BeforeEach
     void setUp() {
         actor = User.builder()
-                .id(1L)
                 .username("actor")
                 .email("actor@test.com")
                 .build();
 
         receiver = User.builder()
-                .id(2L)
                 .username("receiver")
                 .email("receiver@test.com")
                 .build();

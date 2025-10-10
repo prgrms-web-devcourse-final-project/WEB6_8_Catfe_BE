@@ -3,6 +3,7 @@ package com.back.domain.board.post.controller;
 import com.back.domain.board.post.dto.PostRequest;
 import com.back.domain.board.post.entity.Post;
 import com.back.domain.board.post.entity.PostCategory;
+import com.back.domain.board.post.enums.CategoryType;
 import com.back.domain.board.post.repository.PostCategoryRepository;
 import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.user.entity.User;
@@ -75,10 +76,10 @@ class PostControllerTest {
         String accessToken = generateAccessToken(user);
 
         // 카테고리 등록
-        PostCategory c1 = new PostCategory("공지사항");
+        PostCategory c1 = new PostCategory("공지사항", CategoryType.SUBJECT);
         postCategoryRepository.save(c1);
 
-        PostCategory c2 = new PostCategory("자유게시판");
+        PostCategory c2 = new PostCategory("자유게시판", CategoryType.SUBJECT);
         postCategoryRepository.save(c2);
 
         PostRequest request = new PostRequest("첫 번째 게시글", "안녕하세요, 첫 글입니다!", null, List.of(c1.getId(), c2.getId()));
@@ -201,15 +202,15 @@ class PostControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        PostCategory c1 = new PostCategory("공지사항");
-        PostCategory c2 = new PostCategory("자유게시판");
+        PostCategory c1 = new PostCategory("공지사항", CategoryType.SUBJECT);
+        PostCategory c2 = new PostCategory("자유게시판", CategoryType.SUBJECT);
         postCategoryRepository.saveAll(List.of(c1, c2));
 
-        Post post1 = new Post(user, "첫 글", "내용1");
+        Post post1 = new Post(user, "첫 글", "내용1", null);
         post1.updateCategories(List.of(c1));
         postRepository.save(post1);
 
-        Post post2 = new Post(user, "두 번째 글", "내용2");
+        Post post2 = new Post(user, "두 번째 글", "내용2", null);
         post2.updateCategories(List.of(c2));
         postRepository.save(post2);
 
@@ -236,10 +237,10 @@ class PostControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        PostCategory c1 = new PostCategory("공지사항");
+        PostCategory c1 = new PostCategory("공지사항", CategoryType.SUBJECT);
         postCategoryRepository.save(c1);
 
-        Post post = new Post(user, "조회 테스트 글", "조회 테스트 내용");
+        Post post = new Post(user, "조회 테스트 글", "조회 테스트 내용", null);
         post.updateCategories(List.of(c1));
         postRepository.save(post);
 
@@ -279,16 +280,16 @@ class PostControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        PostCategory c1 = new PostCategory("공지사항");
+        PostCategory c1 = new PostCategory("공지사항", CategoryType.SUBJECT);
         postCategoryRepository.save(c1);
 
-        Post post = new Post(user, "원래 제목", "원래 내용");
+        Post post = new Post(user, "원래 제목", "원래 내용", null);
         post.updateCategories(List.of(c1));
         postRepository.save(post);
 
         String accessToken = generateAccessToken(user);
 
-        PostCategory c2 = new PostCategory("자유게시판");
+        PostCategory c2 = new PostCategory("자유게시판", CategoryType.SUBJECT);
         postCategoryRepository.save(c2);
 
         PostRequest request = new PostRequest("수정된 게시글", "안녕하세요, 수정했습니다!", null, List.of(c1.getId(), c2.getId()));
@@ -344,10 +345,10 @@ class PostControllerTest {
         another.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(another);
 
-        PostCategory c1 = new PostCategory("공지사항");
+        PostCategory c1 = new PostCategory("공지사항", CategoryType.SUBJECT);
         postCategoryRepository.save(c1);
 
-        Post post = new Post(writer, "원래 제목", "원래 내용");
+        Post post = new Post(writer, "원래 제목", "원래 내용", null);
         post.updateCategories(List.of(c1));
         postRepository.save(post);
 
@@ -375,10 +376,10 @@ class PostControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        PostCategory c1 = new PostCategory("공지사항");
+        PostCategory c1 = new PostCategory("공지사항", CategoryType.SUBJECT);
         postCategoryRepository.save(c1);
 
-        Post post = new Post(user, "원래 제목", "원래 내용");
+        Post post = new Post(user, "원래 제목", "원래 내용", null);
         post.updateCategories(List.of(c1));
         postRepository.save(post);
 
@@ -453,7 +454,7 @@ class PostControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "삭제할 제목", "삭제할 내용");
+        Post post = new Post(user, "삭제할 제목", "삭제할 내용", null);
         postRepository.save(post);
 
         String accessToken = generateAccessToken(user);
@@ -503,7 +504,7 @@ class PostControllerTest {
         another.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(another);
 
-        Post post = new Post(writer, "원래 제목", "원래 내용");
+        Post post = new Post(writer, "원래 제목", "원래 내용", null);
         postRepository.save(post);
 
         String accessToken = generateAccessToken(another);

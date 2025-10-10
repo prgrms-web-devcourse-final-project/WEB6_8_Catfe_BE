@@ -12,7 +12,11 @@ import java.util.List;
 @Entity
 @NoArgsConstructor
 @Getter
+@Table(
+        uniqueConstraints = {@UniqueConstraint(columnNames = {"name", "type"})}
+)
 public class PostCategory extends BaseEntity {
+    @Column(nullable = false)
     private String name;
 
     @Enumerated(EnumType.STRING)
@@ -23,15 +27,14 @@ public class PostCategory extends BaseEntity {
     private List<PostCategoryMapping> postCategoryMappings;
 
     // -------------------- 생성자 --------------------
-    public PostCategory(String name) {
-        this.name = name;
-        this.type = CategoryType.SUBJECT;
-        this.postCategoryMappings = new ArrayList<>();
-    }
-
     public PostCategory(String name, CategoryType type) {
         this.name = name;
         this.type = type;
         this.postCategoryMappings = new ArrayList<>();
+    }
+
+    // -------------------- 연관관계 편의 메서드 --------------------
+    public void addPostCategoryMapping(PostCategoryMapping mapping) {
+        this.postCategoryMappings.add(mapping);
     }
 }

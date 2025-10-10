@@ -71,7 +71,6 @@ class RoomChatWebSocketControllerTest {
 
         // Mock User 객체 생성
         mockUser = User.builder()
-                .id(1L)
                 .username("testuser")
                 .email("test@example.com")
                 .build();

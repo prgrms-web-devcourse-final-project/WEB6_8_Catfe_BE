@@ -10,18 +10,23 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor
-@AllArgsConstructor
 @Table(
-        uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"post_id", "user_id"})
-        }
+        uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "user_id"})
 )
 public class PostBookmark extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id")
+    @JoinColumn(name = "post_id", nullable = false)
     private Post post;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    // -------------------- 생성자 --------------------
+    public PostBookmark(Post post, User user) {
+        this.post = post;
+        this.user = user;
+        post.addBookmark(this);
+        user.addPostBookmark(this);
+    }
 }

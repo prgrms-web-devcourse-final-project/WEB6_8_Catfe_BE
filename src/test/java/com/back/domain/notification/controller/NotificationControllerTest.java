@@ -69,7 +69,6 @@ class NotificationControllerTest {
     @BeforeEach
     void setUp() {
         receiver = User.builder()
-                .id(1L)
                 .email("receiver@test.com")
                 .username("수신자")
                 .password("password123")
@@ -77,7 +76,6 @@ class NotificationControllerTest {
                 .build();
 
         actor = User.builder()
-                .id(2L)
                 .email("actor@test.com")
                 .username("발신자")
                 .password("password123")
