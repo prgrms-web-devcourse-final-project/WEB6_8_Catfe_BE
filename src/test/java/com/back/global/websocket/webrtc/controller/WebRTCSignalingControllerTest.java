@@ -1,6 +1,8 @@
 package com.back.global.websocket.webrtc.controller;
 
 import com.back.global.security.user.CustomUserDetails;
+import com.back.global.websocket.dto.WebSocketSessionInfo;
+import com.back.global.websocket.service.WebSocketSessionManager;
 import com.back.global.websocket.webrtc.dto.media.WebRTCMediaToggleRequest;
 import com.back.global.websocket.webrtc.dto.media.WebRTCMediaType;
 import com.back.global.websocket.webrtc.dto.signal.*;
@@ -21,10 +23,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,6 +42,9 @@ class WebRTCSignalingControllerTest {
     @Mock
     private WebRTCSignalValidator validator;
 
+    @Mock
+    private WebSocketSessionManager sessionManager;
+
     @InjectMocks
     private WebRTCSignalingController controller;
 
@@ -49,12 +54,14 @@ class WebRTCSignalingControllerTest {
     private Long roomId;
     private Long fromUserId;
     private Long targetUserId;
+    private String targetSessionId;
 
     @BeforeEach
     void setUp() {
         roomId = 1L;
         fromUserId = 10L;
         targetUserId = 20L;
+        targetSessionId = "target-session-id";
 
         userDetails = mock(CustomUserDetails.class);
         lenient().when(userDetails.getUserId()).thenReturn(fromUserId);
@@ -71,18 +78,15 @@ class WebRTCSignalingControllerTest {
     class HandleOfferTest {
 
         @Test
-        @DisplayName("정상 - Offer 메시지 전송")
+        @DisplayName("성공 - Offer 메시지를 특정 사용자에게 전송")
         void t1() {
             // given
             String sdp = "test-sdp-offer";
-            WebRTCOfferRequest request = new WebRTCOfferRequest(
-                    roomId,
-                    targetUserId,
-                    sdp,
-                    WebRTCMediaType.AUDIO
-            );
+            WebRTCOfferRequest request = new WebRTCOfferRequest(roomId, targetUserId, sdp, WebRTCMediaType.AUDIO);
+            WebSocketSessionInfo targetSession = new WebSocketSessionInfo(targetUserId, targetSessionId, LocalDateTime.now(), LocalDateTime.now(), null);
 
-            doNothing().when(validator).validateSignal(roomId, fromUserId, targetUserId);
+            // sessionManager가 targetSession을 반환하도록 설정
+            when(sessionManager.getSessionInfo(targetUserId)).thenReturn(targetSession);
 
             // when
             controller.handleOffer(request, headerAccessor, authentication);
@@ -90,27 +94,47 @@ class WebRTCSignalingControllerTest {
             // then
             verify(validator).validateSignal(roomId, fromUserId, targetUserId);
 
+            // convertAndSendToUser를 검증하도록 변경
+            ArgumentCaptor<String> sessionIdCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> destinationCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<WebRTCSignalResponse> responseCaptor = ArgumentCaptor.forClass(WebRTCSignalResponse.class);
-            verify(messagingTemplate).convertAndSend(
+            verify(messagingTemplate).convertAndSendToUser(
+                    sessionIdCaptor.capture(),
                     destinationCaptor.capture(),
                     responseCaptor.capture()
             );
 
-            assertThat(destinationCaptor.getValue()).isEqualTo("/topic/room/" + roomId + "/webrtc");
+            assertThat(sessionIdCaptor.getValue()).isEqualTo(targetSessionId);
+            assertThat(destinationCaptor.getValue()).isEqualTo("/queue/webrtc");
 
             WebRTCSignalResponse response = responseCaptor.getValue();
             assertThat(response.type()).isEqualTo(WebRTCSignalType.OFFER);
             assertThat(response.fromUserId()).isEqualTo(fromUserId);
             assertThat(response.targetUserId()).isEqualTo(targetUserId);
-            assertThat(response.roomId()).isEqualTo(roomId);
-            assertThat(response.sdp()).isEqualTo(sdp);
-            assertThat(response.mediaType()).isEqualTo(WebRTCMediaType.AUDIO);
         }
 
         @Test
-        @DisplayName("실패 - 인증 정보 없음")
+        @DisplayName("실패 - 대상 사용자가 오프라인")
         void t2() {
+            // given
+            WebRTCOfferRequest request = new WebRTCOfferRequest(roomId, targetUserId, "sdp", WebRTCMediaType.AUDIO);
+
+            // sessionManager가 null을 반환하도록 설정
+            when(sessionManager.getSessionInfo(targetUserId)).thenReturn(null);
+
+            // when
+            controller.handleOffer(request, headerAccessor, authentication);
+
+            // then
+            verify(validator).validateSignal(roomId, fromUserId, targetUserId);
+            verify(errorHelper).sendErrorToUser(eq("test-session-id"), eq("WEBRTC_TARGET_OFFLINE"), anyString());
+            verify(messagingTemplate, never()).convertAndSendToUser(anyString(), anyString(), any());
+        }
+
+
+        @Test
+        @DisplayName("실패 - 인증 정보 없음")
+        void t3() {
             // given
             WebRTCOfferRequest request = new WebRTCOfferRequest(
                     roomId,
@@ -131,7 +155,7 @@ class WebRTCSignalingControllerTest {
 
         @Test
         @DisplayName("실패 - 검증 오류")
-        void t3() {
+        void t4() {
             // given
             WebRTCOfferRequest request = new WebRTCOfferRequest(
                     roomId,
@@ -162,18 +186,13 @@ class WebRTCSignalingControllerTest {
     class HandleAnswerTest {
 
         @Test
-        @DisplayName("정상 - Answer 메시지 전송")
-        void t4() {
+        @DisplayName("성공 - Answer 메시지를 특정 사용자에게 전송")
+        void t5() {
             // given
             String sdp = "test-sdp-answer";
-            WebRTCAnswerRequest request = new WebRTCAnswerRequest(
-                    roomId,
-                    targetUserId,
-                    sdp,
-                    WebRTCMediaType.SCREEN
-            );
-
-            doNothing().when(validator).validateSignal(roomId, fromUserId, targetUserId);
+            WebRTCAnswerRequest request = new WebRTCAnswerRequest(roomId, targetUserId, sdp, WebRTCMediaType.SCREEN);
+            WebSocketSessionInfo targetSession = new WebSocketSessionInfo(targetUserId, targetSessionId, LocalDateTime.now(), LocalDateTime.now(), null);
+            when(sessionManager.getSessionInfo(targetUserId)).thenReturn(targetSession);
 
             // when
             controller.handleAnswer(request, headerAccessor, authentication);
@@ -181,25 +200,25 @@ class WebRTCSignalingControllerTest {
             // then
             verify(validator).validateSignal(roomId, fromUserId, targetUserId);
 
+            ArgumentCaptor<String> sessionIdCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> destinationCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<WebRTCSignalResponse> responseCaptor = ArgumentCaptor.forClass(WebRTCSignalResponse.class);
-            verify(messagingTemplate).convertAndSend(
+            verify(messagingTemplate).convertAndSendToUser(
+                    sessionIdCaptor.capture(),
                     destinationCaptor.capture(),
                     responseCaptor.capture()
             );
 
-            assertThat(destinationCaptor.getValue()).isEqualTo("/topic/room/" + roomId + "/webrtc");
+            assertThat(sessionIdCaptor.getValue()).isEqualTo(targetSessionId);
+            assertThat(destinationCaptor.getValue()).isEqualTo("/queue/webrtc");
 
             WebRTCSignalResponse response = responseCaptor.getValue();
             assertThat(response.type()).isEqualTo(WebRTCSignalType.ANSWER);
-            assertThat(response.fromUserId()).isEqualTo(fromUserId);
-            assertThat(response.targetUserId()).isEqualTo(targetUserId);
-            assertThat(response.sdp()).isEqualTo(sdp);
         }
 
         @Test
         @DisplayName("실패 - 인증 정보 없음")
-        void t5() {
+        void t6() {
             // given
             WebRTCAnswerRequest request = new WebRTCAnswerRequest(
                     roomId,
@@ -224,18 +243,12 @@ class WebRTCSignalingControllerTest {
     class HandleIceCandidateTest {
 
         @Test
-        @DisplayName("정상 - ICE Candidate 전송")
-        void t6() {
+        @DisplayName("성공 - ICE Candidate를 특정 사용자에게 전송")
+        void t7() {
             // given
-            WebRTCIceCandidateRequest request = new WebRTCIceCandidateRequest(
-                    roomId,
-                    targetUserId,
-                    "candidate:1234567890",
-                    "audio",
-                    0
-            );
-
-            doNothing().when(validator).validateSignal(roomId, fromUserId, targetUserId);
+            WebRTCIceCandidateRequest request = new WebRTCIceCandidateRequest(roomId, targetUserId, "candidate:123", "audio", 0);
+            WebSocketSessionInfo targetSession = new WebSocketSessionInfo(targetUserId, targetSessionId, LocalDateTime.now(), LocalDateTime.now(), null);
+            when(sessionManager.getSessionInfo(targetUserId)).thenReturn(targetSession);
 
             // when
             controller.handleIceCandidate(request, headerAccessor, authentication);
@@ -243,27 +256,26 @@ class WebRTCSignalingControllerTest {
             // then
             verify(validator).validateSignal(roomId, fromUserId, targetUserId);
 
+            ArgumentCaptor<String> sessionIdCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> destinationCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<WebRTCSignalResponse> responseCaptor = ArgumentCaptor.forClass(WebRTCSignalResponse.class);
-            verify(messagingTemplate).convertAndSend(
+            verify(messagingTemplate).convertAndSendToUser(
+                    sessionIdCaptor.capture(),
                     destinationCaptor.capture(),
                     responseCaptor.capture()
             );
 
-            assertThat(destinationCaptor.getValue()).isEqualTo("/topic/room/" + roomId + "/webrtc");
+            assertThat(sessionIdCaptor.getValue()).isEqualTo(targetSessionId);
+            assertThat(destinationCaptor.getValue()).isEqualTo("/queue/webrtc");
 
             WebRTCSignalResponse response = responseCaptor.getValue();
             assertThat(response.type()).isEqualTo(WebRTCSignalType.ICE_CANDIDATE);
-            assertThat(response.fromUserId()).isEqualTo(fromUserId);
-            assertThat(response.targetUserId()).isEqualTo(targetUserId);
-            assertThat(response.candidate()).isEqualTo("candidate:1234567890");
-            assertThat(response.sdpMid()).isEqualTo("audio");
-            assertThat(response.sdpMLineIndex()).isEqualTo(0);
+            assertThat(response.candidate()).isEqualTo("candidate:123");
         }
 
         @Test
         @DisplayName("실패 - 검증 오류")
-        void t7() {
+        void t8() {
             // given
             WebRTCIceCandidateRequest request = new WebRTCIceCandidateRequest(
                     roomId,
@@ -293,8 +305,30 @@ class WebRTCSignalingControllerTest {
     class HandleMediaToggleTest {
 
         @Test
+        @DisplayName("정상 - 미디어 상태를 방 전체에 브로드캐스트")
+        void t9() {
+            // given
+            WebRTCMediaToggleRequest request = new WebRTCMediaToggleRequest(roomId, WebRTCMediaType.AUDIO, true);
+            doNothing().when(validator).validateMediaStateChange(roomId, fromUserId);
+
+            // when
+            controller.handleMediaToggle(request, headerAccessor, authentication);
+
+            // then
+            ArgumentCaptor<String> destinationCaptor = ArgumentCaptor.forClass(String.class);
+            ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+            verify(messagingTemplate).convertAndSend(
+                    destinationCaptor.capture(),
+                    payloadCaptor.capture()
+            );
+
+            verify(messagingTemplate, never()).convertAndSendToUser(anyString(), anyString(), any());
+            assertThat(destinationCaptor.getValue()).isEqualTo("/topic/room/" + roomId + "/media-status");
+        }
+
+        @Test
         @DisplayName("정상 - 오디오 활성화")
-        void t8() {
+        void t10() {
             // given
             WebRTCMediaToggleRequest request = new WebRTCMediaToggleRequest(
                     roomId,
@@ -322,7 +356,7 @@ class WebRTCSignalingControllerTest {
 
         @Test
         @DisplayName("정상 - 비디오 비활성화")
-        void t9() {
+        void t11() {
             // given
             WebRTCMediaToggleRequest request = new WebRTCMediaToggleRequest(
                     roomId,
@@ -350,7 +384,7 @@ class WebRTCSignalingControllerTest {
 
         @Test
         @DisplayName("실패 - 인증 정보 없음")
-        void t10() {
+        void t12() {
             // given
             WebRTCMediaToggleRequest request = new WebRTCMediaToggleRequest(
                     roomId,
@@ -369,7 +403,7 @@ class WebRTCSignalingControllerTest {
 
         @Test
         @DisplayName("실패 - 검증 오류")
-        void t11() {
+        void t13() {
             // given
             WebRTCMediaToggleRequest request = new WebRTCMediaToggleRequest(
                     roomId,
