@@ -1,7 +1,8 @@
 package com.back.global.websocket.controller;
 
 import com.back.global.exception.CustomException;
-import com.back.global.websocket.dto.HeartbeatMessage;
+import java.security.Principal;
+import com.back.global.security.user.CustomUserDetails;
 import com.back.global.websocket.service.WebSocketSessionManager;
 import com.back.global.websocket.util.WebSocketErrorHelper;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
 @Slf4j
@@ -21,16 +23,18 @@ public class WebSocketMessageController {
 
     // Heartbeat 처리
     @MessageMapping("/heartbeat")
-    public void handleHeartbeat(@Payload HeartbeatMessage message,
+    public void handleHeartbeat(Principal principal,
                                 SimpMessageHeaderAccessor headerAccessor) {
         try {
-            if (message.userId() != null) {
-                // TTL 10분으로 연장
-                sessionManager.updateLastActivity(message.userId());
-                log.debug("Heartbeat 처리 완료 - 사용자: {}", message.userId());
+            // Principal에서 인증된 사용자 정보 추출
+            if (principal instanceof Authentication auth && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
+                Long userId = userDetails.getUserId();
+
+                sessionManager.updateLastActivity(userId);
+                log.debug("Heartbeat 처리 완료 - 사용자: {}", userId);
             } else {
-                log.warn("유효하지 않은 Heartbeat 메시지 수신: userId가 null");
-                errorHelper.sendInvalidRequestError(headerAccessor.getSessionId(), "사용자 ID가 필요합니다");
+                log.warn("인증되지 않은 Heartbeat 요청: {}", headerAccessor.getSessionId());
+                errorHelper.sendUnauthorizedError(headerAccessor.getSessionId());
             }
         } catch (CustomException e) {
             log.error("Heartbeat 처리 실패: {}", e.getMessage());
@@ -43,12 +47,14 @@ public class WebSocketMessageController {
 
     // 사용자 활동 신호 처리
     @MessageMapping("/activity")
-    public void handleActivity(@Payload HeartbeatMessage message,
+    public void handleActivity(Principal principal,
                                SimpMessageHeaderAccessor headerAccessor) {
         try {
-            if (message.userId() != null) {
-                sessionManager.updateLastActivity(message.userId());
-                log.debug("사용자 활동 신호 처리 완료 - 사용자: {}", message.userId());
+            if (principal instanceof Authentication auth && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
+                Long userId = userDetails.getUserId();
+
+                sessionManager.updateLastActivity(userId);
+                log.debug("사용자 활동 신호 처리 완료 - 사용자: {}", userId);
             } else {
                 log.warn("유효하지 않은 활동 신호: userId가 null");
                 errorHelper.sendInvalidRequestError(headerAccessor.getSessionId(), "사용자 ID가 필요합니다");
