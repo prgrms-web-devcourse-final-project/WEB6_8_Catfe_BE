@@ -89,6 +89,12 @@ jwt:
 frontend:
   base-url: http://localhost:3000
 
+webrtc:
+  ice-servers:
+    - urls: stun:stun.l.google.com:19302
+    - urls: stun:stun1.l.google.com:19302
+    - urls: stun:stun2.l.google.com:19302
+
 # AWS S3
 cloud:
   aws:

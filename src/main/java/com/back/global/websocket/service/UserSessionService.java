@@ -23,14 +23,14 @@ public class UserSessionService {
     private final RedisSessionStore redisSessionStore;
 
     // 세션 등록
-    public void registerSession(Long userId, String sessionId) {
+    public void registerSession(Long userId, String username, String sessionId) {
         WebSocketSessionInfo existingSession = redisSessionStore.getUserSession(userId);
         if (existingSession != null) {
             terminateSession(existingSession.sessionId());
             log.info("기존 세션 제거 후 새 세션 등록 - 사용자: {}", userId);
         }
 
-        WebSocketSessionInfo newSession = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        WebSocketSessionInfo newSession = WebSocketSessionInfo.createNewSession(userId, username, sessionId);
         redisSessionStore.saveUserSession(userId, newSession);
         redisSessionStore.saveSessionUserMapping(sessionId, userId);
 
