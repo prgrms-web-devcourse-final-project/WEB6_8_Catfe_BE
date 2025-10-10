@@ -38,7 +38,7 @@ public class NotificationSettingController {
 
         settingService.toggleSetting(currentUser.getUserId(), type);
 
-        return ResponseEntity.ok(RsData.success(null));
+        return ResponseEntity.ok(RsData.success("알림 설정 토글 성공"));
     }
 
     @PutMapping("/all")
@@ -49,6 +49,6 @@ public class NotificationSettingController {
 
         settingService.toggleAllSettings(currentUser.getUserId(), enable);
 
-        return ResponseEntity.ok(RsData.success(null));
+        return ResponseEntity.ok(RsData.success("알림 설정 전체 변경 성공"));
     }
 }

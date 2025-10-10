@@ -182,11 +182,35 @@ public class RedisSessionStore {
 
     public long getTotalOnlineUserCount() {
         try {
-            Set<String> userKeys = redisTemplate.keys(WebSocketConstants.buildUserSessionKeyPattern());
-            return userKeys != null ? userKeys.size() : 0;
+            // 카운터 키에서 직접 값을 가져옴
+            Object count = redisTemplate.opsForValue().get(WebSocketConstants.ONLINE_USER_COUNT_KEY);
+            if (count instanceof Number) {
+                return ((Number) count).longValue();
+            }
+            return 0L;
         } catch (Exception e) {
             log.error("전체 온라인 사용자 수 조회 실패", e);
-            return 0;
+            return 0; // 에러 발생 시 0 반환
+        }
+    }
+
+    public void incrementOnlineUserCount() {
+        try {
+            redisTemplate.opsForValue().increment(WebSocketConstants.ONLINE_USER_COUNT_KEY);
+        } catch (Exception e) {
+            log.error("온라인 사용자 수 증가 실패", e);
+        }
+    }
+
+    public void decrementOnlineUserCount() {
+        try {
+            // 카운터가 0보다 작아지지 않도록 방지
+            Long currentValue = redisTemplate.opsForValue().decrement(WebSocketConstants.ONLINE_USER_COUNT_KEY);
+            if (currentValue != null && currentValue < 0) {
+                redisTemplate.opsForValue().set(WebSocketConstants.ONLINE_USER_COUNT_KEY, 0L);
+            }
+        } catch (Exception e) {
+            log.error("온라인 사용자 수 감소 실패", e);
         }
     }
 

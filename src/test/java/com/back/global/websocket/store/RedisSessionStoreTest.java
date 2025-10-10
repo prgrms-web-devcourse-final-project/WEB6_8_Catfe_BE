@@ -267,23 +267,17 @@ class RedisSessionStoreTest {
     @Test
     @DisplayName("전체 온라인 사용자 수 조회")
     void t14() {
-        // given
-        Long userId1 = 15L;
-        Long userId2 = 16L;
-        Long userId3 = 17L;
+        // given & when
+        // 세션 저장 대신, 카운터 증가 메서드를 직접 3번 호출
+        redisSessionStore.incrementOnlineUserCount();
+        redisSessionStore.incrementOnlineUserCount();
+        redisSessionStore.incrementOnlineUserCount();
 
-        WebSocketSessionInfo session1 = WebSocketSessionInfo.createNewSession(userId1, "session-1");
-        WebSocketSessionInfo session2 = WebSocketSessionInfo.createNewSession(userId2, "session-2");
-        WebSocketSessionInfo session3 = WebSocketSessionInfo.createNewSession(userId3, "session-3");
-
-        // when
-        redisSessionStore.saveUserSession(userId1, session1);
-        redisSessionStore.saveUserSession(userId2, session2);
-        redisSessionStore.saveUserSession(userId3, session3);
-
+        // 카운터 값을 조회
         long totalCount = redisSessionStore.getTotalOnlineUserCount();
 
         // then
+        // 증가된 카운터 값이 3인지 확인
         assertThat(totalCount).isEqualTo(3);
     }
 
