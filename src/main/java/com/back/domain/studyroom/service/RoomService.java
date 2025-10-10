@@ -67,12 +67,12 @@ public class RoomService {
      */
     @Transactional
     public Room createRoom(String title, String description, boolean isPrivate, 
-                          String password, int maxParticipants, Long creatorId, boolean useWebRTC) {
+                          String password, int maxParticipants, Long creatorId, boolean useWebRTC, String thumbnailUrl) {
         
         User creator = userRepository.findById(creatorId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        Room room = Room.create(title, description, isPrivate, password, maxParticipants, creator, null, useWebRTC);
+        Room room = Room.create(title, description, isPrivate, password, maxParticipants, creator, null, useWebRTC, thumbnailUrl);
         Room savedRoom = roomRepository.save(room);
 
         RoomMember hostMember = RoomMember.createHost(savedRoom, creator);
@@ -80,8 +80,8 @@ public class RoomService {
 
         // savedRoom.incrementParticipant();  // Redis로 이관 - DB 업데이트 제거
         
-        log.info("방 생성 완료 - RoomId: {}, Title: {}, CreatorId: {}, WebRTC: {}", 
-                savedRoom.getId(), title, creatorId, useWebRTC);
+        log.info("방 생성 완료 - RoomId: {}, Title: {}, CreatorId: {}, WebRTC: {}, Thumbnail: {}", 
+                savedRoom.getId(), title, creatorId, useWebRTC, thumbnailUrl != null ? "설정됨" : "없음");
         
         return savedRoom;
     }
@@ -268,8 +268,7 @@ public class RoomService {
 
     @Transactional
     public void updateRoomSettings(Long roomId, String title, String description, 
-                                  int maxParticipants, boolean allowCamera, 
-                                  boolean allowAudio, boolean allowScreenShare, Long userId) {
+                                  int maxParticipants, String thumbnailUrl, Long userId) {
         
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
@@ -285,10 +284,10 @@ public class RoomService {
             throw new CustomException(ErrorCode.BAD_REQUEST);
         }
 
-        room.updateSettings(title, description, maxParticipants, 
-                           allowCamera, allowAudio, allowScreenShare);
+        room.updateSettings(title, description, maxParticipants, thumbnailUrl);
         
-        log.info("방 설정 변경 완료 - RoomId: {}, UserId: {}", roomId, userId);
+        log.info("방 설정 변경 완료 - RoomId: {}, UserId: {}, Thumbnail: {}", 
+                roomId, userId, thumbnailUrl != null ? "변경됨" : "없음");
     }
 
     /**

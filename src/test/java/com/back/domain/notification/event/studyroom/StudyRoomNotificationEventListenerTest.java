@@ -66,7 +66,8 @@ class StudyRoomNotificationEventListenerTest {
                 10,
                 actor,
                 null,
-                true
+                true,  // useWebRTC
+                null   // thumbnailUrl
         );
     }
 

@@ -43,10 +43,12 @@ public interface PostControllerDocs {
                                         "postId": 101,
                                         "author": {
                                           "id": 5,
-                                          "nickname": "홍길동"
+                                          "nickname": "홍길동",
+                                          "profileImageUrl": null
                                         },
                                         "title": "첫 번째 게시글",
                                         "content": "안녕하세요, 첫 글입니다!",
+                                        "thumbnailUrl": null,
                                         "categories": [
                                           { "id": 1, "name": "공지사항" },
                                           { "id": 2, "name": "자유게시판" }
@@ -171,8 +173,9 @@ public interface PostControllerDocs {
                                         "items": [
                                           {
                                             "postId": 1,
-                                            "author": { "id": 10, "nickname": "홍길동" },
+                                            "author": { "id": 10, "nickname": "홍길동", "profileImageUrl": null },
                                             "title": "첫 글",
+                                            "thumbnailUrl": null,
                                             "categories": [{ "id": 1, "name": "공지사항" }],
                                             "likeCount": 5,
                                             "bookmarkCount": 2,
@@ -247,9 +250,10 @@ public interface PostControllerDocs {
                                       "message": "게시글이 조회되었습니다.",
                                       "data": {
                                         "postId": 101,
-                                        "author": { "id": 5, "nickname": "홍길동" },
+                                        "author": { "id": 5, "nickname": "홍길동", "profileImageUrl": null },
                                         "title": "첫 번째 게시글",
                                         "content": "안녕하세요, 첫 글입니다!",
+                                        "thumbnailUrl": null,
                                         "categories": [
                                           { "id": 1, "name": "공지사항" },
                                           { "id": 2, "name": "자유게시판" }
@@ -257,6 +261,8 @@ public interface PostControllerDocs {
                                         "likeCount": 10,
                                         "bookmarkCount": 2,
                                         "commentCount": 3,
+                                        "likedByMe": false,
+                                        "bookmarkedByMe": false,
                                         "createdAt": "2025-09-22T10:30:00",
                                         "updatedAt": "2025-09-22T10:30:00"
                                       }
@@ -296,7 +302,8 @@ public interface PostControllerDocs {
             )
     })
     ResponseEntity<RsData<PostDetailResponse>> getPost(
-            @PathVariable Long postId
+            @PathVariable Long postId,
+            @AuthenticationPrincipal CustomUserDetails user
     );
 
     @Operation(
@@ -318,10 +325,12 @@ public interface PostControllerDocs {
                                         "postId": 101,
                                         "author": {
                                           "id": 5,
-                                          "nickname": "홍길동"
+                                          "nickname": "홍길동",
+                                          "profileImageUrl": null
                                         },
                                         "title": "수정된 게시글",
                                         "content": "안녕하세요, 수정했습니다!",
+                                        "thumbnailUrl": null,
                                         "categories": [
                                           { "id": 1, "name": "공지사항" },
                                           { "id": 2, "name": "자유게시판" }

@@ -16,6 +16,10 @@ public class CreateRoomRequest {
     @Size(max = 500, message = "방 설명은 500자를 초과할 수 없습니다")
     private String description;
     
+    // 방 썸네일 이미지 URL (선택)
+    @Size(max = 500, message = "썸네일 URL은 500자를 초과할 수 없습니다")
+    private String thumbnailUrl;
+    
     private Boolean isPrivate = false;
     
     private String password;

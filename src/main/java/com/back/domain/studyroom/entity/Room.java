@@ -25,6 +25,31 @@ public class Room extends BaseEntity {
     private String password;
     private int maxParticipants;
     private boolean isActive;
+    
+    // 방 썸네일 이미지 URL
+    private String thumbnailUrl;
+    
+    // 디폴트 썸네일 URL
+    private static final String DEFAULT_THUMBNAIL_URL = "/images/default-room-thumbnail.png";
+    
+    /**
+     * 썸네일 URL 조회 (디폴트 처리 포함)
+     * null인 경우 디폴트 이미지 반환
+     */
+    public String getThumbnailUrl() {
+        return (thumbnailUrl != null && !thumbnailUrl.trim().isEmpty()) 
+            ? thumbnailUrl 
+            : DEFAULT_THUMBNAIL_URL;
+    }
+    
+    /**
+     * 원본 썸네일 URL 조회 (디폴트 처리 없음)
+     * DB에 실제 저장된 값 그대로 반환
+     */
+    public String getRawThumbnailUrl() {
+        return thumbnailUrl;
+    }
+    
     private boolean allowCamera;
     private boolean allowAudio;
     private boolean allowScreenShare;
@@ -149,7 +174,7 @@ public class Room extends BaseEntity {
      */
     public static Room create(String title, String description, boolean isPrivate, 
                              String password, int maxParticipants, User creator, RoomTheme theme,
-                             boolean useWebRTC) {
+                             boolean useWebRTC, String thumbnailUrl) {
         Room room = new Room();
         room.title = title;
         room.description = description;
@@ -157,6 +182,7 @@ public class Room extends BaseEntity {
         room.password = password;
         room.maxParticipants = maxParticipants;
         room.isActive = true;  // 생성 시 기본적으로 활성화
+        room.thumbnailUrl = thumbnailUrl;  // 썸네일 URL
         room.allowCamera = useWebRTC;  // WebRTC 사용 여부에 따라 설정
         room.allowAudio = useWebRTC;   // WebRTC 사용 여부에 따라 설정
         room.allowScreenShare = useWebRTC;  // WebRTC 사용 여부에 따라 설정
@@ -174,15 +200,22 @@ public class Room extends BaseEntity {
     }
 
     /**
-     * 방 설정 일괄 업데이트 메서드
-     방장이 방 설정을 변경할 때 여러 필드를 한 번에 업데이트
-     주된 생성 이유.. rtc 단체 제어를 위해 잡아놓았음. 잡아준 필드 변경 가능성 농후!!
+     * 방 설정 일괄 업데이트 메서드 (썸네일 포함)
+     * 방장이 방 설정을 변경할 때 여러 필드를 한 번에 업데이트
+     * WebRTC 설정은 제외 (확장성을 위해 제거가 아닌 주석으로 현재 놔둠..)
      */
-    public void updateSettings(String title, String description, int maxParticipants,
-                              boolean allowCamera, boolean allowAudio, boolean allowScreenShare) {
+    public void updateSettings(String title, String description, int maxParticipants, String thumbnailUrl) {
         this.title = title;
         this.description = description;
         this.maxParticipants = maxParticipants;
+        this.thumbnailUrl = thumbnailUrl;
+    }
+    
+    /**
+     * WebRTC 설정 업데이트 메서드 (추후 사용 가능!)
+     * 현재는 미사용 - 추후 팀원이 만약 구현 시 활성화 되도록
+     */
+    public void updateWebRTCSettings(boolean allowCamera, boolean allowAudio, boolean allowScreenShare) {
         this.allowCamera = allowCamera;
         this.allowAudio = allowAudio;
         this.allowScreenShare = allowScreenShare;
