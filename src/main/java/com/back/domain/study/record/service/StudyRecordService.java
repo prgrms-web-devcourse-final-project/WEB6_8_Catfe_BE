@@ -54,12 +54,9 @@ public class StudyRecordService {
             throw new CustomException(ErrorCode.PLAN_FORBIDDEN);
         }
 
-        // 방 조회 (우선은 옵셔널로 설정)
-        Room room = null;
-        if (request.getRoomId() != null) {
-            room = roomRepository.findById(request.getRoomId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-        }
+        // 방 조회 (필수)
+        Room room = roomRepository.findById(request.getRoomId())
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
         // 일시정지 정보를 엔티티로 생성
         List<PauseInfo> pauseInfos = request.getPauseInfos().stream()
@@ -125,9 +122,9 @@ public class StudyRecordService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 오전 4시 기준 하루의 시작과 끝 설정
-        LocalDateTime startOfDay = date.atTime(4, 0, 0);
-        LocalDateTime endOfDay = date.plusDays(1).atTime(4, 0, 0);
+        // 오전 0시 기준 하루의 시작과 끝 설정
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
 
         // 시작~종료 시간을 포함하는 일자의 학습 기록 조회
         List<StudyRecord> records = studyRecordRepository
@@ -151,8 +148,8 @@ public class StudyRecordService {
 
             // 오늘 완료한 계획 개수
             int completedCount = 0;
-            LocalDateTime startOfDay = date.atTime(4, 0);
-            LocalDateTime endOfDay = date.plusDays(1).atTime(4, 0);
+            LocalDateTime startOfDay = date.atStartOfDay();
+            LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
 
             for (StudyPlan plan : todayPlans) {
                 boolean hasRecord = studyRecordRepository.existsByStudyPlanIdAndDate(
@@ -200,15 +197,15 @@ public class StudyRecordService {
 
     // ===================== 유틸 =====================
     // 시간 범위 검증
-    private void validateTimeRange(java.time.LocalDateTime startTime, java.time.LocalDateTime endTime) {
+    private void validateTimeRange(LocalDateTime startTime, LocalDateTime endTime) {
         if (startTime.isAfter(endTime) || startTime.isEqual(endTime)) {
             throw new CustomException(ErrorCode.INVALID_TIME_RANGE);
         }
     }
 
     // 일시정지 시간이 학습 시간 내에 있는지 검증
-    private void validatePauseInStudyRange(java.time.LocalDateTime studyStart, java.time.LocalDateTime studyEnd,
-                                           java.time.LocalDateTime pauseStart, java.time.LocalDateTime pauseEnd) {
+    private void validatePauseInStudyRange(LocalDateTime studyStart, LocalDateTime studyEnd,
+                                           LocalDateTime pauseStart, LocalDateTime pauseEnd) {
         if (pauseStart.isBefore(studyStart) || pauseEnd.isAfter(studyEnd)) {
             throw new CustomException(ErrorCode.INVALID_TIME_RANGE);
         }
