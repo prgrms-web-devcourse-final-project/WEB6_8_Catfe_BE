@@ -329,6 +329,10 @@ class RoomControllerTest {
         given(currentUser.getUserId()).willReturn(1L);
         
         given(roomService.getRoomMembers(eq(1L), eq(1L))).willReturn(Arrays.asList(testMember));
+        
+        // toRoomMemberResponseList 호출 추가
+        List<RoomMemberResponse> memberResponses = Arrays.asList(RoomMemberResponse.from(testMember));
+        given(roomService.toRoomMemberResponseList(eq(1L), anyList())).willReturn(memberResponses);
 
         // when
         ResponseEntity<RsData<List<RoomMemberResponse>>> response = roomController.getRoomMembers(1L);
@@ -342,6 +346,7 @@ class RoomControllerTest {
 
         verify(currentUser, times(1)).getUserId();
         verify(roomService, times(1)).getRoomMembers(eq(1L), eq(1L));
+        verify(roomService, times(1)).toRoomMemberResponseList(eq(1L), anyList());
     }
 
     @Test

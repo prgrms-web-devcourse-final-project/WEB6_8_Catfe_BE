@@ -58,6 +58,9 @@ class RoomServiceTest {
 
     @Mock
     private NotificationService notificationService;
+    
+    @Mock
+    private AvatarService avatarService;
 
     @InjectMocks
     private RoomService roomService;
@@ -157,6 +160,7 @@ class RoomServiceTest {
         given(userRepository.findById(2L)).willReturn(Optional.of(testUser));
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.empty());
         given(roomParticipantService.getParticipantCount(1L)).willReturn(0L); // Redis 카운트
+        given(avatarService.loadOrCreateAvatar(1L, 2L)).willReturn(1L); // 아바타 Mock 추가
 
         // when
         RoomMember joinedMember = roomService.joinRoom(1L, null, 2L);
@@ -164,7 +168,8 @@ class RoomServiceTest {
         // then
         assertThat(joinedMember).isNotNull();
         assertThat(joinedMember.getRole()).isEqualTo(RoomRole.VISITOR);
-        verify(roomParticipantService, times(1)).enterRoom(2L, 1L); // Redis 입장 확인
+        verify(avatarService, times(1)).loadOrCreateAvatar(1L, 2L);
+        verify(roomParticipantService, times(1)).enterRoom(eq(2L), eq(1L), any()); // avatarId 파라미터 추가
         verify(roomMemberRepository, never()).save(any(RoomMember.class)); // DB 저장 안됨!
     }
 
