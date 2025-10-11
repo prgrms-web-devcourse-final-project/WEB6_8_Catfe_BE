@@ -16,19 +16,22 @@ public class PostListResponse {
     private final Long postId;
     private final AuthorResponse author;
     private final String title;
+    private final String thumbnailUrl;
+
+    @Setter
+    private List<CategoryResponse> categories;
+
     private final long likeCount;
     private final long bookmarkCount;
     private final long commentCount;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
-    @Setter
-    private List<CategoryResponse> categories;
-
     @QueryProjection
     public PostListResponse(Long postId,
                             AuthorResponse author,
                             String title,
+                            String thumbnailUrl,
                             List<CategoryResponse> categories,
                             long likeCount,
                             long bookmarkCount,
@@ -38,6 +41,7 @@ public class PostListResponse {
         this.postId = postId;
         this.author = author;
         this.title = title;
+        this.thumbnailUrl = thumbnailUrl;
         this.categories = categories;
         this.likeCount = likeCount;
         this.bookmarkCount = bookmarkCount;

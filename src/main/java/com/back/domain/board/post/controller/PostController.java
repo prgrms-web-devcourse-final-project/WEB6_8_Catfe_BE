@@ -59,9 +59,12 @@ public class PostController implements PostControllerDocs {
     // 게시글 단건 조회
     @GetMapping("/{postId}")
     public ResponseEntity<RsData<PostDetailResponse>> getPost(
-            @PathVariable Long postId
+            @PathVariable Long postId,
+            @AuthenticationPrincipal CustomUserDetails user
     ) {
-        PostDetailResponse response = postService.getPost(postId);
+        PostDetailResponse response = (user != null)
+                ? postService.getPostWithUser(postId, user.getUserId())
+                : postService.getPost(postId);
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success(

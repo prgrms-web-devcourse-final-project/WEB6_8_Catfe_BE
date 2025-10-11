@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 public record WebSocketSessionInfo(
         Long userId,
+        String username,
         String sessionId,
         LocalDateTime connectedAt,
         LocalDateTime lastActiveAt,
@@ -11,10 +12,11 @@ public record WebSocketSessionInfo(
 ) {
 
     // 새로운 세션 생성
-    public static WebSocketSessionInfo createNewSession(Long userId, String sessionId) {
+    public static WebSocketSessionInfo createNewSession(Long userId, String username, String sessionId) {
         LocalDateTime now = LocalDateTime.now();
         return new WebSocketSessionInfo(
                 userId,
+                username,
                 sessionId,
                 now,    // connectedAt
                 now,    // lastActiveAt
@@ -26,6 +28,7 @@ public record WebSocketSessionInfo(
     public WebSocketSessionInfo withUpdatedActivity() {
         return new WebSocketSessionInfo(
                 userId,
+                username,
                 sessionId,
                 connectedAt,
                 LocalDateTime.now(),
@@ -37,6 +40,7 @@ public record WebSocketSessionInfo(
     public WebSocketSessionInfo withRoomId(Long newRoomId) {
         return new WebSocketSessionInfo(
                 userId,
+                username,
                 sessionId,
                 connectedAt,
                 LocalDateTime.now(),
@@ -48,6 +52,7 @@ public record WebSocketSessionInfo(
     public WebSocketSessionInfo withoutRoom() {
         return new WebSocketSessionInfo(
                 userId,
+                username,
                 sessionId,
                 connectedAt,
                 LocalDateTime.now(),

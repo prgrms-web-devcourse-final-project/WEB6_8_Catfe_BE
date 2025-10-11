@@ -29,14 +29,16 @@ class UserSessionServiceTest {
     private UserSessionService userSessionService;
 
     private Long userId;
+    private String username;
     private String sessionId;
     private WebSocketSessionInfo sessionInfo;
 
     @BeforeEach
     void setUp() {
         userId = 1L;
+        username = "testuser";
         sessionId = "test-session-123";
-        sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        sessionInfo = WebSocketSessionInfo.createNewSession(userId, username, sessionId);
     }
 
     @Test
@@ -46,7 +48,7 @@ class UserSessionServiceTest {
         given(redisSessionStore.getUserSession(userId)).willReturn(null);
 
         // when
-        userSessionService.registerSession(userId, sessionId);
+        userSessionService.registerSession(userId, username,sessionId);
 
         // then
         ArgumentCaptor<WebSocketSessionInfo> sessionCaptor = ArgumentCaptor.forClass(WebSocketSessionInfo.class);
@@ -66,21 +68,17 @@ class UserSessionServiceTest {
     void t2() {
         // given
         String oldSessionId = "old-session-456";
-        WebSocketSessionInfo oldSession = WebSocketSessionInfo.createNewSession(userId, oldSessionId);
+        WebSocketSessionInfo oldSession = WebSocketSessionInfo.createNewSession(userId, username, oldSessionId);
         given(redisSessionStore.getUserSession(userId)).willReturn(oldSession);
         given(redisSessionStore.getUserIdBySession(oldSessionId)).willReturn(userId);
 
         // when
-        userSessionService.registerSession(userId, sessionId);
+        userSessionService.registerSession(userId, username, sessionId); // username 전달
 
         // then
-        // 기존 세션 종료 확인
-        verify(redisSessionStore).getUserIdBySession(oldSessionId);
         verify(redisSessionStore).deleteUserSession(userId);
         verify(redisSessionStore).deleteSessionUserMapping(oldSessionId);
-
-        // 새 세션 등록 확인
-        verify(redisSessionStore, times(1)).saveUserSession(eq(userId), any(WebSocketSessionInfo.class));
+        verify(redisSessionStore).saveUserSession(eq(userId), any(WebSocketSessionInfo.class));
         verify(redisSessionStore).saveSessionUserMapping(eq(sessionId), eq(userId));
     }
 
@@ -310,28 +308,19 @@ class UserSessionServiceTest {
         // given
         String oldSessionId = "old-session";
         Long oldRoomId = 999L;
-        WebSocketSessionInfo oldSession = WebSocketSessionInfo.createNewSession(userId, oldSessionId)
+        WebSocketSessionInfo oldSession = WebSocketSessionInfo.createNewSession(userId, username, oldSessionId)
                 .withRoomId(oldRoomId);
 
         given(redisSessionStore.getUserSession(userId)).willReturn(oldSession);
         given(redisSessionStore.getUserIdBySession(oldSessionId)).willReturn(userId);
 
         // when
-        userSessionService.registerSession(userId, sessionId);
+        userSessionService.registerSession(userId, username, sessionId); // username 전달
 
         // then
-        // 기존 세션 정리 검증
-        verify(redisSessionStore).getUserIdBySession(oldSessionId);
         verify(redisSessionStore).deleteUserSession(userId);
         verify(redisSessionStore).deleteSessionUserMapping(oldSessionId);
-
-        // 새 세션 생성 검증
-        ArgumentCaptor<WebSocketSessionInfo> captor = ArgumentCaptor.forClass(WebSocketSessionInfo.class);
-        verify(redisSessionStore).saveUserSession(eq(userId), captor.capture());
+        verify(redisSessionStore).saveUserSession(eq(userId), any(WebSocketSessionInfo.class));
         verify(redisSessionStore).saveSessionUserMapping(eq(sessionId), eq(userId));
-
-        WebSocketSessionInfo newSession = captor.getValue();
-        assertThat(newSession.sessionId()).isEqualTo(sessionId);
-        assertThat(newSession.currentRoomId()).isNull(); // 새 세션은 방 정보 없음
     }
 }

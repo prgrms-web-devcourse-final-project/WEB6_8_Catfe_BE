@@ -16,8 +16,8 @@ public class WebSocketSessionManager {
     private final RoomParticipantService roomParticipantService;
 
     // 사용자 세션 추가 (WebSocket 연결 시 호출)
-    public void addSession(Long userId, String sessionId) {
-        userSessionService.registerSession(userId, sessionId);
+    public void addSession(Long userId, String username, String sessionId) {
+        userSessionService.registerSession(userId, username, sessionId);
     }
 
     // 세션 제거 (WebSocket 연결 종료 시 호출)

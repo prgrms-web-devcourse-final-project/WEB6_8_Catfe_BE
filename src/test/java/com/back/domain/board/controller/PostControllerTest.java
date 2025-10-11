@@ -81,7 +81,7 @@ class PostControllerTest {
         PostCategory c2 = new PostCategory("자유게시판");
         postCategoryRepository.save(c2);
 
-        PostRequest request = new PostRequest("첫 번째 게시글", "안녕하세요, 첫 글입니다!", List.of(c1.getId(), c2.getId()));
+        PostRequest request = new PostRequest("첫 번째 게시글", "안녕하세요, 첫 글입니다!", null, List.of(c1.getId(), c2.getId()));
 
         // when
         ResultActions resultActions = mvc.perform(
@@ -107,7 +107,7 @@ class PostControllerTest {
         // given: 토큰만 발급(실제 DB엔 없음)
         String fakeToken = testJwtTokenProvider.createAccessToken(999L, "ghost", "USER");
 
-        PostRequest request = new PostRequest("제목", "내용", null);
+        PostRequest request = new PostRequest("제목", "내용", null, null);
 
         // when & then
         mvc.perform(post("/api/posts")
@@ -132,7 +132,7 @@ class PostControllerTest {
         String accessToken = generateAccessToken(user);
 
         // 존재하지 않는 카테고리 ID
-        PostRequest request = new PostRequest("제목", "내용", List.of(999L));
+        PostRequest request = new PostRequest("제목", "내용", null, List.of(999L));
 
         // when & then
         mvc.perform(post("/api/posts")
@@ -178,7 +178,7 @@ class PostControllerTest {
     @DisplayName("게시글 생성 실패 - 토큰 없음 → 401 Unauthorized")
     void createPost_noToken() throws Exception {
         // given
-        PostRequest request = new PostRequest("제목", "내용", null);
+        PostRequest request = new PostRequest("제목", "내용", null, null);
 
         // when & then
         mvc.perform(post("/api/posts")
@@ -291,7 +291,7 @@ class PostControllerTest {
         PostCategory c2 = new PostCategory("자유게시판");
         postCategoryRepository.save(c2);
 
-        PostRequest request = new PostRequest("수정된 게시글", "안녕하세요, 수정했습니다!", List.of(c1.getId(), c2.getId()));
+        PostRequest request = new PostRequest("수정된 게시글", "안녕하세요, 수정했습니다!", null, List.of(c1.getId(), c2.getId()));
 
         // when & then
         mvc.perform(put("/api/posts/{postId}", post.getId())
@@ -317,7 +317,7 @@ class PostControllerTest {
 
         String accessToken = generateAccessToken(user);
 
-        PostRequest request = new PostRequest("수정된 제목", "내용", List.of());
+        PostRequest request = new PostRequest("수정된 제목", "내용", null, List.of());
 
         // when & then
         mvc.perform(put("/api/posts/{postId}", 999L)
@@ -353,7 +353,7 @@ class PostControllerTest {
 
         String accessToken = generateAccessToken(another);
 
-        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", List.of(c1.getId()));
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", null, List.of(c1.getId()));
 
         // when & then
         mvc.perform(put("/api/posts/{postId}", post.getId())
@@ -385,7 +385,7 @@ class PostControllerTest {
         String accessToken = generateAccessToken(user);
 
         // 존재하지 않는 카테고리 ID
-        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", List.of(999L));
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", null, List.of(999L));
 
         // when & then
         mvc.perform(put("/api/posts/{postId}", post.getId())
@@ -430,7 +430,7 @@ class PostControllerTest {
     @DisplayName("게시글 수정 실패 - 인증 없음 → 401 Unauthorized")
     void updatePost_fail_unauthorized() throws Exception {
         // given
-        PostRequest request = new PostRequest("제목", "내용", List.of());
+        PostRequest request = new PostRequest("제목", "내용", null, List.of());
 
         // when & then
         mvc.perform(put("/api/posts/{postId}", 1L)

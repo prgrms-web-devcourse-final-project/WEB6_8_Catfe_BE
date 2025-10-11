@@ -57,8 +57,9 @@ class RedisSessionStoreTest {
     void t1() {
         // given
         Long userId = 1L;
+        String username = "testuser";
         String sessionId = "test-session-123";
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, username, sessionId);
 
         // when
         redisSessionStore.saveUserSession(userId, sessionInfo);
@@ -119,8 +120,9 @@ class RedisSessionStoreTest {
     void t5() {
         // given
         Long userId = 3L;
+        String username = "deleteuser";
         String sessionId = "test-session-789";
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, username, sessionId);
         redisSessionStore.saveUserSession(userId, sessionInfo);
 
         // when
@@ -152,8 +154,9 @@ class RedisSessionStoreTest {
     void t7() {
         // given
         Long userId = 5L;
+        String username = "existsuser";
         String sessionId = "test-session-exists";
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, username, sessionId);
 
         // when & then
         assertThat(redisSessionStore.existsUserSession(userId)).isFalse();
@@ -286,9 +289,10 @@ class RedisSessionStoreTest {
     void t15() {
         // given
         Long userId = 18L;
+        String username = "roomuser";
         Long roomId = 200L;
         String sessionId = "session-with-room";
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, username, sessionId);
         WebSocketSessionInfo withRoom = sessionInfo.withRoomId(roomId);
 
         // when
@@ -307,9 +311,10 @@ class RedisSessionStoreTest {
     void t16() {
         // given
         Long userId = 19L;
+        String username = "removeroomuser";
         Long roomId = 201L;
         String sessionId = "session-remove-room";
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, username, sessionId);
         WebSocketSessionInfo withRoom = sessionInfo.withRoomId(roomId);
         redisSessionStore.saveUserSession(userId, withRoom);
 
@@ -328,8 +333,9 @@ class RedisSessionStoreTest {
     void t17() throws InterruptedException {
         // given
         Long userId = 20L;
+        String username = "activityuser";
         String sessionId = "session-activity-update";
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, username, sessionId);
         redisSessionStore.saveUserSession(userId, sessionInfo);
 
         // when
@@ -367,8 +373,9 @@ class RedisSessionStoreTest {
     void t19() {
         // given
         Long userId = 22L;
+        String username = "ttluser";
         String sessionId = "session-ttl-check";
-        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, sessionId);
+        WebSocketSessionInfo sessionInfo = WebSocketSessionInfo.createNewSession(userId, username, sessionId);
 
         // when
         redisSessionStore.saveUserSession(userId, sessionInfo);

@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,7 +26,6 @@ import java.time.LocalDateTime;
 public class RoomChatApiController {
 
     private final RoomChatService roomChatService;
-    private final SimpMessagingTemplate messagingTemplate;
 
     // 방 채팅 메시지 조회 (페이징, 특정 시간 이전 메시지)
     @GetMapping
@@ -72,18 +70,6 @@ public class RoomChatApiController {
                 clearedByInfo.nickname(),
                 clearedByInfo.role()
         );
-
-        // WebSocket을 통해 실시간 알림 전송
-        ChatClearedNotification notification = ChatClearedNotification.create(
-                roomId,
-                messageCount,
-                clearedByInfo.userId(),
-                clearedByInfo.nickname(),
-                clearedByInfo.profileImageUrl(),
-                clearedByInfo.role()
-        );
-
-        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/chat-cleared", notification);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
