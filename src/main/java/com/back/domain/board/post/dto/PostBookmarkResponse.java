@@ -5,7 +5,7 @@ import com.back.domain.board.post.entity.Post;
 /**
  * 게시글 북마크 응답 DTO
  *
- * @param postId        게시글 id
+ * @param postId        게시글 ID
  * @param bookmarkCount 북마크 수
  */
 public record PostBookmarkResponse(
