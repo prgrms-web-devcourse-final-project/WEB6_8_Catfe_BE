@@ -1,4 +1,4 @@
-package com.back.domain.board.post.repository;
+package com.back.domain.board.post.repository.custom;
 
 import com.back.domain.board.comment.entity.QComment;
 import com.back.domain.board.common.dto.QAuthorResponse;

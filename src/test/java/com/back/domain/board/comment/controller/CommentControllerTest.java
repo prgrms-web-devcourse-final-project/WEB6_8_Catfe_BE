@@ -1,4 +1,4 @@
-package com.back.domain.board.controller;
+package com.back.domain.board.comment.controller;
 
 import com.back.domain.board.comment.dto.CommentRequest;
 import com.back.domain.board.comment.entity.Comment;
@@ -76,7 +76,7 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "첫 글", "내용");
+        Post post = new Post(user, "첫 글", "내용", null);
         postRepository.save(post);
 
         String accessToken = generateAccessToken(user);
@@ -110,7 +110,7 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         // DB에 없는 userId 기반 토큰
@@ -162,7 +162,7 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         String accessToken = generateAccessToken(user);
@@ -193,7 +193,7 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         CommentRequest request = new CommentRequest("댓글 내용");
@@ -219,15 +219,15 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         // 부모 댓글
-        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
         commentRepository.save(parent);
 
         // 자식 댓글
-        Comment child = new Comment(post, user, "자식 댓글", parent);
+        Comment child = Comment.createChild(post, user, "자식 댓글", parent);
         commentRepository.save(child);
 
         String accessToken = generateAccessToken(user);
@@ -278,10 +278,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, user, "원래 댓글 내용");
+        Comment comment = Comment.createRoot(post, user, "원래 댓글 내용");
         commentRepository.save(comment);
 
         String accessToken = generateAccessToken(user);
@@ -312,10 +312,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, user, "댓글");
+        Comment comment = Comment.createRoot(post, user, "댓글");
         commentRepository.save(comment);
 
         String accessToken = generateAccessToken(user);
@@ -341,7 +341,7 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         String accessToken = generateAccessToken(user);
@@ -372,10 +372,10 @@ class CommentControllerTest {
         other.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(other);
 
-        Post post = new Post(writer, "제목", "내용");
+        Post post = new Post(writer, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, writer, "원래 댓글");
+        Comment comment = Comment.createRoot(post, writer, "원래 댓글");
         commentRepository.save(comment);
 
         String accessToken = generateAccessToken(other);
@@ -401,10 +401,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, user, "댓글");
+        Comment comment = Comment.createRoot(post, user, "댓글");
         commentRepository.save(comment);
 
         String accessToken = generateAccessToken(user);
@@ -433,10 +433,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, user, "댓글");
+        Comment comment = Comment.createRoot(post, user, "댓글");
         commentRepository.save(comment);
 
         CommentRequest updateRequest = new CommentRequest("수정된 댓글");
@@ -462,10 +462,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, user, "삭제할 댓글");
+        Comment comment = Comment.createRoot(post, user, "삭제할 댓글");
         commentRepository.save(comment);
 
         String accessToken = generateAccessToken(user);
@@ -489,10 +489,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, user, "댓글");
+        Comment comment = Comment.createRoot(post, user, "댓글");
         commentRepository.save(comment);
 
         String accessToken = generateAccessToken(user);
@@ -515,7 +515,7 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         String accessToken = generateAccessToken(user);
@@ -543,10 +543,10 @@ class CommentControllerTest {
         other.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(other);
 
-        Post post = new Post(writer, "제목", "내용");
+        Post post = new Post(writer, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, writer, "원래 댓글");
+        Comment comment = Comment.createRoot(post, writer, "원래 댓글");
         commentRepository.save(comment);
 
         String accessToken = generateAccessToken(other);
@@ -569,10 +569,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment comment = new Comment(post, user, "댓글");
+        Comment comment = Comment.createRoot(post, user, "댓글");
         commentRepository.save(comment);
 
         // when & then
@@ -594,10 +594,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "첫 글", "내용");
+        Post post = new Post(user, "첫 글", "내용", null);
         postRepository.save(post);
 
-        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
         commentRepository.save(parent);
 
         String accessToken = generateAccessToken(user);
@@ -632,10 +632,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
         commentRepository.save(parent);
 
         // DB에 없는 userId로 JWT 발급
@@ -663,10 +663,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
         commentRepository.save(parent);
 
         String accessToken = generateAccessToken(user);
@@ -692,7 +692,7 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         String accessToken = generateAccessToken(user);
@@ -718,11 +718,11 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post1 = new Post(user, "게시글1", "내용1");
-        Post post2 = new Post(user, "게시글2", "내용2");
+        Post post1 = new Post(user, "게시글1", "내용1", null);
+        Post post2 = new Post(user, "게시글2", "내용2", null);
         postRepository.saveAll(List.of(post1, post2));
 
-        Comment parent = new Comment(post1, user, "부모 댓글", null);
+        Comment parent = Comment.createRoot(post1, user, "부모 댓글");
         commentRepository.save(parent);
 
         String accessToken = generateAccessToken(user);
@@ -748,11 +748,11 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment parent = new Comment(post, user, "부모 댓글", null);
-        Comment child = new Comment(post, user, "대댓글1", parent);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
+        Comment child = Comment.createChild(post, user, "대댓글1", parent);
         commentRepository.saveAll(List.of(parent, child));
 
         String accessToken = generateAccessToken(user);
@@ -778,10 +778,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
         commentRepository.save(parent);
 
         String accessToken = generateAccessToken(user);
@@ -808,10 +808,10 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment parent = new Comment(post, user, "부모 댓글", null);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
         commentRepository.save(parent);
 
         CommentRequest request = new CommentRequest("대댓글 내용");
@@ -835,11 +835,11 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment parent = new Comment(post, user, "부모 댓글", null);
-        Comment reply = new Comment(post, user, "대댓글", parent);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
+        Comment reply = Comment.createChild(post, user, "대댓글", parent);
         commentRepository.saveAll(List.of(parent, reply));
 
         String accessToken = generateAccessToken(user);
@@ -864,11 +864,11 @@ class CommentControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
-        Comment parent = new Comment(post, user, "부모 댓글", null);
-        Comment reply = new Comment(post, user, "대댓글", parent);
+        Comment parent = Comment.createRoot(post, user, "부모 댓글");
+        Comment reply = Comment.createChild(post, user, "대댓글", parent);
         commentRepository.saveAll(List.of(parent, reply));
 
         String accessToken = generateAccessToken(user);

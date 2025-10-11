@@ -1,4 +1,4 @@
-package com.back.domain.board.controller;
+package com.back.domain.board.post.controller;
 
 import com.back.domain.board.post.dto.CategoryRequest;
 import com.back.domain.board.post.enums.CategoryType;

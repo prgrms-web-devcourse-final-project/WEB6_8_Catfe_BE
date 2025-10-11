@@ -1,4 +1,4 @@
-package com.back.domain.board.post.controller;
+package com.back.domain.board.post.controller.docs;
 
 import com.back.domain.board.post.dto.PostLikeResponse;
 import com.back.global.common.dto.RsData;

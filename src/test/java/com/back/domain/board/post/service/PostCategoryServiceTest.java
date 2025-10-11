@@ -1,11 +1,10 @@
-package com.back.domain.board.service;
+package com.back.domain.board.post.service;
 
 import com.back.domain.board.post.dto.CategoryRequest;
 import com.back.domain.board.post.dto.CategoryResponse;
 import com.back.domain.board.post.enums.CategoryType;
 import com.back.domain.board.post.entity.PostCategory;
 import com.back.domain.board.post.repository.PostCategoryRepository;
-import com.back.domain.board.post.service.PostCategoryService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;

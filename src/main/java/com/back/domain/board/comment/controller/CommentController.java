@@ -1,5 +1,6 @@
 package com.back.domain.board.comment.controller;
 
+import com.back.domain.board.comment.controller.docs.CommentControllerDocs;
 import com.back.domain.board.comment.dto.CommentListResponse;
 import com.back.domain.board.comment.dto.CommentRequest;
 import com.back.domain.board.comment.dto.CommentResponse;

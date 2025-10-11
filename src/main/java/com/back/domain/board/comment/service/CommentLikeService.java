@@ -70,6 +70,10 @@ public class CommentLikeService {
         CommentLike commentLike = commentLikeRepository.findByUserIdAndCommentId(userId, commentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_LIKE_NOT_FOUND));
 
+        // 연관관계 제거
+        comment.removeLike(commentLike);
+        user.removeCommentLike(commentLike);
+
         // CommentLike 삭제
         commentLikeRepository.delete(commentLike);
 

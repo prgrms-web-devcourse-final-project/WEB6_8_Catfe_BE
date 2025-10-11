@@ -1,4 +1,4 @@
-package com.back.domain.board.post.controller;
+package com.back.domain.board.post.controller.docs;
 
 import com.back.domain.board.post.dto.CategoryRequest;
 import com.back.domain.board.post.dto.CategoryResponse;

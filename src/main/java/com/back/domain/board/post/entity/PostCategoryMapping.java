@@ -7,8 +7,12 @@ import lombok.NoArgsConstructor;
 @Entity
 @NoArgsConstructor
 @Getter
+@Table(
+        uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "category_id"})
+)
 public class PostCategoryMapping {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -23,5 +27,7 @@ public class PostCategoryMapping {
     public PostCategoryMapping(Post post, PostCategory category) {
         this.post = post;
         this.category = category;
+        post.addPostCategoryMapping(this);
+        category.addPostCategoryMapping(this);
     }
 }
