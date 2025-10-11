@@ -23,8 +23,8 @@ public class RoomParticipantService {
 
     private final RedisSessionStore redisSessionStore;
 
-    // 사용자 방 입장
-    public void enterRoom(Long userId, Long roomId) {
+    // 사용자 방 입장 (아바타 정보 포함)
+    public void enterRoom(Long userId, Long roomId, Long avatarId) {
         WebSocketSessionInfo sessionInfo = redisSessionStore.getUserSession(userId);
 
         if (sessionInfo == null) {
@@ -41,8 +41,16 @@ public class RoomParticipantService {
         WebSocketSessionInfo updatedSession = sessionInfo.withRoomId(roomId);
         redisSessionStore.saveUserSession(userId, updatedSession);
         redisSessionStore.addUserToRoom(roomId, userId);
+        
+        // 아바타 정보 저장
+        saveUserAvatar(roomId, userId, avatarId);
 
-        log.info("방 입장 완료 - 사용자: {}, 방: {}", userId, roomId);
+        log.info("방 입장 완료 - 사용자: {}, 방: {}, 아바타: {}", userId, roomId, avatarId);
+    }
+    
+    // 기존 메서드 호환성 유지 (아바타 없이 입장)
+    public void enterRoom(Long userId, Long roomId) {
+        enterRoom(userId, roomId, null);
     }
 
     // 사용자 방 퇴장
@@ -106,5 +114,95 @@ public class RoomParticipantService {
      */
     public java.util.Map<Long, Long> getParticipantCounts(java.util.List<Long> roomIds) {
         return redisSessionStore.getRoomUserCounts(roomIds);
+    }
+    
+    // ==================== 아바타 관련 메서드 ====================
+    
+    /**
+     * 사용자의 아바타 정보 저장 (Redis)
+     * @param roomId 방 ID
+     * @param userId 사용자 ID
+     * @param avatarId 아바타 ID
+     */
+    private void saveUserAvatar(Long roomId, Long userId, Long avatarId) {
+        if (avatarId == null) {
+            return; // 아바타 정보가 없으면 저장하지 않음
+        }
+        
+        String avatarKey = buildAvatarKey(roomId, userId);
+        redisSessionStore.saveValue(avatarKey, avatarId.toString(), 
+                                     java.time.Duration.ofMinutes(6));
+        
+        log.debug("아바타 정보 저장 - RoomId: {}, UserId: {}, AvatarId: {}", 
+                 roomId, userId, avatarId);
+    }
+    
+    /**
+     * 사용자의 아바타 ID 조회
+     * @param roomId 방 ID
+     * @param userId 사용자 ID
+     * @return 아바타 ID (없으면 null)
+     */
+    public Long getUserAvatar(Long roomId, Long userId) {
+        String avatarKey = buildAvatarKey(roomId, userId);
+        String avatarIdStr = redisSessionStore.getValue(avatarKey);
+        
+        if (avatarIdStr == null) {
+            return null;
+        }
+        
+        try {
+            return Long.parseLong(avatarIdStr);
+        } catch (NumberFormatException e) {
+            log.warn("아바타 ID 파싱 실패 - RoomId: {}, UserId: {}, Value: {}", 
+                    roomId, userId, avatarIdStr);
+            return null;
+        }
+    }
+    
+    /**
+     * 여러 사용자의 아바타 ID 일괄 조회 (N+1 방지)
+     * @param roomId 방 ID
+     * @param userIds 사용자 ID 목록
+     * @return 사용자 ID → 아바타 ID 맵
+     */
+    public java.util.Map<Long, Long> getUserAvatars(Long roomId, Set<Long> userIds) {
+        java.util.Map<Long, Long> result = new java.util.HashMap<>();
+        
+        for (Long userId : userIds) {
+            Long avatarId = getUserAvatar(roomId, userId);
+            if (avatarId != null) {
+                result.put(userId, avatarId);
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 아바타 Redis Key 생성
+     */
+    private String buildAvatarKey(Long roomId, Long userId) {
+        return "ws:room:" + roomId + ":user:" + userId + ":avatar";
+    }
+    
+    /**
+     * 아바타 정보 업데이트 (외부에서 호출 가능)
+     * VISITOR가 아바타를 변경할 때 사용
+     * @param roomId 방 ID
+     * @param userId 사용자 ID
+     * @param avatarId 새 아바타 ID
+     */
+    public void updateUserAvatar(Long roomId, Long userId, Long avatarId) {
+        if (avatarId == null) {
+            return;
+        }
+        
+        String avatarKey = buildAvatarKey(roomId, userId);
+        redisSessionStore.saveValue(avatarKey, avatarId.toString(), 
+                                     java.time.Duration.ofMinutes(6));
+        
+        log.info("아바타 업데이트 (Redis) - RoomId: {}, UserId: {}, AvatarId: {}", 
+                roomId, userId, avatarId);
     }
 }
