@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 /**
  * 댓글 응답 DTO
  *
- * @param commentId 댓글 Id
- * @param postId    게시글 Id
+ * @param commentId 댓글 ID
+ * @param postId    게시글 ID
  * @param author    작성자 정보
  * @param content   댓글 내용
  * @param createdAt 댓글 생성 일시
