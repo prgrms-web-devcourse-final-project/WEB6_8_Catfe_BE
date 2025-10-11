@@ -48,7 +48,7 @@ class PostBookmarkServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         // when
@@ -83,7 +83,7 @@ class PostBookmarkServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         postBookmarkRepository.save(new PostBookmark(post, user));
@@ -105,7 +105,7 @@ class PostBookmarkServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         PostBookmark postBookmark = new PostBookmark(post, user);
@@ -129,7 +129,7 @@ class PostBookmarkServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         // when & then

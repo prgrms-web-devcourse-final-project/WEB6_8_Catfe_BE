@@ -132,6 +132,51 @@ public class User extends BaseEntity {
         profile.setUser(this);
     }
 
+    public void addPost(Post post) {
+        if (this.posts == null) this.posts = new ArrayList<>();
+        this.posts.add(post);
+    }
+
+    public void removePost(Post post) {
+        this.posts.remove(post);
+    }
+
+    public void addPostLike(PostLike like) {
+        if (this.postLikes == null) this.postLikes = new ArrayList<>();
+        this.postLikes.add(like);
+    }
+
+    public void removePostLike(PostLike like) {
+        this.postLikes.remove(like);
+    }
+
+    public void addPostBookmark(PostBookmark bookmark) {
+        if (this.postBookmarks == null) this.postBookmarks = new ArrayList<>();
+        this.postBookmarks.add(bookmark);
+    }
+
+    public void removePostBookmark(PostBookmark bookmark) {
+        this.postBookmarks.remove(bookmark);
+    }
+
+    public void addComment(Comment comment) {
+        if (this.comments == null) this.comments = new ArrayList<>();
+        this.comments.add(comment);
+    }
+
+    public void removeComment(Comment comment) {
+        this.comments.remove(comment);
+    }
+
+    public void addCommentLike(CommentLike like) {
+        if (this.commentLikes == null) this.commentLikes = new ArrayList<>();
+        this.commentLikes.add(like);
+    }
+
+    public void removeCommentLike(CommentLike like) {
+        this.commentLikes.remove(like);
+    }
+
     // -------------------- 헬퍼 메서드 --------------------
     // 현재 사용자의 닉네임 조회
     public String getNickname() {

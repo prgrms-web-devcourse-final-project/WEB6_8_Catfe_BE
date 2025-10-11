@@ -54,10 +54,10 @@ class CommentLikeServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        post = new Post(user, "게시글 제목", "게시글 내용");
+        post = new Post(user, "게시글 제목", "게시글 내용", null);
         postRepository.save(post);
 
-        comment = new Comment(post, user, "댓글 내용");
+        comment = Comment.createRoot(post, user, "댓글 내용");
         commentRepository.save(comment);
     }
 

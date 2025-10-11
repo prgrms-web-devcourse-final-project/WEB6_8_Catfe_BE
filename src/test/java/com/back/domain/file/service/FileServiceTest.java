@@ -65,7 +65,7 @@ class FileServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         String path = "test.png";
@@ -90,7 +90,7 @@ class FileServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         String path = "test.png";
@@ -115,7 +115,7 @@ class FileServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         // 기존(삭제할) 파일 정보
@@ -147,7 +147,7 @@ class FileServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         // 기존(삭제할) 파일 정보
