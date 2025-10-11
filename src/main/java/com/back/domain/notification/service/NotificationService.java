@@ -7,7 +7,9 @@ import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.repository.NotificationReadRepository;
 import com.back.domain.notification.repository.NotificationRepository;
 import com.back.domain.studyroom.entity.Room;
+import com.back.domain.studyroom.repository.RoomRepository;
 import com.back.domain.user.entity.User;
+import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -30,18 +32,23 @@ public class NotificationService {
     private final NotificationReadRepository notificationReadRepository;
     private final NotificationWebSocketService webSocketService;
     private final NotificationSettingService notificationSettingService;
+    private final UserRepository userRepository;
+    private final RoomRepository roomRepository;
 
     // ==================== 알림 생성 및 전송 ====================
 
     // 개인 알림 생성 및 전송
     @Transactional
     public Notification createPersonalNotification(
-            User receiver,
-            User actor,
+            Long receiverId,
+            Long actorId,
             String title,
             String content,
             String targetUrl,
             NotificationSettingType settingType) {
+
+        User receiver = userRepository.findById(receiverId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User actor = userRepository.findById(actorId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // 자기 자신에게 알림 방지
         validateActorAndReceiver(receiver, actor);
@@ -49,59 +56,61 @@ public class NotificationService {
         // DB에 알림 저장
         Notification notification = Notification.createPersonalNotification(
                 receiver, actor, title, content, targetUrl);
-        notificationRepository.save(notification);
+        Notification savedNotification = notificationRepository.save(notification);
 
-        // 알림 설정 체크 후 전송
         if (shouldSendNotification(receiver.getId(), settingType)) {
-            NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
+            NotificationWebSocketDto dto = NotificationWebSocketDto.from(savedNotification); // ID가 있는 객체 사용
             webSocketService.sendNotificationToUser(receiver.getId(), dto);
-            log.info("개인 알림 전송 - 수신자 ID: {}, 발신자 ID: {}, 알림 ID: {}, 설정 타입: {}",
-                    receiver.getId(), actor.getId(), notification.getId(), settingType);
+
+            log.info("개인 알림 전송 - 수신자 ID: {}, ... 알림 ID: {}", receiver.getId(), savedNotification.getId());
         } else {
-            log.info("개인 알림 저장만 완료 (전송 생략) - 수신자 ID: {}, 알림 ID: {}, 설정 타입: {}",
-                    receiver.getId(), notification.getId(), settingType);
+            log.info("개인 알림 저장만 완료 - ... 알림 ID: {}", receiver.getId(), savedNotification.getId());
         }
 
-        return notification;
+        return savedNotification;
     }
 
     // 개인 알림 생성 및 전송
     @Transactional
     public Notification createSelfNotification(
-            User user,
+            Long userId,
             String title,
             String content,
             String targetUrl,
             NotificationSettingType settingType) {
 
+        User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
         // DB에 알림 저장
         Notification notification = Notification.createPersonalNotification(
                 user, user, title, content, targetUrl);
-        notificationRepository.save(notification);
+        Notification savedNotification = notificationRepository.save(notification);
 
         // 알림 설정 체크 후 전송
         if (shouldSendNotification(user.getId(), settingType)) {
-            NotificationWebSocketDto dto = NotificationWebSocketDto.from(notification);
+            NotificationWebSocketDto dto = NotificationWebSocketDto.from(savedNotification);
             webSocketService.sendNotificationToUser(user.getId(), dto);
-            log.info("자기 자신 알림 전송 - 사용자 ID: {}, 알림 ID: {}, 설정 타입: {}",
-                    user.getId(), notification.getId(), settingType);
+
+            log.info("자기 자신 알림 전송 - ... 알림 ID: {}", user.getId(), savedNotification.getId());
         } else {
-            log.info("자기 자신 알림 저장만 완료 (전송 생략) - 사용자 ID: {}, 알림 ID: {}, 설정 타입: {}",
-                    user.getId(), notification.getId(), settingType);
+            log.info("자기 자신 알림 저장만 완료 - ... 알림 ID: {}", user.getId(), savedNotification.getId());
         }
 
-        return notification;
+        return savedNotification;
     }
 
     // 스터디룸 알림 생성 및 전송
     @Transactional
     public Notification createRoomNotification(
-            Room room,
-            User actor,
+            Long roomId,
+            Long actorId,
             String title,
             String content,
             String targetUrl,
             NotificationSettingType settingType) {
+
+        Room room = roomRepository.findById(roomId).orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        User actor = userRepository.findById(actorId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         Notification notification = Notification.createRoomNotification(
                 room, actor, title, content, targetUrl);
@@ -134,12 +143,15 @@ public class NotificationService {
     // 커뮤니티 알림 생성 및 전송
     @Transactional
     public Notification createCommunityNotification(
-            User receiver,
-            User actor,
+            Long receiverId,
+            Long actorId,
             String title,
             String content,
             String targetUrl,
             NotificationSettingType settingType) {
+
+        User receiver = userRepository.findById(receiverId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User actor = userRepository.findById(actorId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // 자기 자신에게 알림 방지
         validateActorAndReceiver(receiver, actor);

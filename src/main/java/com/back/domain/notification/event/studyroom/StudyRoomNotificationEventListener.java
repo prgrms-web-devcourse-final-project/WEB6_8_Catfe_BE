@@ -21,9 +21,6 @@ import org.springframework.stereotype.Component;
 public class StudyRoomNotificationEventListener {
 
     private final NotificationService notificationService;
-    private final RoomRepository roomRepository;
-    private final UserRepository userRepository;
-    private final RoomMemberRepository roomMemberRepository;
 
     // 스터디룸 공지사항 등록 시 - 전체 멤버에게 알림
     @EventListener
@@ -33,18 +30,9 @@ public class StudyRoomNotificationEventListener {
                 event.getStudyRoomId(), event.getActorId());
 
         try {
-            // Room 조회
-            Room room = roomRepository.findById(event.getStudyRoomId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-
-            // Actor (공지 작성자) 조회
-            User actor = userRepository.findById(event.getActorId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-            // 스터디룸 알림 생성
             notificationService.createRoomNotification(
-                    room,
-                    actor,
+                    event.getStudyRoomId(),
+                    event.getActorId(),
                     event.getTitle(),
                     event.getNoticeTitle(),
                     "/rooms/" + event.getStudyRoomId() + "/notices",
@@ -67,18 +55,9 @@ public class StudyRoomNotificationEventListener {
                 event.getStudyRoomId(), event.getTargetUserId(), event.getNewRole());
 
         try {
-            // 수신자 조회
-            User receiver = userRepository.findById(event.getTargetUserId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-            // 발신자 조회
-            User actor = userRepository.findById(event.getActorId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-            // 개인 알림 생성
             notificationService.createPersonalNotification(
-                    receiver,
-                    actor,
+                    event.getTargetUserId(),
+                    event.getActorId(),
                     event.getTitle(),
                     event.getContent(),
                     "/rooms/" + event.getStudyRoomId(),
@@ -100,15 +79,9 @@ public class StudyRoomNotificationEventListener {
                 event.getStudyRoomId(), event.getTargetUserId());
 
         try {
-            User receiver = userRepository.findById(event.getTargetUserId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-            User actor = userRepository.findById(event.getActorId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
             notificationService.createPersonalNotification(
-                    receiver,
-                    actor,
+                    event.getTargetUserId(),
+                    event.getActorId(),
                     event.getTitle(),
                     event.getContent(),
                     "/rooms",
@@ -130,15 +103,9 @@ public class StudyRoomNotificationEventListener {
                 event.getStudyRoomId(), event.getNewOwnerId());
 
         try {
-            User receiver = userRepository.findById(event.getNewOwnerId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-            User actor = userRepository.findById(event.getActorId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
             notificationService.createPersonalNotification(
-                    receiver,
-                    actor,
+                    event.getNewOwnerId(),
+                    event.getActorId(),
                     event.getTitle(),
                     event.getContent(),
                     "/rooms/" + event.getStudyRoomId(),
