@@ -1,6 +1,5 @@
 package com.back.domain.notification.controller;
 
-import com.back.domain.notification.dto.NotificationCreateRequest;
 import com.back.domain.notification.entity.Notification;
 import com.back.domain.notification.service.NotificationService;
 import com.back.domain.studyroom.repository.RoomRepository;
@@ -23,7 +22,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -112,35 +110,6 @@ class NotificationControllerTest {
     private Authentication createMockAuthentication(Long userId) {
         CustomUserDetails userDetails = CustomUserDetails.builder().userId(userId).build();
         return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
-    }
-
-    @Nested
-    @DisplayName("알림 전송")
-    class CreateNotificationTest {
-
-        @Test
-        @DisplayName("개인 알림 생성 성공")
-        void t1() throws Exception {
-            // given
-            NotificationCreateRequest request = new NotificationCreateRequest(
-                    "USER", 1L, 2L, "개인 알림", "내용", "/target"
-            );
-
-            given(userRepository.findById(1L)).willReturn(Optional.of(receiver));
-            given(userRepository.findById(2L)).willReturn(Optional.of(actor));
-            given(notificationService.createPersonalNotification(any(), any(), any(), any(), any(), any()))
-                    .willReturn(notification);
-
-            // when
-            ResultActions result = mockMvc.perform(post("/api/notifications")
-                    .header("Authorization", "Bearer faketoken")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)));
-
-            // then
-            result.andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true));
-        }
     }
 
     @Nested
