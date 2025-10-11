@@ -1,5 +1,6 @@
 package com.back.domain.board.comment.controller;
 
+import com.back.domain.board.comment.controller.docs.CommentLikeControllerDocs;
 import com.back.domain.board.comment.dto.CommentLikeResponse;
 import com.back.domain.board.comment.service.CommentLikeService;
 import com.back.global.common.dto.RsData;

@@ -51,6 +51,7 @@ public class RoomService {
     private final RoomParticipantService roomParticipantService;
     private final SimpMessagingTemplate messagingTemplate;
     private final ApplicationEventPublisher eventPublisher;
+    private final AvatarService avatarService;
 
     /**
      * 방 생성 메서드
@@ -135,16 +136,19 @@ public class RoomService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        // 아바타 로드/생성
+        Long avatarId = avatarService.loadOrCreateAvatar(roomId, userId);
+
         Optional<RoomMember> existingMember = roomMemberRepository.findByRoomIdAndUserId(roomId, userId);
         if (existingMember.isPresent()) {
             // 기존 멤버 재입장: DB에 있는 역할 그대로 사용
             RoomMember member = existingMember.get();
             
-            // Redis에 온라인 등록
-            roomParticipantService.enterRoom(userId, roomId);
+            // Redis에 온라인 등록 (아바타 포함)
+            roomParticipantService.enterRoom(userId, roomId, avatarId);
             
-            log.info("기존 멤버 재입장 - RoomId: {}, UserId: {}, Role: {}", 
-                    roomId, userId, member.getRole());
+            log.info("기존 멤버 재입장 - RoomId: {}, UserId: {}, Role: {}, AvatarId: {}", 
+                    roomId, userId, member.getRole(), avatarId);
             
             return member;
         }
@@ -152,10 +156,11 @@ public class RoomService {
         // 신규 입장자: VISITOR로 입장 (DB 저장 안함!)
         RoomMember visitorMember = RoomMember.createVisitor(room, user);
         
-        // Redis에만 온라인 등록
-        roomParticipantService.enterRoom(userId, roomId);
+        // Redis에만 온라인 등록 (아바타 포함)
+        roomParticipantService.enterRoom(userId, roomId, avatarId);
         
-        log.info("신규 입장 (VISITOR) - RoomId: {}, UserId: {}, DB 저장 안함", roomId, userId);
+        log.info("신규 입장 (VISITOR) - RoomId: {}, UserId: {}, DB 저장 안함, AvatarId: {}", 
+                roomId, userId, avatarId);
         
         // 메모리상 객체 반환 (DB에 저장되지 않음)
         return visitorMember;
@@ -706,6 +711,53 @@ public class RoomService {
                     RoomRole role = getUserRoomRole(room.getId(), userId);
                     long count = participantCounts.getOrDefault(room.getId(), 0L);
                     return com.back.domain.studyroom.dto.MyRoomResponse.of(room, count, role);
+                })
+                .collect(java.util.stream.Collectors.toList());
+    }
+    
+    /**
+     * RoomMemberResponse 리스트 생성 (아바타 정보 포함, N+1 방지)
+     * @param roomId 방 ID
+     * @param members 멤버 목록
+     * @return 아바타 정보가 포함된 RoomMemberResponse 리스트
+     */
+    public java.util.List<com.back.domain.studyroom.dto.RoomMemberResponse> toRoomMemberResponseList(
+            Long roomId,
+            java.util.List<RoomMember> members) {
+        
+        if (members.isEmpty()) {
+            return java.util.List.of();
+        }
+        
+        // 1. 모든 사용자 ID 추출
+        Set<Long> userIds = members.stream()
+                .map(m -> m.getUser().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        
+        // 2. Redis에서 아바타 ID 일괄 조회
+        java.util.Map<Long, Long> avatarMap = roomParticipantService.getUserAvatars(roomId, userIds);
+        
+        // 3. 아바타 ID Set 생성
+        Set<Long> avatarIds = new java.util.HashSet<>(avatarMap.values());
+        
+        // 4. Avatar 엔티티 일괄 조회
+        java.util.Map<Long, com.back.domain.studyroom.entity.Avatar> avatarEntityMap = 
+                avatarService.getAvatarsByIds(avatarIds);
+        
+        // 5. RoomMemberResponse 생성
+        return members.stream()
+                .map(member -> {
+                    Long userId = member.getUser().getId();
+                    Long avatarId = avatarMap.get(userId);
+                    
+                    String avatarImageUrl = null;
+                    if (avatarId != null) {
+                        com.back.domain.studyroom.entity.Avatar avatar = avatarEntityMap.get(avatarId);
+                        avatarImageUrl = avatar != null ? avatar.getImageUrl() : null;
+                    }
+                    
+                    return com.back.domain.studyroom.dto.RoomMemberResponse.of(
+                            member, avatarId, avatarImageUrl);
                 })
                 .collect(java.util.stream.Collectors.toList());
     }

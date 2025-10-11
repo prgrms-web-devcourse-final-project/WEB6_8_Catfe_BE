@@ -94,3 +94,12 @@ VALUES
     ('2~4명', 'GROUP_SIZE', NOW(), NOW()),
     ('5~10명', 'GROUP_SIZE', NOW(), NOW()),
     ('10~20명', 'GROUP_SIZE', NOW(), NOW());
+
+-- =========================
+-- AVATAR 초기 데이터 (고양이 아바타 3개 - 기본 랜덤하기 위해 배정)
+-- =========================
+INSERT INTO avatars (id, name, image_url, description, is_default, sort_order, category, created_at, updated_at)
+VALUES
+    (1, '검은 고양이', '/images/avatars/cat-black.png', '귀여운 검은 고양이', true, 1, 'CAT', NOW(), NOW()),
+    (2, '하얀 고양이', '/images/avatars/cat-white.png', '우아한 하얀 고양이', true, 2, 'CAT', NOW(), NOW()),
+    (3, '노란 고양이', '/images/avatars/cat-orange.png', '발랄한 노란 고양이', true, 3, 'CAT', NOW(), NOW());

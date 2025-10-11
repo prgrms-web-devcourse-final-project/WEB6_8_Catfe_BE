@@ -267,4 +267,50 @@ public class RedisSessionStore {
             throw new IllegalArgumentException("Cannot convert " + obj.getClass() + " to Long");
         }
     }
+    
+    // ==================== 범용 Key-Value 저장/조회 메서드 ====================
+    
+    /**
+     * 범용 값 저장 (TTL 포함)
+     * @param key Redis Key
+     * @param value 저장할 값
+     * @param ttl TTL (Duration)
+     */
+    public void saveValue(String key, String value, java.time.Duration ttl) {
+        try {
+            redisTemplate.opsForValue().set(key, value, ttl);
+            log.debug("값 저장 완료 - Key: {}, TTL: {}분", key, ttl.toMinutes());
+        } catch (Exception e) {
+            log.error("값 저장 실패 - Key: {}", key, e);
+            throw new CustomException(ErrorCode.WS_REDIS_ERROR);
+        }
+    }
+    
+    /**
+     * 범용 값 조회
+     * @param key Redis Key
+     * @return 저장된 값 (없으면 null)
+     */
+    public String getValue(String key) {
+        try {
+            Object value = redisTemplate.opsForValue().get(key);
+            return value != null ? value.toString() : null;
+        } catch (Exception e) {
+            log.error("값 조회 실패 - Key: {}", key, e);
+            return null; // 에러 시 null 반환 (예외 던지지 않음)
+        }
+    }
+    
+    /**
+     * 범용 값 삭제
+     * @param key Redis Key
+     */
+    public void deleteValue(String key) {
+        try {
+            redisTemplate.delete(key);
+            log.debug("값 삭제 완료 - Key: {}", key);
+        } catch (Exception e) {
+            log.error("값 삭제 실패 - Key: {}", key, e);
+        }
+    }
 }

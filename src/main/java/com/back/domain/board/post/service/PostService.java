@@ -69,8 +69,8 @@ public class PostService {
      * 2. PageResponse 반환
      */
     @Transactional(readOnly = true)
-    public PageResponse<PostListResponse> getPosts(String keyword, String searchType, Long categoryId, Pageable pageable) {
-        Page<PostListResponse> posts = postRepository.searchPosts(keyword, searchType, categoryId, pageable);
+    public PageResponse<PostListResponse> getPosts(String keyword, String searchType, List<Long> categoryIds, Pageable pageable) {
+        Page<PostListResponse> posts = postRepository.searchPosts(keyword, searchType, categoryIds, pageable);
         return PageResponse.from(posts);
     }
 
@@ -139,6 +139,10 @@ public class PostService {
      * 3. Post 삭제
      */
     public void deletePost(Long postId, Long userId) {
+        // User 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
         // Post 조회
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
@@ -147,6 +151,9 @@ public class PostService {
         if (!post.getUser().getId().equals(userId)) {
             throw new CustomException(ErrorCode.POST_NO_PERMISSION);
         }
+
+        // 연관관계 제거
+        user.removePost(post);
 
         // Post 삭제
         postRepository.delete(post);

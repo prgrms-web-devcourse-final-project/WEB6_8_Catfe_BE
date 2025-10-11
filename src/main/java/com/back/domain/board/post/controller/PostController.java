@@ -1,6 +1,7 @@
 package com.back.domain.board.post.controller;
 
 import com.back.domain.board.common.dto.PageResponse;
+import com.back.domain.board.post.controller.docs.PostControllerDocs;
 import com.back.domain.board.post.dto.PostDetailResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.dto.PostRequest;
@@ -17,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -45,7 +48,7 @@ public class PostController implements PostControllerDocs {
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String searchType,
-            @RequestParam(required = false) Long categoryId
+            @RequestParam(required = false) List<Long> categoryId
     ) {
         PageResponse<PostListResponse> response = postService.getPosts(keyword, searchType, categoryId, pageable);
         return ResponseEntity

@@ -496,7 +496,7 @@ public class RoomController {
     @GetMapping("/{roomId}/members")
     @Operation(
         summary = "방 멤버 목록 조회", 
-        description = "방의 현재 온라인 멤버 목록을 조회합니다. 역할별로 정렬됩니다(방장>부방장>멤버>방문객)."
+        description = "방의 현재 온라인 멤버 목록을 조회합니다. 프로필 이미지와 아바타 정보를 포함. 역할별로 정렬됩니다(방장>부방장>멤버>방문객)."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -511,9 +511,8 @@ public class RoomController {
 
         List<RoomMember> members = roomService.getRoomMembers(roomId, currentUserId);
         
-        List<RoomMemberResponse> memberList = members.stream()
-                .map(RoomMemberResponse::from)
-                .collect(Collectors.toList());
+        // 아바타 정보 포함하여 변환 (N+1 방지)
+        List<RoomMemberResponse> memberList = roomService.toRoomMemberResponseList(roomId, members);
 
         return ResponseEntity
                 .status(HttpStatus.OK)

@@ -1,5 +1,6 @@
 package com.back.domain.board.post.controller;
 
+import com.back.domain.board.post.controller.docs.PostCategoryControllerDocs;
 import com.back.domain.board.post.dto.CategoryRequest;
 import com.back.domain.board.post.dto.CategoryResponse;
 import com.back.domain.board.post.service.PostCategoryService;
