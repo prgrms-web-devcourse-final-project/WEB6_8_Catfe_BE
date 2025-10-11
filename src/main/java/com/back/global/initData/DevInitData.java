@@ -39,10 +39,11 @@ public class DevInitData {
 
     @Bean
     ApplicationRunner DevInitDataApplicationRunner() {
-        return args -> initialize();
+        return args -> {
+            initialize();
+        };
     }
 
-    @Transactional
     public void initialize() {
         runDataSql();
         initUsersAndPostsAndComments();
@@ -102,7 +103,7 @@ public class DevInitData {
         }
     }
 
-    private void createSamplePosts(User user1, User user2, User user3) {
+    private void createSamplePosts(User user1, User user2, User user3) {  // ⭐ @Transactional 제거
         Post post1 = new Post(user1,
                 "[백엔드] 같이 스프링 공부하실 분 구해요!",
                 "매주 토요일 오후 2시에 온라인으로 스터디 진행합니다.\n교재는 '스프링 완전정복'을 사용할 예정입니다.",
