@@ -19,6 +19,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/posts")
 @RequiredArgsConstructor
@@ -46,7 +48,7 @@ public class PostController implements PostControllerDocs {
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String searchType,
-            @RequestParam(required = false) Long categoryId
+            @RequestParam(required = false) List<Long> categoryId
     ) {
         PageResponse<PostListResponse> response = postService.getPosts(keyword, searchType, categoryId, pageable);
         return ResponseEntity

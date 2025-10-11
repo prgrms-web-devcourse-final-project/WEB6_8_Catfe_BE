@@ -69,8 +69,8 @@ public class PostService {
      * 2. PageResponse 반환
      */
     @Transactional(readOnly = true)
-    public PageResponse<PostListResponse> getPosts(String keyword, String searchType, Long categoryId, Pageable pageable) {
-        Page<PostListResponse> posts = postRepository.searchPosts(keyword, searchType, categoryId, pageable);
+    public PageResponse<PostListResponse> getPosts(String keyword, String searchType, List<Long> categoryIds, Pageable pageable) {
+        Page<PostListResponse> posts = postRepository.searchPosts(keyword, searchType, categoryIds, pageable);
         return PageResponse.from(posts);
     }
 

@@ -1,81 +1,96 @@
 package com.back.domain.board.post.repository.custom;
 
-import com.back.domain.board.comment.entity.QComment;
 import com.back.domain.board.common.dto.QAuthorResponse;
 import com.back.domain.board.post.dto.CategoryResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.dto.QCategoryResponse;
 import com.back.domain.board.post.dto.QPostListResponse;
 import com.back.domain.board.post.entity.*;
+import com.back.domain.board.post.enums.CategoryType;
 import com.back.domain.user.entity.QUser;
 import com.back.domain.user.entity.QUserProfile;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
-import com.querydsl.core.types.Expression;
-import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.PathBuilder;
 import com.querydsl.jpa.JPAExpressions;
-import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
+import org.springframework.stereotype.Repository;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Repository
 @RequiredArgsConstructor
 public class PostRepositoryImpl implements PostRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
-    // TODO: Post에 likeCount 필드 추가에 따른 로직 개선
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "createdAt", "updatedAt", "title", "likeCount", "bookmarkCount", "commentCount"
+    );
+
     /**
      * 게시글 다건 검색
-     * - 총 쿼리 수 : 3회 (Post + Category + count)
+     * - 총 쿼리 수: 3회
+     * 1. 게시글 목록 조회 (User, UserProfile join)
+     * 2. 카테고리 목록 조회 (IN 쿼리)
+     * 3. 전체 count 조회
+     * - categoryIds 포함 시, 총 쿼리 수: 4회
+     * 4. CategoryType 매핑 조회 추가 (buildWhere 내부)
      *
-     * @param keyword    검색 키워드
-     * @param searchType 검색 타입(title/content/author/전체)
-     * @param categoryId 카테고리 ID 필터 (nullable)
-     * @param pageable   페이징 + 정렬 조건
+     * @param keyword     검색 키워드
+     * @param searchType  검색 유형(title/content/author/전체)
+     * @param categoryIds 카테고리 ID 리스트 (같은 타입은 OR, 다른 타입은 AND)
+     * @param pageable    페이징 + 정렬 조건
      */
     @Override
-    public Page<PostListResponse> searchPosts(String keyword, String searchType, Long categoryId, Pageable pageable) {
+    public Page<PostListResponse> searchPosts(String keyword, String searchType, List<Long> categoryIds, Pageable pageable) {
         // 1. 검색 조건 생성
-        BooleanBuilder where = buildWhere(keyword, searchType, categoryId);
+        BooleanBuilder where = buildWhere(keyword, searchType, categoryIds);
 
-        // 2. 정렬 조건 생성 (엔티티 필드 기반)
+        // 2. 정렬 조건 생성 (화이트리스트 기반)
         List<OrderSpecifier<?>> orders = buildOrderSpecifiers(pageable);
 
-        // 3. 게시글 메인 조회
-        List<PostListResponse> results = fetchPosts(where, orders, pageable);
+        // 3. 게시글 목록 조회 (User, UserProfile join으로 N+1 방지)
+        List<PostListResponse> posts = fetchPosts(where, orders, pageable);
 
-        // 4. 카테고리 조회 후 결과 DTO에 매핑
-        injectCategories(results);
+        // 결과가 없으면 즉시 빈 페이지 반환
+        if (posts.isEmpty()) {
+            return new PageImpl<>(posts, pageable, 0);
+        }
 
-        // 5. 정렬 후처리 (통계 필드 기반)
-        results = sortInMemoryIfNeeded(results, pageable);
+        // 4. 카테고리 목록 주입 (postIds 기반 IN 쿼리 1회)
+        injectCategories(posts);
 
-        // 6. 전체 게시글 개수 카운트 쿼리
-        long total = countPosts(where, categoryId);
+        // 5. 전체 게시글 수 조회
+        long total = countPosts(where);
 
-        // 7. Page 객체로 반환
-        return new PageImpl<>(results, pageable, total);
+        return new PageImpl<>(posts, pageable, total);
     }
 
     // -------------------- 내부 메서드 --------------------
 
     /**
      * 검색 조건 생성
-     * - title/content/author 기반 동적 필터
-     * - categoryId가 존재하면 categoryMapping join 기반 추가 조건
+     * - keyword, searchType, categoryIds를 기반으로 BooleanBuilder 구성
+     * - 카테고리 조건 로직:
+     * 1. categoryIds → CategoryType 매핑 조회 (1회 쿼리)
+     * 2. 같은 CategoryType끼리는 OR (in 조건)
+     * 3. 서로 다른 CategoryType끼리는 AND 결합
+     * - 결과적으로 `(SUBJECT in (...)) AND (DEMOGRAPHIC in (...))` 형태로 조합됨
      */
-    private BooleanBuilder buildWhere(String keyword, String searchType, Long categoryId) {
+    private BooleanBuilder buildWhere(String keyword, String searchType, List<Long> categoryIds) {
         QPost post = QPost.post;
+        QPostCategory category = QPostCategory.postCategory;
         QPostCategoryMapping categoryMapping = QPostCategoryMapping.postCategoryMapping;
         BooleanBuilder where = new BooleanBuilder();
 
-        // 키워드 필터링
+        // 키워드 필터
         if (keyword != null && !keyword.isBlank()) {
             switch (searchType) {
                 case "title" -> where.and(post.title.containsIgnoreCase(keyword));
@@ -89,185 +104,151 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
             }
         }
 
-        // 카테고리 필터링
-        if (categoryId != null) {
-            where.and(categoryMapping.category.id.eq(categoryId));
+        // 카테고리 필터
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            // categoryId -> CategoryType 매핑 조회 (1회 쿼리)
+            List<Tuple> categoryTypeTuples = queryFactory
+                    .select(category.id, category.type)
+                    .from(category)
+                    .where(category.id.in(categoryIds))
+                    .fetch();
+
+            // 타입별 그룹핑
+            Map<CategoryType, List<Long>> groupedIds = categoryTypeTuples.stream()
+                    .filter(t -> t.get(category.id) != null && t.get(category.type) != null)
+                    .collect(Collectors.groupingBy(
+                            t -> t.get(category.type),
+                            Collectors.mapping(t -> t.get(category.id), Collectors.toList())
+                    ));
+
+            // 같은 타입은 OR(in), 다른 타입은 AND로 결합
+            BooleanBuilder typeConditions = new BooleanBuilder();
+            groupedIds.forEach((type, ids) -> {
+                // 각 타입별로 (category_id in ids)
+                BooleanBuilder subCondition = new BooleanBuilder(categoryMapping.category.id.in(ids));
+
+                // post.id in (select mapping.post.id ...)
+                typeConditions.and(post.id.in(
+                        JPAExpressions.select(categoryMapping.post.id)
+                                .from(categoryMapping)
+                                .where(subCondition)
+                ));
+            });
+
+            where.and(typeConditions);
         }
 
         return where;
     }
 
     /**
-     * 정렬 처리 (DB 정렬)
-     * - title, createdAt, updatedAt 등 엔티티 필드
+     * 정렬 조건 생성
+     * - ALLOWED_SORT_FIELDS에 포함된 필드만 변환
+     * - 정렬 지정이 없으면 createdAt DESC 기본 적용
      */
     private List<OrderSpecifier<?>> buildOrderSpecifiers(Pageable pageable) {
         QPost post = QPost.post;
+        PathBuilder<Post> entityPath = new PathBuilder<>(Post.class, post.getMetadata());
         List<OrderSpecifier<?>> orders = new ArrayList<>();
-        var entityPath = new com.querydsl.core.types.dsl.PathBuilder<>(Post.class, post.getMetadata());
 
         for (Sort.Order order : pageable.getSort()) {
-            String prop = order.getProperty();
-
-            // 통계 필드는 메모리 정렬에서 처리
-            if (prop.equals("likeCount") || prop.equals("bookmarkCount") || prop.equals("commentCount")) {
-                continue;
-            }
+            String property = order.getProperty();
+            if (!ALLOWED_SORT_FIELDS.contains(property)) continue;
 
             Order direction = order.isAscending() ? Order.ASC : Order.DESC;
-            orders.add(new OrderSpecifier<>(direction, entityPath.getComparable(prop, Comparable.class)));
+            orders.add(new OrderSpecifier<>(direction, entityPath.getComparable(property, Comparable.class)));
         }
+
+        // 기본 정렬(createdAt DESC)
+        if (orders.isEmpty()) {
+            orders.add(new OrderSpecifier<>(Order.DESC, post.createdAt));
+        }
+
         return orders;
     }
 
     /**
      * 게시글 조회
      * - Post + User + UserProfile join (N+1 방지)
-     * - like/bookmark/comment count는 각각 서브쿼리로 계산
-     *   → 한 번의 SQL 안에서 처리 (쿼리 1회)
+     * - 카테고리 정보는 별도 injectCategories()에서 주입
      */
     private List<PostListResponse> fetchPosts(BooleanBuilder where, List<OrderSpecifier<?>> orders, Pageable pageable) {
         QPost post = QPost.post;
         QUser user = QUser.user;
         QUserProfile profile = QUserProfile.userProfile;
-        QPostLike like = QPostLike.postLike;
-        QPostBookmark bookmark = QPostBookmark.postBookmark;
-        QComment comment = QComment.comment;
 
-        // 서브쿼리로 통계 계산
-        Expression<Long> likeCount = ExpressionUtils.as(
-                JPAExpressions.select(like.count())
-                        .from(like)
-                        .where(like.post.eq(post)),
-                "likeCount"
-        );
-
-        Expression<Long> bookmarkCount = ExpressionUtils.as(
-                JPAExpressions.select(bookmark.count())
-                        .from(bookmark)
-                        .where(bookmark.post.eq(post)),
-                "bookmarkCount"
-        );
-
-        Expression<Long> commentCount = ExpressionUtils.as(
-                JPAExpressions.select(comment.count())
-                        .from(comment)
-                        .where(comment.post.eq(post)),
-                "commentCount"
-        );
-
-        // 메인 쿼리
         return queryFactory
                 .select(new QPostListResponse(
                         post.id,
-                        new QAuthorResponse(user.id, profile.nickname, profile.profileImageUrl), // 작성자 정보 (N+1 방지 join)
+                        new QAuthorResponse(user.id, profile.nickname, profile.profileImageUrl),
                         post.title,
                         post.thumbnailUrl,
                         Expressions.constant(Collections.emptyList()), // categories는 별도 주입
-                        likeCount,
-                        bookmarkCount,
-                        commentCount,
+                        post.likeCount,
+                        post.bookmarkCount,
+                        post.commentCount,
                         post.createdAt,
                         post.updatedAt
                 ))
                 .from(post)
                 .leftJoin(post.user, user)
-                .leftJoin(user.userProfile, profile) // UserProfile join으로 N+1 방지
+                .leftJoin(user.userProfile, profile)
                 .where(where)
                 .orderBy(orders.toArray(new OrderSpecifier[0]))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
-                .fetch(); // 쿼리 1회 (서브쿼리 포함)
+                .fetch();
     }
 
     /**
      * 카테고리 일괄 조회
-     * - Post ID 목록 기반으로 categoryMapping 테이블 IN 쿼리 1회 실행
-     * - Map<postId, List<CategoryResponse>>로 매핑 후 DTO에 주입
-     * - N+1 방지 (게시글별 조회 X)
+     * - postIds 기반 IN 쿼리 (1회)
+     * - N+1 방지
+     * - Map<postId, List<CategoryResponse>>로 그룹핑 후 DTO에 매핑
      */
     private void injectCategories(List<PostListResponse> results) {
-        if (results.isEmpty()) return;
+        QPostCategoryMapping mapping = QPostCategoryMapping.postCategoryMapping;
 
-        QPostCategoryMapping categoryMapping = QPostCategoryMapping.postCategoryMapping;
-
-        // postId 목록 생성
         List<Long> postIds = results.stream()
                 .map(PostListResponse::getPostId)
                 .toList();
 
-        // 해당하는 카테고리 정보 조회
-        List<Tuple> categoryTuples = queryFactory
+        List<Tuple> tuples = queryFactory
                 .select(
-                        categoryMapping.post.id,
+                        mapping.post.id,
                         new QCategoryResponse(
-                                categoryMapping.category.id,
-                                categoryMapping.category.name,
-                                categoryMapping.category.type
+                                mapping.category.id,
+                                mapping.category.name,
+                                mapping.category.type
                         )
                 )
-                .from(categoryMapping)
-                .where(categoryMapping.post.id.in(postIds))
+                .from(mapping)
+                .where(mapping.post.id.in(postIds))
                 .fetch();
 
-        // 매핑 편의를 위해 변환
-        Map<Long, List<CategoryResponse>> categoryMap = categoryTuples.stream()
+        Map<Long, List<CategoryResponse>> categoryMap = tuples.stream()
                 .collect(Collectors.groupingBy(
-                        tuple -> Objects.requireNonNull(tuple.get(categoryMapping.post.id)),
+                        t -> Objects.requireNonNull(t.get(mapping.post.id)),
                         Collectors.mapping(t -> t.get(1, CategoryResponse.class), Collectors.toList())
                 ));
 
-        // categories 주입
-        results.forEach(r ->
-                r.setCategories(categoryMap.getOrDefault(r.getPostId(), List.of()))
+        results.forEach(post ->
+                post.setCategories(categoryMap.getOrDefault(post.getPostId(), List.of()))
         );
     }
 
     /**
-     * 통계 기반 정렬 처리 (메모리)
-     * - likeCount / bookmarkCount / commentCount 등 통계 필드
-     * - DB에서는 서브쿼리 필드 정렬 불가 → Java 단에서 정렬
-     * - 데이터량이 페이지 단위(20~50건)라면 CPU 부하는 무시 가능
+     * 전체 게시글 개수 조회
+     * - 단순 count 쿼리 1회
+     * - category 조합 조건 포함 시 중복 방지를 위해 countDistinct() 사용
      */
-    private List<PostListResponse> sortInMemoryIfNeeded(List<PostListResponse> results, Pageable pageable) {
-        if (results.isEmpty() || !pageable.getSort().isSorted()) return results;
-
-        for (Sort.Order order : pageable.getSort()) {
-            Comparator<PostListResponse> comparator = null;
-            switch (order.getProperty()) {
-                case "likeCount" -> comparator = Comparator.comparing(PostListResponse::getLikeCount);
-                case "bookmarkCount" -> comparator = Comparator.comparing(PostListResponse::getBookmarkCount);
-                case "commentCount" -> comparator = Comparator.comparing(PostListResponse::getCommentCount);
-            }
-            if (comparator != null) {
-                if (order.isDescending()) comparator = comparator.reversed();
-                results.sort(comparator);
-            }
-        }
-        return results;
-    }
-
-    /**
-     * 전체 게시글 개수 카운트
-     * - 페이지네이션 total 계산용
-     * - categoryId가 있으면 mapping join 포함
-     * - 단순 count 쿼리 1회 실행
-     */
-    private long countPosts(BooleanBuilder where, Long categoryId) {
+    private long countPosts(BooleanBuilder where) {
         QPost post = QPost.post;
-        QPostCategoryMapping categoryMapping = QPostCategoryMapping.postCategoryMapping;
-
-        // 카운트 쿼리
-        JPAQuery<Long> countQuery = queryFactory
+        Long total = queryFactory
                 .select(post.countDistinct())
-                .from(post);
-
-        // 카테고리 필터링
-        if (categoryId != null) {
-            countQuery.leftJoin(post.postCategoryMappings, categoryMapping);
-        }
-
-        Long total = countQuery.where(where).fetchOne();
+                .from(post)
+                .where(where)
+                .fetchOne();
         return total != null ? total : 0L;
     }
 }
