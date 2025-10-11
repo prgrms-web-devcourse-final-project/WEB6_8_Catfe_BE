@@ -141,12 +141,7 @@ public class NotificationController {
         return ResponseEntity.ok(RsData.success("알림 전송 성공", response));
     }
 
-    @Operation(
-            summary = "알림 목록 조회",
-            description = "사용자의 알림 목록 조회 (페이징)\n\n" +
-                    "- unreadOnly=true: 읽지 않은 알림만\n" +
-                    "- unreadOnly=false: 모든 알림"
-    )
+    @Operation(summary = "알림 목록 조회")
     @GetMapping
     public ResponseEntity<RsData<NotificationListResponse>> getNotifications(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -157,13 +152,10 @@ public class NotificationController {
         log.info("알림 목록 조회 - 유저 ID: {}, 읽지 않은 것만: {}", userDetails.getUserId(), unreadOnly);
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<Notification> notifications;
 
-        if (unreadOnly) {
-            notifications = notificationService.getUnreadNotifications(userDetails.getUserId(), pageable);
-        } else {
-            notifications = notificationService.getUserNotifications(userDetails.getUserId(), pageable);
-        }
+        Page<Notification> notifications = notificationService.getNotifications(
+                userDetails.getUserId(), pageable, unreadOnly
+        );
 
         long unreadCount = notificationService.getUnreadCount(userDetails.getUserId());
 

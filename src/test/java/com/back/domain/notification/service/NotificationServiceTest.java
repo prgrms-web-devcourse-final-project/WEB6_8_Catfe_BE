@@ -34,6 +34,7 @@ import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
@@ -296,18 +297,21 @@ class NotificationServiceTest {
             // given
             Pageable pageable = PageRequest.of(0, 10);
             Page<Notification> expectedPage = new PageImpl<>(List.of(notification));
+
             given(notificationRepository.findByUserIdOrSystemType(user.getId(), pageable))
                     .willReturn(expectedPage);
 
             // when
-            Page<Notification> result = notificationService.getUserNotifications(
-                    user.getId(), pageable
+            Page<Notification> result = notificationService.getNotifications(
+                    user.getId(), pageable, false
             );
 
             // then
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.getContent().get(0)).isEqualTo(notification);
+
             verify(notificationRepository).findByUserIdOrSystemType(user.getId(), pageable);
+            verify(notificationRepository, never()).findUnreadByUserId(any(), any());
         }
 
         @Test
@@ -316,17 +320,20 @@ class NotificationServiceTest {
             // given
             Pageable pageable = PageRequest.of(0, 10);
             Page<Notification> expectedPage = new PageImpl<>(List.of(notification));
+
             given(notificationRepository.findUnreadByUserId(user.getId(), pageable))
                     .willReturn(expectedPage);
 
             // when
-            Page<Notification> result = notificationService.getUnreadNotifications(
-                    user.getId(), pageable
+            Page<Notification> result = notificationService.getNotifications(
+                    user.getId(), pageable, true
             );
 
             // then
             assertThat(result.getContent()).hasSize(1);
+
             verify(notificationRepository).findUnreadByUserId(user.getId(), pageable);
+            verify(notificationRepository, never()).findByUserIdOrSystemType(any(), any());
         }
 
         @Test
@@ -499,6 +506,52 @@ class NotificationServiceTest {
             verify(notificationReadRepository).saveAll(argThat(list ->
                     list != null && ((List<?>) list).size() == 1
             ));
+        }
+    }
+
+    @Nested
+    @DisplayName("getReadNotificationIds 메서드 테스트")
+    class GetReadNotificationIdsTest {
+
+        @Test
+        @DisplayName("성공 - 알림 목록을 받아 읽은 알림 ID Set 반환")
+        void t1() {
+            // given
+            // 테스트용 알림 객체 생성
+            Notification notification1 = Notification.createSystemNotification("알림1", "내용", "/1");
+            ReflectionTestUtils.setField(notification1, "id", 1L);
+            Notification notification2 = Notification.createSystemNotification("알림2", "내용", "/2");
+            ReflectionTestUtils.setField(notification2, "id", 2L);
+            List<Notification> notifications = List.of(notification1, notification2);
+
+            // Repository가 ID 1만 읽었다고 응답하도록 설정
+            Set<Long> expectedReadIds = Set.of(1L);
+            List<Long> notificationIds = List.of(1L, 2L);
+
+            given(notificationReadRepository.findReadNotificationIds(user.getId(), notificationIds))
+                    .willReturn(expectedReadIds);
+
+            // when
+            Set<Long> result = notificationService.getReadNotificationIds(user.getId(), notifications);
+
+            // then
+            assertThat(result).isEqualTo(expectedReadIds);
+            verify(notificationReadRepository).findReadNotificationIds(user.getId(), notificationIds);
+        }
+
+        @Test
+        @DisplayName("성공 - 알림 목록이 비어있으면 빈 Set 반환")
+        void t2() {
+            // given
+            List<Notification> emptyList = List.of();
+
+            // when
+            Set<Long> result = notificationService.getReadNotificationIds(user.getId(), emptyList);
+
+            // then
+            assertThat(result).isEmpty();
+            // Repository가 호출되지 않아야 함
+            verify(notificationReadRepository, never()).findReadNotificationIds(anyLong(), anyList());
         }
     }
 }

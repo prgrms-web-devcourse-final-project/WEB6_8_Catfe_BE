@@ -164,16 +164,14 @@ public class NotificationService {
 
     // ==================== 알림 조회 ====================
 
-    // 유저의 모든 알림 조회
+    // 유저의 알림 목록 조회
     @Transactional(readOnly = true)
-    public Page<Notification> getUserNotifications(Long userId, Pageable pageable) {
-        return notificationRepository.findByUserIdOrSystemType(userId, pageable);
-    }
-
-    // 유저의 읽지 않은 알림 조회
-    @Transactional(readOnly = true)
-    public Page<Notification> getUnreadNotifications(Long userId, Pageable pageable) {
-        return notificationRepository.findUnreadByUserId(userId, pageable);
+    public Page<Notification> getNotifications(Long userId, Pageable pageable, boolean unreadOnly) {
+        if (unreadOnly) {
+            return notificationRepository.findUnreadByUserId(userId, pageable);
+        } else {
+            return notificationRepository.findByUserIdOrSystemType(userId, pageable);
+        }
     }
 
     // 유저의 읽지 않은 알림 개수 조회
