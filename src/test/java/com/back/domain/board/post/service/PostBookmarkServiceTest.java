@@ -1,11 +1,10 @@
-package com.back.domain.board.service;
+package com.back.domain.board.post.service;
 
 import com.back.domain.board.post.dto.PostBookmarkResponse;
 import com.back.domain.board.post.entity.Post;
 import com.back.domain.board.post.entity.PostBookmark;
 import com.back.domain.board.post.repository.PostBookmarkRepository;
 import com.back.domain.board.post.repository.PostRepository;
-import com.back.domain.board.post.service.PostBookmarkService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
@@ -49,7 +48,7 @@ class PostBookmarkServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         // when
@@ -84,7 +83,7 @@ class PostBookmarkServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         postBookmarkRepository.save(new PostBookmark(post, user));
@@ -106,7 +105,7 @@ class PostBookmarkServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         PostBookmark postBookmark = new PostBookmark(post, user);
@@ -130,7 +129,7 @@ class PostBookmarkServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용");
+        Post post = new Post(user, "제목", "내용", null);
         postRepository.save(post);
 
         // when & then

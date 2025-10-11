@@ -1,4 +1,4 @@
-package com.back.domain.board.comment.repository;
+package com.back.domain.board.comment.repository.custom;
 
 import com.back.domain.board.comment.entity.QCommentLike;
 import com.querydsl.jpa.impl.JPAQueryFactory;

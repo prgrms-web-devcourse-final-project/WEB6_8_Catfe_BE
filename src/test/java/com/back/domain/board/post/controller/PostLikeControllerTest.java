@@ -1,4 +1,4 @@
-package com.back.domain.board.controller;
+package com.back.domain.board.post.controller;
 
 import com.back.domain.board.post.entity.Post;
 import com.back.domain.board.post.repository.PostRepository;
@@ -64,7 +64,7 @@ class PostLikeControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "좋아요 테스트", "내용입니다");
+        Post post = new Post(user, "좋아요 테스트", "내용입니다", null);
         postRepository.save(post);
 
         String accessToken = generateAccessToken(user);
@@ -95,7 +95,7 @@ class PostLikeControllerTest {
         writer.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(writer);
 
-        Post post = new Post(writer, "게시글", "내용");
+        Post post = new Post(writer, "게시글", "내용", null);
         postRepository.save(post);
 
         // when & then
@@ -137,7 +137,7 @@ class PostLikeControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "테스트 게시글", "내용");
+        Post post = new Post(user, "테스트 게시글", "내용", null);
         postRepository.save(post);
 
         String accessToken = generateAccessToken(user);
@@ -165,7 +165,7 @@ class PostLikeControllerTest {
         writer.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(writer);
 
-        Post post = new Post(writer, "테스트", "내용");
+        Post post = new Post(writer, "테스트", "내용", null);
         postRepository.save(post);
 
         // when & then
@@ -188,7 +188,7 @@ class PostLikeControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "좋아요 취소 테스트", "내용입니다");
+        Post post = new Post(user, "좋아요 취소 테스트", "내용입니다", null);
         postRepository.save(post);
 
         String accessToken = generateAccessToken(user);
@@ -223,7 +223,7 @@ class PostLikeControllerTest {
         writer.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(writer);
 
-        Post post = new Post(writer, "게시글", "내용");
+        Post post = new Post(writer, "게시글", "내용", null);
         postRepository.save(post);
 
         // when & then
@@ -263,7 +263,7 @@ class PostLikeControllerTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "테스트 게시글", "내용");
+        Post post = new Post(user, "테스트 게시글", "내용", null);
         postRepository.save(post);
 
         String accessToken = generateAccessToken(user);
@@ -286,7 +286,7 @@ class PostLikeControllerTest {
         writer.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(writer);
 
-        Post post = new Post(writer, "테스트", "내용");
+        Post post = new Post(writer, "테스트", "내용", null);
         postRepository.save(post);
 
         // when & then

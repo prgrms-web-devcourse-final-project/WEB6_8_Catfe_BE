@@ -72,6 +72,10 @@ public class PostBookmarkService {
         PostBookmark postBookmark = postBookmarkRepository.findByUserIdAndPostId(userId, postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BOOKMARK_NOT_FOUND));
 
+        // 연관관계 제거
+        post.removeBookmark(postBookmark);
+        user.removePostBookmark(postBookmark);
+
         // PostBookmark 삭제
         postBookmarkRepository.delete(postBookmark);
 

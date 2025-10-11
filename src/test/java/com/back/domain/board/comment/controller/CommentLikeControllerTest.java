@@ -1,4 +1,4 @@
-package com.back.domain.board.controller;
+package com.back.domain.board.comment.controller;
 
 import com.back.domain.board.comment.entity.Comment;
 import com.back.domain.board.comment.repository.CommentLikeRepository;
@@ -71,7 +71,7 @@ class CommentLikeControllerTest {
     }
 
     private Post createPost(User user) {
-        Post post = new Post(user, "게시글 제목", "게시글 내용");
+        Post post = new Post(user, "게시글 제목", "게시글 내용", null);
         return postRepository.save(post);
     }
 
@@ -82,7 +82,7 @@ class CommentLikeControllerTest {
     void likeComment_success() throws Exception {
         User user = createUser("writer", "writer@example.com");
         Post post = createPost(user);
-        Comment comment = commentRepository.save(new Comment(post, user, "댓글 내용"));
+        Comment comment = commentRepository.save(Comment.createRoot(post, user, "댓글 내용"));
 
         String token = generateAccessToken(user);
 
@@ -107,7 +107,7 @@ class CommentLikeControllerTest {
     void likeComment_fail_userNotFound() throws Exception {
         User user = createUser("temp", "temp@example.com");
         Post post = createPost(user);
-        Comment comment = commentRepository.save(new Comment(post, user, "댓글"));
+        Comment comment = commentRepository.save(Comment.createRoot(post, user, "댓글"));
 
         String fakeToken = testJwtTokenProvider.createAccessToken(999L, "ghost", "USER");
 
@@ -141,7 +141,7 @@ class CommentLikeControllerTest {
     void likeComment_fail_alreadyLiked() throws Exception {
         User user = createUser("user", "user@example.com");
         Post post = createPost(user);
-        Comment comment = commentRepository.save(new Comment(post, user, "댓글"));
+        Comment comment = commentRepository.save(Comment.createRoot(post, user, "댓글"));
         String token = generateAccessToken(user);
 
         mvc.perform(post("/api/posts/{postId}/comments/{commentId}/like", post.getId(), comment.getId())
@@ -179,7 +179,7 @@ class CommentLikeControllerTest {
     void likeComment_fail_noToken() throws Exception {
         User user = createUser("user", "user@example.com");
         Post post = createPost(user);
-        Comment comment = commentRepository.save(new Comment(post, user, "댓글"));
+        Comment comment = commentRepository.save(Comment.createRoot(post, user, "댓글"));
 
         mvc.perform(post("/api/posts/{postId}/comments/{commentId}/like", post.getId(), comment.getId())
                         .contentType(MediaType.APPLICATION_JSON))
@@ -194,7 +194,7 @@ class CommentLikeControllerTest {
     void likeComment_fail_invalidToken() throws Exception {
         User user = createUser("user", "user@example.com");
         Post post = createPost(user);
-        Comment comment = commentRepository.save(new Comment(post, user, "댓글"));
+        Comment comment = commentRepository.save(Comment.createRoot(post, user, "댓글"));
 
         mvc.perform(post("/api/posts/{postId}/comments/{commentId}/like", post.getId(), comment.getId())
                         .header("Authorization", "Bearer invalid.token.here")
@@ -213,7 +213,7 @@ class CommentLikeControllerTest {
         // given
         User user = createUser("cancel", "cancel@example.com");
         Post post = createPost(user);
-        Comment comment = commentRepository.save(new Comment(post, user, "댓글"));
+        Comment comment = commentRepository.save(Comment.createRoot(post, user, "댓글"));
         String token = generateAccessToken(user);
 
         // 좋아요 등록
@@ -245,7 +245,7 @@ class CommentLikeControllerTest {
         // given
         User user = createUser("user2", "user2@example.com");
         Post post = createPost(user);
-        Comment comment = commentRepository.save(new Comment(post, user, "댓글"));
+        Comment comment = commentRepository.save(Comment.createRoot(post, user, "댓글"));
         String token = generateAccessToken(user);
 
         // when & then
@@ -265,7 +265,7 @@ class CommentLikeControllerTest {
         // given
         User user = createUser("temp", "temp@example.com");
         Post post = createPost(user);
-        Comment comment = commentRepository.save(new Comment(post, user, "댓글"));
+        Comment comment = commentRepository.save(Comment.createRoot(post, user, "댓글"));
         String fakeToken = testJwtTokenProvider.createAccessToken(999L, "ghost", "USER");
 
         // when & then
@@ -304,7 +304,7 @@ class CommentLikeControllerTest {
         // given
         User user = createUser("writer", "writer@example.com");
         Post post = createPost(user);
-        Comment comment = commentRepository.save(new Comment(post, user, "댓글"));
+        Comment comment = commentRepository.save(Comment.createRoot(post, user, "댓글"));
 
         // when & then
         mvc.perform(delete("/api/posts/{postId}/comments/{commentId}/like", post.getId(), comment.getId())
@@ -321,7 +321,7 @@ class CommentLikeControllerTest {
         // given
         User user = createUser("writer", "writer@example.com");
         Post post = createPost(user);
-        Comment comment = commentRepository.save(new Comment(post, user, "댓글"));
+        Comment comment = commentRepository.save(Comment.createRoot(post, user, "댓글"));
 
         // when & then
         mvc.perform(delete("/api/posts/{postId}/comments/{commentId}/like", post.getId(), comment.getId())

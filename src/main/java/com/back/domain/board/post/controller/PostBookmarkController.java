@@ -1,5 +1,6 @@
 package com.back.domain.board.post.controller;
 
+import com.back.domain.board.post.controller.docs.PostBookmarkControllerDocs;
 import com.back.domain.board.post.dto.PostBookmarkResponse;
 import com.back.domain.board.post.service.PostBookmarkService;
 import com.back.global.common.dto.RsData;

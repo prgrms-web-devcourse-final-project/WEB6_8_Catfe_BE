@@ -72,6 +72,10 @@ public class PostLikeService {
         PostLike postLike = postLikeRepository.findByUserIdAndPostId(userId, postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_LIKE_NOT_FOUND));
 
+        // 연관관계 제거
+        post.removeLike(postLike);
+        user.removePostLike(postLike);
+
         // PostLike 삭제
         postLikeRepository.delete(postLike);
 

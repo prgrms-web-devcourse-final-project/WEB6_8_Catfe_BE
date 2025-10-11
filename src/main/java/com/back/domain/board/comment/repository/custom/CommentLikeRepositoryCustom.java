@@ -1,4 +1,4 @@
-package com.back.domain.board.comment.repository;
+package com.back.domain.board.comment.repository.custom;
 
 import java.util.Collection;
 import java.util.List;

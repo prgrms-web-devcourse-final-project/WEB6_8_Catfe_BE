@@ -1,4 +1,4 @@
-package com.back.domain.board.post.repository;
+package com.back.domain.board.post.repository.custom;
 
 import com.back.domain.board.post.dto.PostListResponse;
 import org.springframework.data.domain.Page;

@@ -1,4 +1,4 @@
-package com.back.domain.board.comment.controller;
+package com.back.domain.board.comment.controller.docs;
 
 import com.back.domain.board.comment.dto.CommentLikeResponse;
 import com.back.global.common.dto.RsData;
