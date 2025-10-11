@@ -1,6 +1,8 @@
 package com.back.domain.chat.room.service;
 
 import com.back.domain.chat.room.dto.ChatClearedNotification;
+import com.back.domain.chat.room.dto.RoomChatMessageRequest;
+import com.back.domain.chat.room.dto.RoomChatMessageResponse;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomChatMessage;
 import com.back.domain.studyroom.entity.RoomMember;
@@ -10,11 +12,9 @@ import com.back.domain.studyroom.repository.RoomMemberRepository;
 import com.back.domain.studyroom.repository.RoomRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
-import com.back.domain.chat.room.dto.RoomChatMessageDto;
 import com.back.domain.chat.room.dto.RoomChatPageResponse;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
-import com.back.global.security.user.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,7 +33,6 @@ public class RoomChatService {
     private final RoomMemberRepository roomMemberRepository;
     private final RoomRepository roomRepository;
     private final UserRepository userRepository;
-    private final CurrentUser currentUser;
 
     // 페이징 설정 상수
     private static final int DEFAULT_PAGE_SIZE = 20;
@@ -41,37 +40,29 @@ public class RoomChatService {
 
     // 방 채팅 메시지 저장
     @Transactional
-    public RoomChatMessage saveRoomChatMessage(RoomChatMessageDto roomChatMessageDto) {
+    public RoomChatMessage saveRoomChatMessage(Long roomId, Long userId, RoomChatMessageRequest request) {
 
-        // 방 존재 여부 확인
-        Room room = roomRepository.findById(roomChatMessageDto.roomId())
+        Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        // 사용자 존재 여부 확인
-        User user = userRepository.findById(roomChatMessageDto.userId())
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // RoomChatMessage 엔티티 생성 및 저장
-        RoomChatMessage message = new RoomChatMessage(room, user, roomChatMessageDto.content());
-        RoomChatMessage savedMessage = roomChatMessageRepository.save(message);
-
-        return savedMessage;
+        // DTO에서 직접 content를 가져와 사용
+        RoomChatMessage message = new RoomChatMessage(room, user, request.content());
+        return roomChatMessageRepository.save(message);
     }
 
     // 방 채팅 기록 조회
     @Transactional(readOnly = true)
     public RoomChatPageResponse getRoomChatHistory(Long roomId, int page, int size, LocalDateTime before) {
 
-        // 방 존재 여부 확인
         roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        // size 값 검증 및 제한
         int validatedSize = validateAndLimitPageSize(size);
-
         Pageable pageable = PageRequest.of(page, validatedSize);
 
-        // before 파라미터가 있으면 해당 시점 이전 메시지만 조회
         Page<RoomChatMessage> messagesPage;
         if (before != null) {
             messagesPage = roomChatMessageRepository.findMessagesByRoomIdBefore(roomId, before, pageable);
@@ -79,9 +70,9 @@ public class RoomChatService {
             messagesPage = roomChatMessageRepository.findMessagesByRoomId(roomId, pageable);
         }
 
-        List<RoomChatMessageDto> convertedContent = messagesPage.getContent()
+        List<RoomChatMessageResponse> convertedContent = messagesPage.getContent()
                 .stream()
-                .map(this::convertToDto)
+                .map(RoomChatMessageResponse::from)
                 .toList();
 
         return RoomChatPageResponse.from(messagesPage, convertedContent);
@@ -91,38 +82,27 @@ public class RoomChatService {
     @Transactional
     public ChatClearedNotification.ClearedByDto clearRoomChat(Long roomId, Long userId) {
 
-        // 방 존재 여부 확인
         Room room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다"));
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        // 사용자 존재 여부 확인
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 사용자가 해당 방의 멤버인지 확인
         RoomMember roomMember = roomMemberRepository.findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
 
-        // 권한 확인 - 방장(HOST) 또는 부방장(SUB_HOST)만 가능
         if (!canManageChat(roomMember.getRole())) {
-            throw new SecurityException("채팅 삭제 권한이 없습니다");
+            throw new CustomException(ErrorCode.CHAT_DELETE_FORBIDDEN);
         }
 
-        try {
-            // 해당 방의 모든 채팅 메시지 삭제
-            int deletedCount = roomChatMessageRepository.deleteAllByRoomId(roomId);
+        roomChatMessageRepository.deleteAllByRoomId(roomId);
 
-            // 삭제를 실행한 사용자 정보 반환
-            return new ChatClearedNotification.ClearedByDto(
-                    user.getId(),
-                    user.getNickname(),
-                    user.getProfileImageUrl(),
-                    roomMember.getRole().name()
-            );
-
-        } catch (Exception e) {
-            throw new CustomException(ErrorCode.CHAT_DELETE_FAILED);
-        }
+        return new ChatClearedNotification.ClearedByDto(
+                user.getId(),
+                user.getNickname(),
+                user.getProfileImageUrl(),
+                roomMember.getRole().name()
+        );
     }
 
     // 방의 현재 채팅 메시지 수 조회
@@ -130,8 +110,6 @@ public class RoomChatService {
     public int getRoomChatCount(Long roomId) {
         return roomChatMessageRepository.countByRoomId(roomId);
     }
-
-    // --------------------- 헬퍼 메서드들 ---------------------
 
     // 채팅 관리 권한 확인 (방장 또는 부방장)
     private boolean canManageChat(RoomRole role) {
@@ -141,24 +119,8 @@ public class RoomChatService {
     // size 값 검증 및 최대값 제한
     private int validateAndLimitPageSize(int size) {
         if (size <= 0) {
-            return DEFAULT_PAGE_SIZE; // 0 이하면 기본값 사용
+            return DEFAULT_PAGE_SIZE;
         }
-        return Math.min(size, MAX_PAGE_SIZE); // 최대값 제한
+        return Math.min(size, MAX_PAGE_SIZE);
     }
-
-    // 메시지 엔티티를 DTO로 변환
-    private RoomChatMessageDto convertToDto(RoomChatMessage message) {
-        return RoomChatMessageDto.createResponse(
-                message.getId(),
-                message.getRoom().getId(),
-                message.getUser().getId(),
-                message.getUser().getNickname(),
-                message.getUser().getProfileImageUrl(),
-                message.getContent(),
-                "TEXT", // 현재는 텍스트만 지원
-                null,   // 텍스트 채팅에서는 null
-                message.getCreatedAt()
-        );
-    }
-
 }

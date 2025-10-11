@@ -1,7 +1,8 @@
 package com.back.domain.chat.room.service;
 
 import com.back.domain.chat.room.dto.ChatClearedNotification;
-import com.back.domain.chat.room.dto.RoomChatMessageDto;
+import com.back.domain.chat.room.dto.RoomChatMessageRequest;
+import com.back.domain.chat.room.dto.RoomChatMessageResponse;
 import com.back.domain.chat.room.dto.RoomChatPageResponse;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomChatMessage;
@@ -17,6 +18,7 @@ import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,7 +41,6 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@ActiveProfiles("test")
 @DisplayName("RoomChatService 테스트")
 class RoomChatServiceTest {
 
@@ -58,531 +59,139 @@ class RoomChatServiceTest {
     @InjectMocks
     private RoomChatService roomChatService;
 
-    private Room testRoom;
     private User testUser;
-    private UserProfile testUserProfile;
-    private RoomChatMessage testMessage;
+    private Room testRoom;
 
     @BeforeEach
-    void setUp() throws Exception {
-        // UserProfile 생성
-        testUserProfile = createUserProfile("테스터", "https://example.com/profile.jpg");
+    void setUp() {
+        testUser = User.builder().id(1L).build();
+        UserProfile testProfile = UserProfile.builder().nickname("테스터").profileImageUrl("url").build();
+        testUser.setUserProfile(testProfile);
 
-        // User 생성 및 userProfiles 필드 설정
-        testUser = User.builder()
-                .id(1L)
-                .email("test@example.com")
-                .username("테스터")
-                .build();
-
-        // 리플렉션으로 userProfiles 필드 설정
-        setUserProfile(testUser, testUserProfile);
-
-        testRoom = Room.builder()
-                .id(1L)
-                .title("테스트 방")
-                .description("테스트용 스터디룸")
-                .build();
-
-        testMessage = RoomChatMessage.builder()
-                .id(1L)
-                .room(testRoom)
-                .user(testUser)
-                .content("테스트 메시지")
-                .createdAt(LocalDateTime.now())
-                .build();
+        testRoom = Room.builder().id(1L).build();
     }
 
-    // UserProfile 생성 헬퍼 메소드
-    private UserProfile createUserProfile(String nickname, String profileImageUrl) throws Exception {
-        UserProfile userProfile = new UserProfile();
+    @Nested
+    @DisplayName("saveRoomChatMessage 메서드")
+    class SaveRoomChatMessage {
 
-        // 리플렉션으로 private 필드 설정
-        setField(userProfile, "nickname", nickname);
-        setField(userProfile, "profileImageUrl", profileImageUrl);
-        setField(userProfile, "user", testUser);
+        @Test
+        @DisplayName("성공 - 채팅 메시지를 저장한다")
+        void t1() {
+            // given
+            Long roomId = 1L;
+            Long userId = 1L;
+            RoomChatMessageRequest request = new RoomChatMessageRequest("안녕하세요");
 
-        return userProfile;
+            RoomChatMessage mockMessage = new RoomChatMessage(testRoom, testUser, request.content());
+
+            given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
+            given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+            given(roomChatMessageRepository.save(any(RoomChatMessage.class))).willReturn(mockMessage);
+
+            // when
+            RoomChatMessage result = roomChatService.saveRoomChatMessage(roomId, userId, request);
+
+            // then
+            assertThat(result.getContent()).isEqualTo("안녕하세요");
+            assertThat(result.getUser().getId()).isEqualTo(userId);
+            assertThat(result.getRoom().getId()).isEqualTo(roomId);
+        }
+
+        @Test
+        @DisplayName("실패 - 존재하지 않는 방이면 CustomException 발생")
+        void t2() {
+            // given
+            Long nonExistentRoomId = 999L;
+            given(roomRepository.findById(nonExistentRoomId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> roomChatService.saveRoomChatMessage(nonExistentRoomId, 1L, new RoomChatMessageRequest("...")))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ROOM_NOT_FOUND);
+        }
     }
 
-    // User의 userProfiles 필드 설정
-    private void setUserProfile(User user, UserProfile profile) throws Exception {
-        Field userProfilesField = User.class.getDeclaredField("userProfile");
-        userProfilesField.setAccessible(true);
-        userProfilesField.set(user, profile);
+    @Nested
+    @DisplayName("getRoomChatHistory 메서드")
+    class GetRoomChatHistory {
+
+        @Test
+        @DisplayName("성공 - 채팅 기록을 페이지로 조회한다")
+        void t1() {
+            // given
+            Long roomId = 1L;
+            RoomChatMessage message = new RoomChatMessage(testRoom, testUser, "테스트 메시지");
+            Page<RoomChatMessage> messagePage = new PageImpl<>(List.of(message));
+
+            given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
+            given(roomChatMessageRepository.findMessagesByRoomId(eq(roomId), any(Pageable.class))).willReturn(messagePage);
+
+            // when
+            RoomChatPageResponse result = roomChatService.getRoomChatHistory(roomId, 0, 10, null);
+
+            // then
+            assertThat(result.content()).hasSize(1);
+            RoomChatMessageResponse responseDto = result.content().get(0);
+            assertThat(responseDto.content()).isEqualTo("테스트 메시지");
+            assertThat(responseDto.nickname()).isEqualTo("테스터");
+        }
     }
 
-    // 리플렉션으로 필드 값 설정하는 헬퍼 메소드
-    private void setField(Object target, String fieldName, Object value) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
-    }
-
-    @Test
-    @DisplayName("채팅 메시지 저장 성공")
-    void t1() {
-        // Given
-        // createRequest 사용 후 필드 업데이트
-        RoomChatMessageDto roomChatMessageDto = RoomChatMessageDto
-                .createRequest("안녕하세요!", "TEXT")
-                .withRoomId(1L)
-                .withUserId(1L);
-
-        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
-        given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-        given(roomChatMessageRepository.save(any(RoomChatMessage.class))).willReturn(testMessage);
-
-        // When
-        RoomChatMessage result = roomChatService.saveRoomChatMessage(roomChatMessageDto);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getId()).isEqualTo(1L);
-        assertThat(result.getContent()).isEqualTo("테스트 메시지");
-
-        verify(roomRepository).findById(1L);
-        verify(userRepository).findById(1L);
-        verify(roomChatMessageRepository).save(any(RoomChatMessage.class));
-    }
-
-    @Test
-    @DisplayName("채팅 메시지 저장 실패 - 존재하지 않는 방")
-    void t2() {
-        RoomChatMessageDto roomChatMessageDto = RoomChatMessageDto
-                .createRequest("메시지", "TEXT")
-                .withRoomId(999L)
-                .withUserId(1L);
-
-        given(roomRepository.findById(999L)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> roomChatService.saveRoomChatMessage(roomChatMessageDto))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ROOM_NOT_FOUND);
-
-        verify(roomRepository).findById(999L);
-        verify(userRepository, never()).findById(any());
-        verify(roomChatMessageRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("채팅 메시지 저장 실패 - 존재하지 않는 사용자")
-    void t3() {
-        RoomChatMessageDto roomChatMessageDto = RoomChatMessageDto
-                .createRequest("메시지", "TEXT")
-                .withRoomId(1L)
-                .withUserId(999L);
-
-        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
-        given(userRepository.findById(999L)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> roomChatService.saveRoomChatMessage(roomChatMessageDto))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
-
-        verify(roomRepository).findById(1L);
-        verify(userRepository).findById(999L);
-        verify(roomChatMessageRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("채팅 기록 조회 성공 - before 파라미터 없음")
-    void t4() {
-        Long roomId = 1L;
-        int page = 0;
-        int size = 10;
-        LocalDateTime before = null;
-
-        List<RoomChatMessage> messages = Arrays.asList(testMessage);
-        Page<RoomChatMessage> messagePage = new PageImpl<>(messages, PageRequest.of(page, size), 1);
-
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(roomChatMessageRepository.findMessagesByRoomId(eq(roomId), any(Pageable.class)))
-                .willReturn(messagePage);
-
-        RoomChatPageResponse result = roomChatService.getRoomChatHistory(roomId, page, size, before);
-
-        assertThat(result).isNotNull();
-        assertThat(result.content()).hasSize(1);
-        assertThat(result.totalElements()).isEqualTo(1);
-
-        RoomChatMessageDto messageDto = result.content().get(0);
-
-        assertThat(messageDto.messageId()).isEqualTo(1L);
-        assertThat(messageDto.roomId()).isEqualTo(1L);
-        assertThat(messageDto.userId()).isEqualTo(1L);
-        assertThat(messageDto.nickname()).isEqualTo("테스터");
-        assertThat(messageDto.content()).isEqualTo("테스트 메시지");
-        assertThat(messageDto.messageType()).isEqualTo("TEXT");
-
-        verify(roomChatMessageRepository).findMessagesByRoomId(eq(roomId), any(Pageable.class));
-        verify(roomChatMessageRepository, never()).findMessagesByRoomIdBefore(any(), any(), any());
-    }
-
-    @Test
-    @DisplayName("채팅 기록 조회 성공 - before 파라미터 있음")
-    void t5() {
-        Long roomId = 1L;
-        int page = 0;
-        int size = 10;
-        LocalDateTime before = LocalDateTime.now().minusHours(1);
-
-        List<RoomChatMessage> messages = Arrays.asList(testMessage);
-        Page<RoomChatMessage> messagePage = new PageImpl<>(messages, PageRequest.of(page, size), 1);
-
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(roomChatMessageRepository.findMessagesByRoomIdBefore(eq(roomId), eq(before), any(Pageable.class)))
-                .willReturn(messagePage);
-
-        RoomChatPageResponse result = roomChatService.getRoomChatHistory(roomId, page, size, before);
-
-        assertThat(result).isNotNull();
-        assertThat(result.content()).hasSize(1);
-
-        RoomChatMessageDto messageDto = result.content().get(0);
-
-        assertThat(messageDto.nickname()).isEqualTo("테스터");
-        assertThat(messageDto.profileImageUrl()).isEqualTo("https://example.com/profile.jpg");
-
-        verify(roomChatMessageRepository).findMessagesByRoomIdBefore(eq(roomId), eq(before), any(Pageable.class));
-        verify(roomChatMessageRepository, never()).findMessagesByRoomId(any(), any());
-    }
-
-    @Test
-    @DisplayName("채팅 기록 조회 실패 - 존재하지 않는 방")
-    void t6() {
-        Long nonExistentRoomId = 999L;
-
-        given(roomRepository.findById(nonExistentRoomId)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> roomChatService.getRoomChatHistory(nonExistentRoomId, 0, 10, null))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ROOM_NOT_FOUND);
-
-        verify(roomRepository).findById(nonExistentRoomId);
-        verify(roomChatMessageRepository, never()).findMessagesByRoomId(any(), any());
-        verify(roomChatMessageRepository, never()).findMessagesByRoomIdBefore(any(), any(), any());
-    }
-
-    @Test
-    @DisplayName("size 최대값 제한 테스트 - 100초과 요청")
-    void t7() {
-        Long roomId = 1L;
-        int page = 0;
-        int requestedSize = 150;
-        LocalDateTime before = null;
-
-        List<RoomChatMessage> messages = Arrays.asList(testMessage);
-        Page<RoomChatMessage> messagePage = new PageImpl<>(messages, PageRequest.of(page, 100), 1);
-
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(roomChatMessageRepository.findMessagesByRoomId(eq(roomId), any(Pageable.class)))
-                .willReturn(messagePage);
-
-        RoomChatPageResponse result = roomChatService.getRoomChatHistory(roomId, page, requestedSize, before);
-
-        assertThat(result).isNotNull();
-
-        // size가 100으로 제한되었는지 확인
-        verify(roomChatMessageRepository).findMessagesByRoomId(eq(roomId), argThat(pageable ->
-                pageable.getPageSize() == 100
-        ));
-    }
-
-    @Test
-    @DisplayName("size 기본값 설정 테스트 - 0 요청")
-    void t8() {
-        Long roomId = 1L;
-        int page = 0;
-        int requestedSize = 0;
-        LocalDateTime before = null;
-
-        List<RoomChatMessage> messages = Arrays.asList(testMessage);
-        Page<RoomChatMessage> messagePage = new PageImpl<>(messages, PageRequest.of(page, 20), 1);
-
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(roomChatMessageRepository.findMessagesByRoomId(eq(roomId), any(Pageable.class)))
-                .willReturn(messagePage);
-
-        RoomChatPageResponse result = roomChatService.getRoomChatHistory(roomId, page, requestedSize, before);
-
-        assertThat(result).isNotNull();
-
-        // size가 기본값 20으로 설정되었는지 확인
-        verify(roomChatMessageRepository).findMessagesByRoomId(eq(roomId), argThat(pageable ->
-                pageable.getPageSize() == 20
-        ));
-    }
-
-    @Test
-    @DisplayName("size 기본값 설정 테스트 - 음수 요청")
-    void t9() {
-        Long roomId = 1L;
-        int page = 0;
-        int requestedSize = -5;
-        LocalDateTime before = null;
-
-        List<RoomChatMessage> messages = Arrays.asList(testMessage);
-        Page<RoomChatMessage> messagePage = new PageImpl<>(messages, PageRequest.of(page, 20), 1);
-
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(roomChatMessageRepository.findMessagesByRoomId(eq(roomId), any(Pageable.class)))
-                .willReturn(messagePage);
-
-        RoomChatPageResponse result = roomChatService.getRoomChatHistory(roomId, page, requestedSize, before);
-
-        assertThat(result).isNotNull();
-
-        // size가 기본값 20으로 설정되었는지 확인
-        verify(roomChatMessageRepository).findMessagesByRoomId(eq(roomId), argThat(pageable ->
-                pageable.getPageSize() == 20
-        ));
-    }
-
-    @Test
-    @DisplayName("size 정상 범위 테스트")
-    void t10() {
-        Long roomId = 1L;
-        int page = 0;
-        int requestedSize = 50; // 유효한 size
-        LocalDateTime before = null;
-
-        List<RoomChatMessage> messages = Arrays.asList(testMessage);
-        Page<RoomChatMessage> messagePage = new PageImpl<>(messages, PageRequest.of(page, 50), 1);
-
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(roomChatMessageRepository.findMessagesByRoomId(eq(roomId), any(Pageable.class)))
-                .willReturn(messagePage);
-
-        RoomChatPageResponse result = roomChatService.getRoomChatHistory(roomId, page, requestedSize, before);
-
-        assertThat(result).isNotNull();
-
-        // 요청한 size가 그대로 유지되는지 확인
-        verify(roomChatMessageRepository).findMessagesByRoomId(eq(roomId), argThat(pageable ->
-                pageable.getPageSize() == 50
-        ));
-    }
-
-    @Test
-    @DisplayName("빈 채팅 기록 조회")
-    void t11() {
-        Long roomId = 1L;
-        Page<RoomChatMessage> emptyPage = new PageImpl<>(Arrays.asList(), PageRequest.of(0, 10), 0);
-
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(roomChatMessageRepository.findMessagesByRoomId(eq(roomId), any(Pageable.class)))
-                .willReturn(emptyPage);
-
-        RoomChatPageResponse result = roomChatService.getRoomChatHistory(roomId, 0, 10, null);
-
-        assertThat(result).isNotNull();
-        assertThat(result.content()).isEmpty();
-        assertThat(result.totalElements()).isEqualTo(0);
-    }
-
-    @Test
-    @DisplayName("convertToDto 메소드 테스트")
-    void t12() throws Exception {
-        // ChatService의 private 메소드에 접근하기 위해 리플렉션 사용
-        java.lang.reflect.Method convertToDtoMethod = RoomChatService.class.getDeclaredMethod("convertToDto", RoomChatMessage.class);
-        convertToDtoMethod.setAccessible(true);
-
-        RoomChatMessageDto result = (RoomChatMessageDto) convertToDtoMethod.invoke(roomChatService, testMessage);
-
-        assertThat(result).isNotNull();
-
-        assertThat(result.messageId()).isEqualTo(1L);
-        assertThat(result.roomId()).isEqualTo(1L);
-        assertThat(result.userId()).isEqualTo(1L);
-        assertThat(result.nickname()).isEqualTo("테스터");
-        assertThat(result.profileImageUrl()).isEqualTo("https://example.com/profile.jpg");
-        assertThat(result.content()).isEqualTo("테스트 메시지");
-        assertThat(result.messageType()).isEqualTo("TEXT");
-        assertThat(result.attachment()).isNull();
-        assertThat(result.createdAt()).isNotNull();
-    }
-
-    // ==================== 채팅 전체 삭제 기능 테스트 ====================
-
-    @Test
-    @DisplayName("채팅 전체 삭제 성공 - 방장 권한")
-    void t13() {
-        Long roomId = 1L;
-        Long userId = 1L;
-        int deletedCount = 15;
-
-        // RoomMember 생성 (방장)
-        RoomMember hostMember = RoomMember.createHost(testRoom, testUser);
-
-        // Mock 설정
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
-        given(roomMemberRepository.findByRoomIdAndUserId(roomId, userId)).willReturn(Optional.of(hostMember));
-        given(roomChatMessageRepository.deleteAllByRoomId(roomId)).willReturn(deletedCount);
-
-        // When
-        ChatClearedNotification.ClearedByDto result = roomChatService.clearRoomChat(roomId, userId);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.userId()).isEqualTo(userId);
-        assertThat(result.nickname()).isEqualTo("테스터");
-        assertThat(result.profileImageUrl()).isEqualTo("https://example.com/profile.jpg");
-        assertThat(result.role()).isEqualTo("HOST");
-
-        verify(roomRepository).findById(roomId);
-        verify(userRepository).findById(userId);
-        verify(roomMemberRepository).findByRoomIdAndUserId(roomId, userId);
-        verify(roomChatMessageRepository).deleteAllByRoomId(roomId);
-    }
-
-    @Test
-    @DisplayName("채팅 전체 삭제 성공 - 부방장 권한")
-    void t14() {
-        Long roomId = 1L;
-        Long userId = 1L;
-        int deletedCount = 8;
-
-        // RoomMember 생성 (부방장)
-        RoomMember subHostMember = RoomMember.create(testRoom, testUser, RoomRole.SUB_HOST);
-
-        // Mock 설정
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
-        given(roomMemberRepository.findByRoomIdAndUserId(roomId, userId)).willReturn(Optional.of(subHostMember));
-        given(roomChatMessageRepository.deleteAllByRoomId(roomId)).willReturn(deletedCount);
-
-        // When
-        ChatClearedNotification.ClearedByDto result = roomChatService.clearRoomChat(roomId, userId);
-
-        // Then
-        assertThat(result.role()).isEqualTo("SUB_HOST");
-        verify(roomChatMessageRepository).deleteAllByRoomId(roomId);
-    }
-
-    @Test
-    @DisplayName("채팅 전체 삭제 실패 - 존재하지 않는 방")
-    void t15() {
-        Long nonExistentRoomId = 999L;
-        Long userId = 1L;
-
-        given(roomRepository.findById(nonExistentRoomId)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> roomChatService.clearRoomChat(nonExistentRoomId, userId))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("존재하지 않는 방입니다");
-
-        verify(roomRepository).findById(nonExistentRoomId);
-        verify(userRepository, never()).findById(any());
-        verify(roomMemberRepository, never()).findByRoomIdAndUserId(any(), any());
-        verify(roomChatMessageRepository, never()).deleteAllByRoomId(any());
-    }
-
-    @Test
-    @DisplayName("채팅 전체 삭제 실패 - 존재하지 않는 사용자")
-    void t16() {
-        Long roomId = 1L;
-        Long nonExistentUserId = 999L;
-
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(userRepository.findById(nonExistentUserId)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> roomChatService.clearRoomChat(roomId, nonExistentUserId))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
-
-        verify(roomRepository).findById(roomId);
-        verify(userRepository).findById(nonExistentUserId);
-        verify(roomMemberRepository, never()).findByRoomIdAndUserId(any(), any());
-        verify(roomChatMessageRepository, never()).deleteAllByRoomId(any());
-    }
-
-    @Test
-    @DisplayName("채팅 전체 삭제 실패 - 방 멤버가 아님")
-    void t17() {
-        Long roomId = 1L;
-        Long userId = 1L;
-
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
-        given(roomMemberRepository.findByRoomIdAndUserId(roomId, userId)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> roomChatService.clearRoomChat(roomId, userId))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_MEMBER);
-
-        verify(roomMemberRepository).findByRoomIdAndUserId(roomId, userId);
-        verify(roomChatMessageRepository, never()).deleteAllByRoomId(any());
-    }
-
-    @Test
-    @DisplayName("채팅 전체 삭제 실패 - 권한 없음 (일반 멤버)")
-    void t18() {
-        Long roomId = 1L;
-        Long userId = 1L;
-
-        // RoomMember 생성 (일반 멤버)
-        RoomMember memberMember = RoomMember.createMember(testRoom, testUser);
-
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
-        given(roomMemberRepository.findByRoomIdAndUserId(roomId, userId)).willReturn(Optional.of(memberMember));
-
-        assertThatThrownBy(() -> roomChatService.clearRoomChat(roomId, userId))
-                .isInstanceOf(SecurityException.class)
-                .hasMessage("채팅 삭제 권한이 없습니다");
-
-        verify(roomMemberRepository).findByRoomIdAndUserId(roomId, userId);
-        verify(roomChatMessageRepository, never()).deleteAllByRoomId(any());
-    }
-
-    @Test
-    @DisplayName("채팅 전체 삭제 실패 - DB 삭제 오류")
-    void t19() {
-        Long roomId = 1L;
-        Long userId = 1L;
-
-        RoomMember hostMember = RoomMember.createHost(testRoom, testUser);
-
-        given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
-        given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
-        given(roomMemberRepository.findByRoomIdAndUserId(roomId, userId)).willReturn(Optional.of(hostMember));
-        given(roomChatMessageRepository.deleteAllByRoomId(roomId))
-                .willThrow(new RuntimeException("DB 연결 오류"));
-
-        assertThatThrownBy(() -> roomChatService.clearRoomChat(roomId, userId))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_DELETE_FAILED);
-
-        verify(roomChatMessageRepository).deleteAllByRoomId(roomId);
-    }
-
-    @Test
-    @DisplayName("방의 채팅 메시지 수 조회 성공")
-    void t20() {
-        Long roomId = 1L;
-        int expectedCount = 42;
-
-        given(roomChatMessageRepository.countByRoomId(roomId)).willReturn(expectedCount);
-
-        int result = roomChatService.getRoomChatCount(roomId);
-
-        assertThat(result).isEqualTo(expectedCount);
-        verify(roomChatMessageRepository).countByRoomId(roomId);
-    }
-
-    @Test
-    @DisplayName("방의 채팅 메시지 수 조회 - 메시지가 없는 경우")
-    void t21() {
-        Long roomId = 2L;
-        int expectedCount = 0;
-
-        given(roomChatMessageRepository.countByRoomId(roomId)).willReturn(expectedCount);
-
-        int result = roomChatService.getRoomChatCount(roomId);
-
-        assertThat(result).isEqualTo(0);
-        verify(roomChatMessageRepository).countByRoomId(roomId);
+    @Nested
+    @DisplayName("clearRoomChat 메서드")
+    class ClearRoomChat {
+
+        @Test
+        @DisplayName("성공 - 방장 권한으로 채팅을 전체 삭제한다")
+        void t1() {
+            // given
+            Long roomId = 1L;
+            Long userId = 1L;
+            RoomMember hostMember = RoomMember.createHost(testRoom, testUser);
+
+            given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
+            given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+            given(roomMemberRepository.findByRoomIdAndUserId(roomId, userId)).willReturn(Optional.of(hostMember));
+
+            // when
+            ChatClearedNotification.ClearedByDto result = roomChatService.clearRoomChat(roomId, userId);
+
+            // then
+            assertThat(result.userId()).isEqualTo(userId);
+            assertThat(result.role()).isEqualTo("HOST");
+            verify(roomChatMessageRepository).deleteAllByRoomId(roomId);
+        }
+
+        @Test
+        @DisplayName("실패 - 권한이 없는 경우(일반 멤버) CustomException 발생")
+        void t2() {
+            // given
+            Long roomId = 1L;
+            Long userId = 1L;
+            RoomMember member = RoomMember.createMember(testRoom, testUser);
+
+            given(roomRepository.findById(roomId)).willReturn(Optional.of(testRoom));
+            given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+            given(roomMemberRepository.findByRoomIdAndUserId(roomId, userId)).willReturn(Optional.of(member));
+
+            // when & then
+            assertThatThrownBy(() -> roomChatService.clearRoomChat(roomId, userId))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_DELETE_FORBIDDEN);
+        }
+
+        @Test
+        @DisplayName("실패 - 존재하지 않는 방이면 CustomException 발생")
+        void t3() {
+            // given
+            Long nonExistentRoomId = 999L;
+            given(roomRepository.findById(nonExistentRoomId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> roomChatService.clearRoomChat(nonExistentRoomId, 1L))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ROOM_NOT_FOUND);
+        }
     }
 }

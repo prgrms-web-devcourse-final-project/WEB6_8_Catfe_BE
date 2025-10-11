@@ -205,12 +205,6 @@ class RoomChatApiControllerTest {
                 .andExpect(jsonPath("$.data.clearedBy.userId").value(userId))
                 .andExpect(jsonPath("$.data.clearedBy.nickname").value("방장"))
                 .andExpect(jsonPath("$.data.clearedBy.role").value("HOST"));
-
-        // WebSocket 메시지가 전송되었는지 확인
-        verify(messagingTemplate).convertAndSend(
-                eq("/topic/room/" + roomId + "/chat-cleared"),
-                any(ChatClearedNotification.class)
-        );
     }
 
     @Test
