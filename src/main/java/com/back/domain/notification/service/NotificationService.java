@@ -17,7 +17,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -191,6 +193,20 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public boolean isNotificationRead(Long notificationId, Long userId) {
         return notificationReadRepository.existsByNotificationIdAndUserId(notificationId, userId);
+    }
+
+    // 여러 알림 중 유저가 읽은 알림 ID 목록 조회
+    @Transactional(readOnly = true)
+    public Set<Long> getReadNotificationIds(Long userId, List<Notification> notifications) {
+        if (notifications == null || notifications.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        List<Long> notificationIds = notifications.stream()
+                .map(Notification::getId)
+                .toList();
+
+        return notificationReadRepository.findReadNotificationIdsByUserIdAndNotificationIdsIn(userId, notificationIds);
     }
 
     // ==================== 알림 읽음 처리 ====================
