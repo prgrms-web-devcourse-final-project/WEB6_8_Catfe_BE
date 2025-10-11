@@ -40,6 +40,9 @@ public enum ErrorCode {
     ROOM_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "ROOM_017", "현재 비밀번호가 일치하지 않습니다."),
     NOT_ROOM_HOST(HttpStatus.FORBIDDEN, "ROOM_018", "방장 권한이 필요합니다."),
 
+    // ======================== 아바타 관련 ========================
+    AVATAR_NOT_FOUND(HttpStatus.NOT_FOUND, "AVATAR_001", "존재하지 않는 아바타입니다."),
+
 
     // ======================== 스터디 플래너 관련 ========================
     PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "PLAN_001", "존재하지 않는 학습 계획입니다."),
