@@ -206,7 +206,7 @@ public class NotificationService {
                 .map(Notification::getId)
                 .toList();
 
-        return notificationReadRepository.findReadNotificationIdsByUserIdAndNotificationIdsIn(userId, notificationIds);
+        return notificationReadRepository.findReadNotificationIds(userId, notificationIds);
     }
 
     // ==================== 알림 읽음 처리 ====================
