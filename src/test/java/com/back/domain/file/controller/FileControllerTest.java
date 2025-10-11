@@ -68,7 +68,7 @@ class FileControllerTest {
 
         String accessToken = generateAccessToken(user);
 
-        Post post = new Post(user, "첫 글", "내용");
+        Post post = new Post(user, "첫 글", "내용", null);
         postRepository.save(post);
 
         MockMultipartFile multipartFile = new MockMultipartFile(
@@ -105,7 +105,7 @@ class FileControllerTest {
 
         String accessToken = generateAccessToken(user);
 
-        Post post = new Post(user, "첫 글", "내용");
+        Post post = new Post(user, "첫 글", "내용", null);
         postRepository.save(post);
 
         // when

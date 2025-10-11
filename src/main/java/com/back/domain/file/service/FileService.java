@@ -49,8 +49,6 @@ public class FileService {
                         new CustomException(ErrorCode.USER_NOT_FOUND)
                 );
 
-        entityValidator.validate(entityType, entityId);
-
         // S3에 저장할 파일 이름
         String storedFileName = createFileName(multipartFile.getOriginalFilename());
 
@@ -78,8 +76,6 @@ public class FileService {
             EntityType entityType,
             Long entityId
     ) {
-        entityValidator.validate(entityType, entityId);
-
         FileAttachment fileAttachment = getFileAttachmentOrThrow(entityType, entityId);
 
         String filePath = fileAttachment.getFilePath();
