@@ -5,6 +5,7 @@ import com.back.domain.notification.service.NotificationService;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 알림 목록 응답 DTO
@@ -27,9 +28,13 @@ public record NotificationListResponse(
             long unreadCount,
             NotificationService notificationService) {
 
+        // 현재 페이지의 알림들에 대해 읽음 처리된 ID 목록을 한 번에 조회
+        Set<Long> readNotificationIds = notificationService.getReadNotificationIds(userId, notifications.getContent());
+
         List<NotificationItemDto> items = notifications.getContent().stream()
                 .map(notification -> {
-                    boolean isRead = notificationService.isNotificationRead(notification.getId(), userId);
+                    // DB 조회가 아닌 메모리에서 읽음 여부를 빠르게 확인
+                    boolean isRead = readNotificationIds.contains(notification.getId());
                     return NotificationItemDto.from(notification, isRead);
                 })
                 .toList();

@@ -24,6 +24,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -581,6 +582,54 @@ class NotificationRepositoryTest {
             // then
             assertThat(result.get(0).getTitle()).isEqualTo("최근");
             assertThat(result.get(1).getTitle()).isEqualTo("오래된");
+        }
+    }
+
+    @Nested
+    @DisplayName("findReadNotificationIds 테스트")
+    class FindReadNotificationIdsTest {
+
+        @Test
+        @DisplayName("성공 - 주어진 알림 ID 목록 중 사용자가 읽은 알림 ID만 반환")
+        void t1() {
+            // given
+            // 3개의 알림 생성
+            Notification n1 = Notification.createPersonalNotification(user1, actor, "알림1", "", "");
+            Notification n2 = Notification.createPersonalNotification(user1, actor, "알림2", "", "");
+            Notification n3 = Notification.createPersonalNotification(user1, actor, "알림3", "", "");
+            notificationRepository.saveAll(List.of(n1, n2, n3));
+
+            // user1이 알림1과 알림3을 읽음 처리
+            notificationReadRepository.save(NotificationRead.create(n1, user1));
+            notificationReadRepository.save(NotificationRead.create(n3, user1));
+
+            // user2는 알림1만 읽음 (user1의 결과에 영향을 주지 않는지 확인)
+            notificationReadRepository.save(NotificationRead.create(n1, user2));
+
+            List<Long> allNotificationIds = List.of(n1.getId(), n2.getId(), n3.getId());
+
+            // when
+            Set<Long> readIdsForUser1 = notificationReadRepository.findReadNotificationIds(user1.getId(), allNotificationIds);
+
+            // then
+            assertThat(readIdsForUser1).hasSize(2);
+            assertThat(readIdsForUser1).containsExactlyInAnyOrder(n1.getId(), n3.getId());
+        }
+
+        @Test
+        @DisplayName("성공 - 읽은 알림이 없으면 빈 Set 반환")
+        void t2() {
+            // given
+            Notification n1 = Notification.createPersonalNotification(user1, actor, "알림1", "", "");
+            notificationRepository.save(n1);
+
+            List<Long> notificationIds = List.of(n1.getId());
+
+            // when
+            Set<Long> readIds = notificationReadRepository.findReadNotificationIds(user1.getId(), notificationIds);
+
+            // then
+            assertThat(readIds).isEmpty();
         }
     }
 }

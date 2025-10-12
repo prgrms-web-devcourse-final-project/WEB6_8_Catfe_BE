@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.List;
+
 @Tag(name = "Post API", description = "게시글 관련 API")
 public interface PostControllerDocs {
 
@@ -229,7 +231,7 @@ public interface PostControllerDocs {
             @PageableDefault(sort = "createdAt") Pageable pageable,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String searchType,
-            @RequestParam(required = false) Long categoryId
+            @RequestParam(required = false) List<Long> categoryId
     );
 
 

@@ -5,7 +5,7 @@ import com.back.domain.board.post.entity.Post;
 /**
  * 게시글 좋아요 응답 DTO
  *
- * @param postId    게시글 id
+ * @param postId    게시글 ID
  * @param likeCount 좋아요 수
  */
 public record PostLikeResponse(

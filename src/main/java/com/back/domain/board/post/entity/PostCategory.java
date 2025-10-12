@@ -24,7 +24,7 @@ public class PostCategory extends BaseEntity {
     private CategoryType type;
 
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PostCategoryMapping> postCategoryMappings;
+    private List<PostCategoryMapping> postCategoryMappings = new ArrayList<>();
 
     // -------------------- 생성자 --------------------
     public PostCategory(String name, CategoryType type) {
