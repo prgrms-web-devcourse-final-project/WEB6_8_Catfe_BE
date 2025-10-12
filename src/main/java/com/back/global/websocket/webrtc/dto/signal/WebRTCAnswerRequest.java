@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 public record WebRTCAnswerRequest(
         @NotNull Long roomId,
         @NotNull Long targetUserId,
-        @NotNull String sdp,
+        @NotNull SdpData sdp,
         @NotNull WebRTCMediaType mediaType
 ) {
 }
