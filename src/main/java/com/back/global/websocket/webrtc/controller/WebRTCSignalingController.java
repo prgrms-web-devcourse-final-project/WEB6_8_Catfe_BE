@@ -6,6 +6,7 @@ import com.back.global.security.user.CustomUserDetails;
 import com.back.global.websocket.dto.WebSocketSessionInfo;
 import com.back.global.websocket.service.WebSocketSessionManager;
 import com.back.global.websocket.util.WebSocketAuthHelper;
+import com.back.global.websocket.webrtc.dto.WebRTCErrorResponse;
 import com.back.global.websocket.webrtc.dto.media.WebRTCMediaStateResponse;
 import com.back.global.websocket.webrtc.dto.media.WebRTCMediaToggleRequest;
 import com.back.global.websocket.webrtc.dto.signal.*;
@@ -150,9 +151,21 @@ public class WebRTCSignalingController {
 
     // WebRTC 시그널링 처리 중 발생하는 CustomException 처리
     @MessageExceptionHandler(CustomException.class)
-    public void handleCustomException(CustomException e, SimpMessageHeaderAccessor headerAccessor) {
-        log.warn("WebRTC 시그널링 오류 발생: {}", e.getMessage());
-        errorHelper.sendCustomExceptionToUser(headerAccessor.getSessionId(), e);
+    public void handleCustomException(CustomException e, Principal principal) {
+        if (principal == null) {
+            log.warn("인증 정보 없는 사용자의 WebRTC 오류: {}", e.getMessage());
+            return;
+        }
+
+        log.warn("WebRTC 시그널링 오류 발생 (to {}): {}", principal.getName(), e.getMessage());
+
+        WebRTCErrorResponse errorResponse = WebRTCErrorResponse.from(e);
+
+        messagingTemplate.convertAndSendToUser(
+                principal.getName(),       // 에러를 발생시킨 사람의 username
+                "/queue/webrtc",
+                errorResponse
+        );
     }
 
     // 예상치 못한 모든 Exception 처리
