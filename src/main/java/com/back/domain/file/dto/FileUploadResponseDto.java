@@ -5,10 +5,10 @@ import lombok.Data;
 @Data
 public class FileUploadResponseDto {
     private Long attachmentId;
-    private String imageUrl;
+    private String publicURL;
 
-    public FileUploadResponseDto(Long attachmentId, String imageUrl) {
+    public FileUploadResponseDto(Long attachmentId, String publicURL) {
         this.attachmentId = attachmentId;
-        this.imageUrl = imageUrl;
+        this.publicURL = publicURL;
     }
 }

@@ -73,8 +73,8 @@ class FileServiceTest {
 
         // then
         assertThat(res.getAttachmentId()).isPositive();
-        assertThat(res.getImageUrl()).contains(path);
-        assertThat(res.getImageUrl()).contains(dirName);
+        assertThat(res.getPublicURL()).contains(path);
+        assertThat(res.getPublicURL()).contains(dirName);
     }
 
     @Test
@@ -95,8 +95,8 @@ class FileServiceTest {
         FileReadResponseDto res = fileService.getFile(attachmentId);
 
         // then
-        assertThat(res.getImageUrl()).contains(path);
-        assertThat(res.getImageUrl()).contains(dirName);
+        assertThat(res.getPublicURL()).contains(path);
+        assertThat(res.getPublicURL()).contains(dirName);
     }
 
     @Test
@@ -123,8 +123,8 @@ class FileServiceTest {
         FileReadResponseDto res = fileService.getFile(attachmentId);
 
         // then
-        assertThat(res.getImageUrl()).contains(newPath);
-        assertThat(res.getImageUrl()).contains(newDirName);
+        assertThat(res.getPublicURL()).contains(newPath);
+        assertThat(res.getPublicURL()).contains(newDirName);
     }
 
     @Test
@@ -138,7 +138,6 @@ class FileServiceTest {
         // 기존(삭제할) 파일 정보
         String path = "test.png";
         String contentType = "image/png";
-        String dirName = "test";
         MockMultipartFile oldFile = new MockMultipartFile("test", path, contentType, "test".getBytes());
         Long attachmentId = fileService.uploadFile(oldFile, user.getId()).getAttachmentId();
 

@@ -4,9 +4,9 @@ import lombok.Data;
 
 @Data
 public class FileReadResponseDto {
-    private String imageUrl;
+    private String publicURL;
 
-    public FileReadResponseDto(String imageUrl) {
-        this.imageUrl = imageUrl;
+    public FileReadResponseDto(String publicURL) {
+        this.publicURL = publicURL;
     }
 }
