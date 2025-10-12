@@ -20,6 +20,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -68,15 +70,15 @@ public class FileService {
 
 
     @Transactional(readOnly = true)
-    public FileReadResponseDto getFile(
-            EntityType entityType,
-            Long entityId
-    ) {
-        FileAttachment fileAttachment = getFileAttachmentOrThrow(entityType, entityId);
+    public FileReadResponseDto getFile(Long attachmentId) {
+        FileAttachment fileAttachment = fileAttachmentRepository.findById(attachmentId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.FILE_NOT_FOUND)
+                );
 
-        String filePath = fileAttachment.getFilePath();
+        String publicURL = fileAttachment.getPublicURL();
 
-        return new FileReadResponseDto(filePath);
+        return new FileReadResponseDto(publicURL);
     }
 
     @Transactional
