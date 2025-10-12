@@ -37,7 +37,7 @@ public class FileController {
                 .body(RsData.success("파일 업로드 성공", res));
     }
 
-    @GetMapping(value = "/read")
+    @GetMapping(value = "/read/{attachmentId}")
     public ResponseEntity<RsData<FileReadResponseDto>> getFile(
             @PathVariable("attachmentId") Long attachmentId
     ) {
@@ -48,15 +48,14 @@ public class FileController {
                 .body(RsData.success("파일 조회 성공", res));
     }
 
-    @PutMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PutMapping(value = "/update/{attachmentId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<RsData<Void>> updateFile(
+            @PathVariable("attachmentId") Long attachmentId,
             @ModelAttribute @Valid FileUpdateRequestDto req,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
         fileService.updateFile(
                 req.getMultipartFile(),
-                req.getEntityType(),
-                req.getEntityId(),
                 user.getUserId()
         );
 
