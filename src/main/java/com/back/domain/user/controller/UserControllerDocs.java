@@ -1,5 +1,7 @@
 package com.back.domain.user.controller;
 
+import com.back.domain.board.common.dto.PageResponse;
+import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.user.dto.ChangePasswordRequest;
 import com.back.domain.user.dto.UpdateUserProfileRequest;
 import com.back.domain.user.dto.UserDetailResponse;
@@ -12,6 +14,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -317,13 +321,13 @@ public interface UserControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                                {
-                                  "success": true,
-                                  "code": "SUCCESS_200",
-                                  "message": "비밀번호가 변경되었습니다.",
-                                  "data": null
-                                }
-                                """)
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "비밀번호가 변경되었습니다.",
+                                      "data": null
+                                    }
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -332,13 +336,13 @@ public interface UserControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                                {
-                                  "success": false,
-                                  "code": "USER_005",
-                                  "message": "비밀번호는 최소 8자 이상, 숫자/특수문자를 포함해야 합니다.",
-                                  "data": null
-                                }
-                                """)
+                                    {
+                                      "success": false,
+                                      "code": "USER_005",
+                                      "message": "비밀번호는 최소 8자 이상, 숫자/특수문자를 포함해야 합니다.",
+                                      "data": null
+                                    }
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -347,13 +351,13 @@ public interface UserControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                {
-                  "success": false,
-                  "code": "USER_010",
-                  "message": "소셜 로그인 회원은 비밀번호를 변경할 수 없습니다.",
-                  "data": null
-                }
-                """)
+                                    {
+                                      "success": false,
+                                      "code": "USER_010",
+                                      "message": "소셜 로그인 회원은 비밀번호를 변경할 수 없습니다.",
+                                      "data": null
+                                    }
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -362,13 +366,13 @@ public interface UserControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                                {
-                                  "success": false,
-                                  "code": "USER_008",
-                                  "message": "정지된 계정입니다. 관리자에게 문의하세요.",
-                                  "data": null
-                                }
-                                """)
+                                    {
+                                      "success": false,
+                                      "code": "USER_008",
+                                      "message": "정지된 계정입니다. 관리자에게 문의하세요.",
+                                      "data": null
+                                    }
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -377,13 +381,13 @@ public interface UserControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                                {
-                                  "success": false,
-                                  "code": "USER_009",
-                                  "message": "탈퇴한 계정입니다.",
-                                  "data": null
-                                }
-                                """)
+                                    {
+                                      "success": false,
+                                      "code": "USER_009",
+                                      "message": "탈퇴한 계정입니다.",
+                                      "data": null
+                                    }
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -393,37 +397,37 @@ public interface UserControllerDocs {
                             mediaType = "application/json",
                             examples = {
                                     @ExampleObject(name = "토큰 없음", value = """
-                                        {
-                                          "success": false,
-                                          "code": "AUTH_001",
-                                          "message": "인증이 필요합니다.",
-                                          "data": null
-                                        }
-                                        """),
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_001",
+                                              "message": "인증이 필요합니다.",
+                                              "data": null
+                                            }
+                                            """),
                                     @ExampleObject(name = "잘못된 토큰", value = """
-                                        {
-                                          "success": false,
-                                          "code": "AUTH_002",
-                                          "message": "유효하지 않은 액세스 토큰입니다.",
-                                          "data": null
-                                        }
-                                        """),
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_002",
+                                              "message": "유효하지 않은 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """),
                                     @ExampleObject(name = "만료된 토큰", value = """
-                                        {
-                                          "success": false,
-                                          "code": "AUTH_004",
-                                          "message": "만료된 액세스 토큰입니다.",
-                                          "data": null
-                                        }
-                                        """),
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_004",
+                                              "message": "만료된 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """),
                                     @ExampleObject(name = "현재 비밀번호 불일치", value = """
-                                        {
-                                          "success": false,
-                                          "code": "USER_006",
-                                          "message": "아이디 또는 비밀번호가 올바르지 않습니다.",
-                                          "data": null
-                                        }
-                                        """)
+                                            {
+                                              "success": false,
+                                              "code": "USER_006",
+                                              "message": "아이디 또는 비밀번호가 올바르지 않습니다.",
+                                              "data": null
+                                            }
+                                            """)
                             }
                     )
             ),
@@ -433,13 +437,13 @@ public interface UserControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                                {
-                                  "success": false,
-                                  "code": "USER_001",
-                                  "message": "존재하지 않는 사용자입니다.",
-                                  "data": null
-                                }
-                                """)
+                                    {
+                                      "success": false,
+                                      "code": "USER_001",
+                                      "message": "존재하지 않는 사용자입니다.",
+                                      "data": null
+                                    }
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -448,13 +452,13 @@ public interface UserControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                                {
-                                  "success": false,
-                                  "code": "COMMON_500",
-                                  "message": "서버 오류가 발생했습니다.",
-                                  "data": null
-                                }
-                                """)
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
                     )
             )
     })
@@ -580,5 +584,177 @@ public interface UserControllerDocs {
     })
     ResponseEntity<RsData<Void>> deleteMyAccount(
             @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "내 게시글 목록 조회",
+            description = """
+                    로그인한 사용자가 작성한 게시글 목록을 조회합니다.
+                    - 기본 정렬: createdAt,desc
+                    - 페이지 및 정렬 조건은 Query Parameter로 조정 가능합니다.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "내 게시글 목록 조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "내 게시글 목록이 조회되었습니다.",
+                                      "data": {
+                                        "items": [
+                                          {
+                                            "postId": 1,
+                                            "author": { "id": 10, "nickname": "홍길동", "profileImageUrl": null },
+                                            "title": "첫 글",
+                                            "thumbnailUrl": null,
+                                            "categories": [
+                                              { "id": 1, "name": "프론트엔드", "type": "SUBJECT" }
+                                            ],
+                                            "likeCount": 5,
+                                            "bookmarkCount": 2,
+                                            "commentCount": 3,
+                                            "createdAt": "2025-09-30T10:15:30",
+                                            "updatedAt": "2025-09-30T10:20:00"
+                                          },
+                                          {
+                                            "postId": 2,
+                                            "author": { "id": 10, "nickname": "홍길동", "profileImageUrl": null },
+                                            "title": "두 번째 글",
+                                            "thumbnailUrl": null,
+                                            "categories": [],
+                                            "likeCount": 0,
+                                            "bookmarkCount": 0,
+                                            "commentCount": 1,
+                                            "createdAt": "2025-09-29T14:00:00",
+                                            "updatedAt": "2025-09-29T14:10:00"
+                                          }
+                                        ],
+                                        "page": 0,
+                                        "size": 10,
+                                        "totalElements": 25,
+                                        "totalPages": 3,
+                                        "last": false
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_001",
+                                      "message": "존재하지 않는 사용자입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "410",
+                    description = "탈퇴한 계정",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_009",
+                                      "message": "탈퇴한 계정입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "정지된 계정",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_008",
+                                      "message": "정지된 계정입니다. 관리자에게 문의하세요.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패 (토큰 없음/잘못됨/만료)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "토큰 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_001",
+                                              "message": "인증이 필요합니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "잘못된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_002",
+                                              "message": "유효하지 않은 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "만료된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_004",
+                                              "message": "만료된 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청(파라미터 오류)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_400",
+                                      "message": "잘못된 요청입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ResponseEntity<RsData<PageResponse<PostListResponse>>> getMyPosts(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @ParameterObject Pageable pageable
     );
 }
