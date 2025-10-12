@@ -1,5 +1,14 @@
 package com.back.domain.user.service;
 
+import com.back.domain.board.comment.dto.MyCommentResponse;
+import com.back.domain.board.comment.entity.Comment;
+import com.back.domain.board.comment.repository.CommentRepository;
+import com.back.domain.board.common.dto.PageResponse;
+import com.back.domain.board.post.dto.PostListResponse;
+import com.back.domain.board.post.entity.Post;
+import com.back.domain.board.post.entity.PostBookmark;
+import com.back.domain.board.post.repository.PostBookmarkRepository;
+import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.user.dto.ChangePasswordRequest;
 import com.back.domain.user.dto.UpdateUserProfileRequest;
 import com.back.domain.user.dto.UserDetailResponse;
@@ -14,11 +23,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,7 +48,13 @@ class UserServiceTest {
     private UserRepository userRepository;
 
     @Autowired
-    private UserProfileRepository userProfileRepository;
+    private PostRepository postRepository;
+
+    @Autowired
+    private PostBookmarkRepository postBookmarkRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -365,4 +384,218 @@ class UserServiceTest {
                 .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
     }
 
+    // ====================== 내 게시글 목록 조회 테스트 ======================
+
+    @Test
+    @DisplayName("내 게시글 목록 조회 성공")
+    void getMyPosts_success() {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        // 게시글 2개 작성
+        Post post1 = new Post(user, "제목1", "내용1", null);
+        Post post2 = new Post(user, "제목2", "내용2", null);
+        postRepository.saveAll(List.of(post1, post2));
+
+        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // when
+        PageResponse<PostListResponse> response = userService.getMyPosts(user.getId(), pageable);
+
+        // then
+        assertThat(response.items()).hasSize(2);
+        assertThat(response.items().get(0).getTitle()).isEqualTo("제목2"); // 최신순 정렬
+        assertThat(response.items().get(1).getTitle()).isEqualTo("제목1");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 사용자 ID → USER_NOT_FOUND 예외 발생")
+    void getMyPosts_userNotFound() {
+        // given
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyPosts(999L, pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("탈퇴된 사용자 → USER_DELETED 예외 발생")
+    void getMyPosts_deletedUser() {
+        // given
+        User user = User.createUser("deleted", "deleted@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.DELETED);
+        userRepository.save(user);
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyPosts(user.getId(), pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_DELETED.getMessage());
+    }
+
+    @Test
+    @DisplayName("정지된 사용자 → USER_SUSPENDED 예외 발생")
+    void getMyPosts_suspendedUser() {
+        // given
+        User user = User.createUser("suspended", "suspended@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.SUSPENDED);
+        userRepository.save(user);
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyPosts(user.getId(), pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
+    }
+
+    // ====================== 내 댓글 목록 조회 테스트 ======================
+
+    @Test
+    @DisplayName("내 댓글 목록 조회 성공")
+    void getMyComments_success() {
+        // given
+        User user = User.createUser("commenter", "commenter@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        // 게시글 하나 생성
+        Post post = new Post(user, "테스트 게시글", "게시글 내용", null);
+        postRepository.save(post);
+
+        // 댓글 2개 작성
+        Comment comment1 = new Comment(post, user, "첫 번째 댓글", null);
+        Comment comment2 = new Comment(post, user, "두 번째 댓글", null);
+        commentRepository.saveAll(List.of(comment1, comment2));
+
+        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // when
+        PageResponse<MyCommentResponse> response = userService.getMyComments(user.getId(), pageable);
+
+        // then
+        assertThat(response.items()).hasSize(2);
+        assertThat(response.items().get(0).content()).isEqualTo("두 번째 댓글"); // 최신순 정렬
+        assertThat(response.items().get(1).content()).isEqualTo("첫 번째 댓글");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 사용자 ID → USER_NOT_FOUND 예외 발생")
+    void getMyComments_userNotFound() {
+        // given
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyComments(999L, pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("탈퇴된 사용자 → USER_DELETED 예외 발생")
+    void getMyComments_deletedUser() {
+        // given
+        User user = User.createUser("deleted", "deleted@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.DELETED);
+        userRepository.save(user);
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyComments(user.getId(), pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_DELETED.getMessage());
+    }
+
+    @Test
+    @DisplayName("정지된 사용자 → USER_SUSPENDED 예외 발생")
+    void getMyComments_suspendedUser() {
+        // given
+        User user = User.createUser("suspended", "suspended@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.SUSPENDED);
+        userRepository.save(user);
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyComments(user.getId(), pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
+    }
+
+    // ====================== 내 북마크 게시글 목록 조회 테스트 ======================
+
+    @Test
+    @DisplayName("내 북마크 게시글 목록 조회 성공")
+    void getMyBookmarks_success() {
+        // given
+        User user = User.createUser("bookmarkUser", "bookmark@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post1 = new Post(user, "JPA 영속성 전이 완벽 정리", "내용1", null);
+        Post post2 = new Post(user, "테스트 코드 작성 가이드", "내용2", null);
+        postRepository.saveAll(List.of(post1, post2));
+
+        PostBookmark bookmark1 = new PostBookmark(post1, user);
+        PostBookmark bookmark2 = new PostBookmark(post2, user);
+        postBookmarkRepository.saveAll(List.of(bookmark1, bookmark2));
+
+        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // when
+        PageResponse<PostListResponse> response = userService.getMyBookmarks(user.getId(), pageable);
+
+        // then
+        assertThat(response.items()).hasSize(2);
+        assertThat(response.items().get(0).getTitle()).isEqualTo("테스트 코드 작성 가이드"); // 최신순
+        assertThat(response.items().get(1).getTitle()).isEqualTo("JPA 영속성 전이 완벽 정리");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 사용자 → USER_NOT_FOUND 예외 발생")
+    void getMyBookmarks_userNotFound() {
+        Pageable pageable = PageRequest.of(0, 10);
+        assertThatThrownBy(() -> userService.getMyBookmarks(999L, pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("탈퇴된 사용자 → USER_DELETED 예외 발생")
+    void getMyBookmarks_deletedUser() {
+        User user = User.createUser("deleted", "deleted@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserStatus(UserStatus.DELETED);
+        userRepository.save(user);
+
+        Pageable pageable = PageRequest.of(0, 10);
+        assertThatThrownBy(() -> userService.getMyBookmarks(user.getId(), pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_DELETED.getMessage());
+    }
+
+    @Test
+    @DisplayName("정지된 사용자 → USER_SUSPENDED 예외 발생")
+    void getMyBookmarks_suspendedUser() {
+        User user = User.createUser("suspended", "suspended@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserStatus(UserStatus.SUSPENDED);
+        userRepository.save(user);
+
+        Pageable pageable = PageRequest.of(0, 10);
+        assertThatThrownBy(() -> userService.getMyBookmarks(user.getId(), pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
+    }
 }

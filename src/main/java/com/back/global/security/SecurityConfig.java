@@ -88,7 +88,8 @@ public class SecurityConfig {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
                         .allowedOrigins(
-                                "http://localhost:3000" // Next.js 개발 서버
+                                "http://localhost:3000", // Catfe 프론트 개발 서버
+                                "https://www.catfe.com" // Catfe 프론트 운영 서버
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                         .allowedHeaders("*")

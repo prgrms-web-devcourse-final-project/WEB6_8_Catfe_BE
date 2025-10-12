@@ -93,6 +93,7 @@ public class Post extends BaseEntity {
         this.content = content;
     }
 
+    // TODO: 진짜로 바뀐 카테고리만 추가/삭제하도록 개선
     /** 카테고리 일괄 업데이트 */
     public void updateCategories(List<PostCategory> categories) {
         this.postCategoryMappings.clear();
