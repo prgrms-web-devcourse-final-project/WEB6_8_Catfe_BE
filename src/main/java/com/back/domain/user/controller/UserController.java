@@ -1,5 +1,7 @@
 package com.back.domain.user.controller;
 
+import com.back.domain.board.common.dto.PageResponse;
+import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.user.dto.ChangePasswordRequest;
 import com.back.domain.user.dto.UpdateUserProfileRequest;
 import com.back.domain.user.dto.UserDetailResponse;
@@ -8,6 +10,9 @@ import com.back.global.common.dto.RsData;
 import com.back.global.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +25,7 @@ public class UserController implements UserControllerDocs {
 
     // 내 정보 조회
     @GetMapping("/me")
-    public ResponseEntity<RsData<UserDetailResponse>> getMyInfo (
+    public ResponseEntity<RsData<UserDetailResponse>> getMyInfo(
             @AuthenticationPrincipal CustomUserDetails user
     ) {
         UserDetailResponse userDetail = userService.getUserInfo(user.getUserId());
@@ -67,6 +72,20 @@ public class UserController implements UserControllerDocs {
         return ResponseEntity
                 .ok(RsData.success(
                         "회원 탈퇴가 완료되었습니다."
+                ));
+    }
+
+    // 내 게시글 목록 조회
+    @GetMapping("/me/posts")
+    public ResponseEntity<RsData<PageResponse<PostListResponse>>> getMyPosts(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        PageResponse<PostListResponse> response = userService.getMyPosts(user.getUserId(), pageable);
+        return ResponseEntity
+                .ok(RsData.success(
+                        "내 게시글 목록이 조회되었습니다.",
+                        response
                 ));
     }
 }

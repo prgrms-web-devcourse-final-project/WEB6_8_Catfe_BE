@@ -1,5 +1,8 @@
 package com.back.domain.user.service;
 
+import com.back.domain.board.common.dto.PageResponse;
+import com.back.domain.board.post.dto.PostListResponse;
+import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.user.dto.ChangePasswordRequest;
 import com.back.domain.user.dto.UpdateUserProfileRequest;
 import com.back.domain.user.dto.UserDetailResponse;
@@ -12,9 +15,13 @@ import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.back.global.util.PasswordValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final PostRepository postRepository;
     private final PasswordEncoder passwordEncoder;
 
     /**
@@ -122,6 +130,24 @@ public class UserService {
             profile.setBio(null);
             profile.setBirthDate(null);
         }
+    }
+
+    /**
+     * 내 게시글 목록 조회 서비스
+     * 1. 사용자 조회 및 상태 검증
+     * 2. 게시글 목록 조회
+     * 3. PageResponse 반환
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<PostListResponse> getMyPosts(Long userId, Pageable pageable) {
+
+        // 사용자 조회 및 상태 검증
+        User user = getValidUser(userId);
+
+        // 게시글 목록 조회 및 응답 반환
+        Page<PostListResponse> page = postRepository.findAllByUserId(userId, pageable)
+                .map(PostListResponse::from);
+        return PageResponse.from(page);
     }
 
     /**
