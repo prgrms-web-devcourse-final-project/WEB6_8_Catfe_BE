@@ -1,5 +1,8 @@
 package com.back.domain.user.service;
 
+import com.back.domain.board.comment.dto.MyCommentResponse;
+import com.back.domain.board.comment.entity.Comment;
+import com.back.domain.board.comment.repository.CommentRepository;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.entity.Post;
@@ -44,6 +47,9 @@ class UserServiceTest {
 
     @Autowired
     private PostRepository postRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -442,6 +448,83 @@ class UserServiceTest {
 
         // when & then
         assertThatThrownBy(() -> userService.getMyPosts(user.getId(), pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
+    }
+
+    // ====================== 내 댓글 목록 조회 테스트 ======================
+
+    @Test
+    @DisplayName("내 댓글 목록 조회 성공")
+    void getMyComments_success() {
+        // given
+        User user = User.createUser("commenter", "commenter@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        // 게시글 하나 생성
+        Post post = new Post(user, "테스트 게시글", "게시글 내용", null);
+        postRepository.save(post);
+
+        // 댓글 2개 작성
+        Comment comment1 = new Comment(post, user, "첫 번째 댓글", null);
+        Comment comment2 = new Comment(post, user, "두 번째 댓글", null);
+        commentRepository.saveAll(List.of(comment1, comment2));
+
+        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // when
+        PageResponse<MyCommentResponse> response = userService.getMyComments(user.getId(), pageable);
+
+        // then
+        assertThat(response.items()).hasSize(2);
+        assertThat(response.items().get(0).content()).isEqualTo("두 번째 댓글"); // 최신순 정렬
+        assertThat(response.items().get(1).content()).isEqualTo("첫 번째 댓글");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 사용자 ID → USER_NOT_FOUND 예외 발생")
+    void getMyComments_userNotFound() {
+        // given
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyComments(999L, pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("탈퇴된 사용자 → USER_DELETED 예외 발생")
+    void getMyComments_deletedUser() {
+        // given
+        User user = User.createUser("deleted", "deleted@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.DELETED);
+        userRepository.save(user);
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyComments(user.getId(), pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_DELETED.getMessage());
+    }
+
+    @Test
+    @DisplayName("정지된 사용자 → USER_SUSPENDED 예외 발생")
+    void getMyComments_suspendedUser() {
+        // given
+        User user = User.createUser("suspended", "suspended@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.SUSPENDED);
+        userRepository.save(user);
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyComments(user.getId(), pageable))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
     }

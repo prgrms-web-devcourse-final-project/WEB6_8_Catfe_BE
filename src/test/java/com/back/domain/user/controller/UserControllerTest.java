@@ -50,6 +50,9 @@ class UserControllerTest {
     private PostRepository postRepository;
 
     @Autowired
+    private CommentRepository commentRepository;
+
+    @Autowired
     private TestJwtTokenProvider testJwtTokenProvider;
 
     @Autowired
@@ -661,7 +664,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("만료된 액세스 토큰입니다."));
     }
 
-// ====================== 내 게시글 목록 조회 테스트 ======================
+    // ====================== 내 게시글 목록 조회 테스트 ======================
 
     @Test
     @DisplayName("내 게시글 목록 조회 성공 → 200 OK")
@@ -789,6 +792,145 @@ class UserControllerTest {
 
         // when & then
         mvc.perform(get("/api/users/me/posts")
+                        .header("Authorization", "Bearer " + expiredToken))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_004"))
+                .andExpect(jsonPath("$.message").value("만료된 액세스 토큰입니다."));
+    }
+
+    // ====================== 내 댓글 목록 조회 테스트 ======================
+
+    @Test
+    @DisplayName("내 댓글 목록 조회 성공 → 200 OK")
+    void getMyComments_success() throws Exception {
+        // given: 정상 유저 + 게시글 + 댓글 2개 생성
+        User user = User.createUser("commenter", "commenter@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Post post = new Post(user, "스프링 트랜잭션 정리", "내용입니다.", null);
+        postRepository.save(post);
+
+        Comment parent = new Comment(post, user, "코딩 박사의 스프링 교재도 추천합니다.", null);
+        Comment comment1 = new Comment(post, user, "정말 도움이 많이 됐어요!", null);
+        Comment comment2 = new Comment(post, user, "감사합니다! 더 공부해볼게요.", parent);
+        commentRepository.saveAll(List.of(parent, comment1, comment2));
+
+        String accessToken = generateAccessToken(user);
+
+        // when
+        ResultActions resultActions = mvc.perform(
+                get("/api/users/me/comments")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("page", "0")
+                        .param("size", "10")
+        ).andDo(print());
+
+        // then
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("내 댓글 목록이 조회되었습니다."))
+                .andExpect(jsonPath("$.data.items").isArray())
+                .andExpect(jsonPath("$.data.items.length()").value(3))
+                .andExpect(jsonPath("$.data.items[0].content").value("감사합니다! 더 공부해볼게요."))
+                .andExpect(jsonPath("$.data.items[1].content").value("정말 도움이 많이 됐어요!"));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 사용자 → 404 Not Found")
+    void getMyComments_userNotFound() throws Exception {
+        // given
+        String fakeToken = testJwtTokenProvider.createAccessToken(999L, "ghost", "USER");
+
+        // when & then
+        mvc.perform(get("/api/users/me/comments")
+                        .header("Authorization", "Bearer " + fakeToken))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("USER_001"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 사용자입니다."));
+    }
+
+    @Test
+    @DisplayName("탈퇴한 계정 → 410 Gone")
+    void getMyComments_deletedUser() throws Exception {
+        // given
+        User user = User.createUser("deleted", "deleted@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.DELETED);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(get("/api/users/me/comments")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.code").value("USER_009"))
+                .andExpect(jsonPath("$.message").value("탈퇴한 계정입니다."));
+    }
+
+    @Test
+    @DisplayName("정지된 계정 → 403 Forbidden")
+    void getMyComments_suspendedUser() throws Exception {
+        // given
+        User user = User.createUser("suspended", "suspended@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.SUSPENDED);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // when & then
+        mvc.perform(get("/api/users/me/comments")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("USER_008"))
+                .andExpect(jsonPath("$.message").value("정지된 계정입니다. 관리자에게 문의하세요."));
+    }
+
+    @Test
+    @DisplayName("AccessToken 없음 → 401 Unauthorized")
+    void getMyComments_noAccessToken() throws Exception {
+        // when & then
+        mvc.perform(get("/api/users/me/comments"))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+    }
+
+    @Test
+    @DisplayName("잘못된 AccessToken → 401 Unauthorized")
+    void getMyComments_invalidAccessToken() throws Exception {
+        // when & then
+        mvc.perform(get("/api/users/me/comments")
+                        .header("Authorization", "Bearer invalidToken"))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_002"))
+                .andExpect(jsonPath("$.message").value("유효하지 않은 액세스 토큰입니다."));
+    }
+
+    @Test
+    @DisplayName("만료된 AccessToken → 401 Unauthorized")
+    void getMyComments_expiredAccessToken() throws Exception {
+        // given
+        User user = User.createUser("expired", "expired@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String expiredToken = testJwtTokenProvider.createExpiredAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+
+        // when & then
+        mvc.perform(get("/api/users/me/comments")
                         .header("Authorization", "Bearer " + expiredToken))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
