@@ -1,5 +1,6 @@
 package com.back.domain.user.controller;
 
+import com.back.domain.board.comment.dto.MyCommentResponse;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.user.dto.ChangePasswordRequest;
@@ -754,6 +755,174 @@ public interface UserControllerDocs {
             )
     })
     ResponseEntity<RsData<PageResponse<PostListResponse>>> getMyPosts(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @ParameterObject Pageable pageable
+    );
+
+    @Operation(
+            summary = "내 댓글 목록 조회",
+            description = """
+                    로그인한 사용자가 작성한 댓글 목록을 조회합니다.
+                    - 기본 정렬: createdAt,desc
+                    - 페이지 및 정렬 조건은 Query Parameter로 조정 가능합니다.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "내 댓글 목록 조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "code": "SUCCESS_200",
+                                      "message": "내 댓글 목록이 조회되었습니다.",
+                                      "data": {
+                                        "items": [
+                                          {
+                                            "commentId": 12,
+                                            "postId": 5,
+                                            "postTitle": "스프링 트랜잭션 정리",
+                                            "parentId": null,
+                                            "parentContent": null,
+                                            "content": "정말 도움이 많이 됐어요!",
+                                            "likeCount": 3,
+                                            "createdAt": "2025-09-29T12:15:00",
+                                            "updatedAt": "2025-09-29T12:30:00"
+                                          },
+                                          {
+                                            "commentId": 14,
+                                            "postId": 5,
+                                            "postTitle": "스프링 트랜잭션 정리",
+                                            "parentId": 13,
+                                            "parentContent": "코딩 박사의 스프링 교재도 추천합니다.",
+                                            "content": "감사합니다! 더 공부해볼게요.",
+                                            "likeCount": 1,
+                                            "createdAt": "2025-09-29T12:45:00",
+                                            "updatedAt": "2025-09-29T12:45:00"
+                                          }
+                                        ],
+                                        "page": 0,
+                                        "size": 10,
+                                        "totalElements": 2,
+                                        "totalPages": 1,
+                                        "last": true
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_001",
+                                      "message": "존재하지 않는 사용자입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "410",
+                    description = "탈퇴한 계정",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_009",
+                                      "message": "탈퇴한 계정입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "정지된 계정",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "USER_008",
+                                      "message": "정지된 계정입니다. 관리자에게 문의하세요.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패 (토큰 없음/잘못됨/만료)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "토큰 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_001",
+                                              "message": "인증이 필요합니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "잘못된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_002",
+                                              "message": "유효하지 않은 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "만료된 토큰", value = """
+                                            {
+                                              "success": false,
+                                              "code": "AUTH_004",
+                                              "message": "만료된 액세스 토큰입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청(파라미터 오류)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_400",
+                                      "message": "잘못된 요청입니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "서버 내부 오류",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "code": "COMMON_500",
+                                      "message": "서버 오류가 발생했습니다.",
+                                      "data": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ResponseEntity<RsData<PageResponse<MyCommentResponse>>> getMyComments(
             @AuthenticationPrincipal CustomUserDetails user,
             @ParameterObject Pageable pageable
     );
