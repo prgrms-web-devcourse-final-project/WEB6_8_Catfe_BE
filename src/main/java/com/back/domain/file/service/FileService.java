@@ -110,14 +110,11 @@ public class FileService {
     }
 
     @Transactional
-    public void deleteFile(EntityType entityType, Long entityId, Long userId) {
-        AttachmentMapping attachmentMapping = attachmentMappingRepository
-                .findByEntityTypeAndEntityId(entityType, entityId)
+    public void deleteFile(Long attachmentId, Long userId) {
+        FileAttachment fileAttachment = fileAttachmentRepository.findById(attachmentId)
                 .orElseThrow(() ->
-                        new CustomException(ErrorCode.ATTACHMENT_MAPPING_NOT_FOUND)
+                        new CustomException(ErrorCode.FILE_NOT_FOUND)
                 );
-
-        FileAttachment fileAttachment = attachmentMapping.getFileAttachment();
 
         checkAccessPermission(fileAttachment, userId);
 
