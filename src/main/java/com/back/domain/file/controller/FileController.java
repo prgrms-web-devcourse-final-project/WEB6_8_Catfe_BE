@@ -5,22 +5,26 @@ import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.service.FileService;
 import com.back.global.common.dto.RsData;
 import com.back.global.security.user.CustomUserDetails;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/file")
+@Validated
 public class FileController {
     private final FileService fileService;
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<RsData<FileUploadResponseDto>> uploadFile(
-            @ModelAttribute FileUploadRequestDto req,
+            @ModelAttribute @Valid FileUploadRequestDto req,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
         FileUploadResponseDto res = fileService.uploadFile(
@@ -37,8 +41,8 @@ public class FileController {
 
     @GetMapping(value = "/read")
     public ResponseEntity<RsData<FileReadResponseDto>> getFile(
-            @RequestParam("entityType") EntityType entityType,
-            @RequestParam("entityId") Long entityId
+            @RequestParam("entityType") @NotBlank(message = "entityType은 필수입니다.") EntityType entityType,
+            @RequestParam("entityId") @NotBlank(message = "entityId는 필수입니다.") Long entityId
     ) {
         FileReadResponseDto res = fileService.getFile(entityType, entityId);
 
@@ -49,7 +53,7 @@ public class FileController {
 
     @PutMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<RsData<Void>> updateFile(
-            @ModelAttribute FileUpdateRequestDto req,
+            @ModelAttribute @Valid FileUpdateRequestDto req,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
         fileService.updateFile(
@@ -66,8 +70,8 @@ public class FileController {
 
     @DeleteMapping(value = "/delete")
     public ResponseEntity<RsData<Void>> deleteFile(
-            @RequestParam("entityType") EntityType entityType,
-            @RequestParam("entityId") Long entityId,
+            @RequestParam("entityType") @NotBlank(message = "entityType은 필수입니다.") EntityType entityType,
+            @RequestParam("entityId") @NotBlank(message = "entityId는 필수입니다.") Long entityId,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
         fileService.deleteFile(
