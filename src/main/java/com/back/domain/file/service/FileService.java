@@ -37,7 +37,6 @@ public class FileService {
     private final AmazonS3 amazonS3;
     private final FileAttachmentRepository fileAttachmentRepository;
     private final UserRepository userRepository;
-    private final AttachmentMappingRepository attachmentMappingRepository;
 
     @Transactional
     public FileUploadResponseDto uploadFile(
@@ -170,16 +169,5 @@ public class FileService {
         if (fileAttachment.getUser().getId() != userId) {
             throw new CustomException(ErrorCode.FILE_ACCESS_DENIED);
         }
-    }
-
-    // AttachmentMapping -> fileAttachment 추출
-    private FileAttachment getFileAttachmentOrThrow(EntityType entityType, Long entityId) {
-        AttachmentMapping attachmentMapping = attachmentMappingRepository
-                .findByEntityTypeAndEntityId(entityType, entityId)
-                .orElseThrow(() ->
-                        new CustomException(ErrorCode.ATTACHMENT_MAPPING_NOT_FOUND)
-                );
-
-        return attachmentMapping.getFileAttachment();
     }
 }
