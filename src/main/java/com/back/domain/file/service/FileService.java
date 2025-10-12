@@ -5,6 +5,7 @@ import com.amazonaws.services.s3.model.DeleteObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.back.domain.file.dto.FileReadResponseDto;
+import com.back.domain.file.dto.FileUpdateResponseDto;
 import com.back.domain.file.dto.FileUploadResponseDto;
 import com.back.domain.file.entity.AttachmentMapping;
 import com.back.domain.file.entity.EntityType;
@@ -37,7 +38,6 @@ public class FileService {
     private final FileAttachmentRepository fileAttachmentRepository;
     private final UserRepository userRepository;
     private final AttachmentMappingRepository attachmentMappingRepository;
-    private final EntityValidator entityValidator;
 
     @Transactional
     public FileUploadResponseDto uploadFile(
@@ -82,15 +82,15 @@ public class FileService {
     }
 
     @Transactional
-    public void updateFile(
+    public FileUpdateResponseDto updateFile(
+            Long attachmentId,
             MultipartFile multipartFile,
-            EntityType entityType,
-            Long entityId,
             Long userId
     ) {
-        entityValidator.validate(entityType, entityId);
-
-        FileAttachment fileAttachment = getFileAttachmentOrThrow(entityType, entityId);
+        FileAttachment fileAttachment = fileAttachmentRepository.findById(attachmentId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.FILE_NOT_FOUND)
+                );
 
         checkAccessPermission(fileAttachment, userId);
 
@@ -100,18 +100,17 @@ public class FileService {
         // S3에 새롭게 저장할 파일 이름
         String newStoredName = createFileName(multipartFile.getOriginalFilename());
 
-        String filePath = s3Upload(newStoredName, multipartFile);
+        String publicURL = s3Upload(newStoredName, multipartFile);
 
         s3Delete(oldStoredName);
 
         // fileAttachment 정보 업데이트
-        fileAttachment.update(newStoredName, multipartFile, filePath);
+        fileAttachment.update(newStoredName, multipartFile, publicURL);
+        return new FileUpdateResponseDto(publicURL);
     }
 
     @Transactional
     public void deleteFile(EntityType entityType, Long entityId, Long userId) {
-        entityValidator.validate(entityType, entityId);
-
         AttachmentMapping attachmentMapping = attachmentMappingRepository
                 .findByEntityTypeAndEntityId(entityType, entityId)
                 .orElseThrow(() ->
