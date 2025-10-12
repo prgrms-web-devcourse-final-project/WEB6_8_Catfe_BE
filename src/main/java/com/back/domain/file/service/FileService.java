@@ -40,8 +40,6 @@ public class FileService {
     @Transactional
     public FileUploadResponseDto uploadFile(
             MultipartFile multipartFile,
-            EntityType entityType,
-            Long entityId,
             Long userId
     ) {
         User user = userRepository.findById(userId)
@@ -56,18 +54,16 @@ public class FileService {
         String filePath = s3Upload(storedFileName, multipartFile);
 
         // FileAttachment 정보 저장
-        fileAttachmentRepository.save(
+        FileAttachment fileAttachment = fileAttachmentRepository.save(
                 new FileAttachment(
                         storedFileName,
                         multipartFile,
                         user,
-                        entityType,
-                        entityId,
                         filePath
                 )
         );
 
-        return new FileUploadResponseDto(filePath);
+        return new FileUploadResponseDto(fileAttachment.getId(), filePath);
     }
 
 
