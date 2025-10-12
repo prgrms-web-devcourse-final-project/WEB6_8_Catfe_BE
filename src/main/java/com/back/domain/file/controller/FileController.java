@@ -49,22 +49,23 @@ public class FileController {
     }
 
     @PutMapping(value = "/update/{attachmentId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<RsData<Void>> updateFile(
+    public ResponseEntity<RsData<FileUpdateResponseDto>> updateFile(
             @PathVariable("attachmentId") Long attachmentId,
             @ModelAttribute @Valid FileUpdateRequestDto req,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
-        fileService.updateFile(
+        FileUpdateResponseDto res = fileService.updateFile(
+                attachmentId,
                 req.getMultipartFile(),
                 user.getUserId()
         );
 
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(RsData.success("파일 업데이트 성공"));
+                .body(RsData.success("파일 업데이트 성공", res));
     }
 
-    @DeleteMapping(value = "/delete")
+    @DeleteMapping(value = "/delete/{attachmentId}")
     public ResponseEntity<RsData<Void>> deleteFile(
             @RequestParam("entityType") @NotBlank(message = "entityType은 필수입니다.") EntityType entityType,
             @RequestParam("entityId") @NotBlank(message = "entityId는 필수입니다.") Long entityId,
