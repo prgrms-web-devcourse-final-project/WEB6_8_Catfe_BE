@@ -103,4 +103,18 @@ public class UserController implements UserControllerDocs {
                         response
                 ));
     }
+
+    // 내 북마크 게시글 목록 조회
+    @GetMapping("/me/bookmarks")
+    public ResponseEntity<RsData<PageResponse<PostListResponse>>> getMyBookmarks(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        PageResponse<PostListResponse> response = userService.getMyBookmarks(user.getUserId(), pageable);
+        return ResponseEntity
+                .ok(RsData.success(
+                        "내 북마크 게시글 목록이 조회되었습니다.",
+                        response
+                ));
+    }
 }

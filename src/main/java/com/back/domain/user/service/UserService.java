@@ -4,6 +4,7 @@ import com.back.domain.board.comment.dto.MyCommentResponse;
 import com.back.domain.board.comment.repository.CommentRepository;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.post.dto.PostListResponse;
+import com.back.domain.board.post.repository.PostBookmarkRepository;
 import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.user.dto.ChangePasswordRequest;
 import com.back.domain.user.dto.UpdateUserProfileRequest;
@@ -31,8 +32,9 @@ import java.util.List;
 public class UserService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
-    private final PostRepository postRepository;
     private final CommentRepository commentRepository;
+    private final PostRepository postRepository;
+    private final PostBookmarkRepository postBookmarkRepository;
     private final PasswordEncoder passwordEncoder;
 
     /**
@@ -135,6 +137,7 @@ public class UserService {
         }
     }
 
+    // TODO: 내 게시글/댓글/북마크 목록 조회 N+1 발생 가능, 추후 리팩토링 필요
     /**
      * 내 게시글 목록 조회 서비스
      * 1. 사용자 조회 및 상태 검증
@@ -147,9 +150,11 @@ public class UserService {
         // 사용자 조회 및 상태 검증
         User user = getValidUser(userId);
 
-        // 게시글 목록 조회 및 응답 반환
+        // 게시글 목록 조회
         Page<PostListResponse> page = postRepository.findAllByUserId(userId, pageable)
                 .map(PostListResponse::from);
+
+        // 페이지 응답 반환
         return PageResponse.from(page);
     }
 
@@ -165,9 +170,31 @@ public class UserService {
         // 사용자 조회 및 상태 검증
         User user = getValidUser(userId);
 
-        // 댓글 목록 조회 및 응답 반환
+        // 댓글 목록 조회
         Page<MyCommentResponse> page = commentRepository.findAllByUserId(user.getId(), pageable)
                 .map(MyCommentResponse::from);
+
+        // 페이지 응답 반환
+        return PageResponse.from(page);
+    }
+
+    /**
+     * 내 북마크 게시글 목록 조회 서비스
+     * 1. 사용자 조회 및 상태 검증
+     * 2. 북마크 목록 조회
+     * 3. PageResponse 반환
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<PostListResponse> getMyBookmarks(Long userId, Pageable pageable) {
+
+        // 사용자 검증
+        User user = getValidUser(userId);
+
+        // 북마크된 게시글 조회
+        Page<PostListResponse> page = postBookmarkRepository.findAllByUserId(user.getId(), pageable)
+                .map(bookmark -> PostListResponse.from(bookmark.getPost()));
+
+        // 페이지 응답 반환
         return PageResponse.from(page);
     }
 
