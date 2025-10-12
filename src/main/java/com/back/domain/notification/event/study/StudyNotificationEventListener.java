@@ -18,7 +18,6 @@ import org.springframework.stereotype.Component;
 public class StudyNotificationEventListener {
 
     private final NotificationService notificationService;
-    private final UserRepository userRepository;
 
     // 학습 기록 등록 시 - 본인에게 알림
     @EventListener
@@ -28,11 +27,8 @@ public class StudyNotificationEventListener {
                 event.getUserId(), event.getDuration());
 
         try {
-            User user = userRepository.findById(event.getUserId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
             notificationService.createSelfNotification(
-                    user,
+                    event.getUserId(),
                     event.getTitle(),
                     event.getContent(),
                     "/study/records/" + event.getStudyRecordId(),
@@ -55,11 +51,8 @@ public class StudyNotificationEventListener {
                 event.getCompletedPlans(), event.getTotalPlans());
 
         try {
-            User user = userRepository.findById(event.getUserId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
             notificationService.createSelfNotification(
-                    user,
+                    event.getUserId(),
                     event.getTitle(),
                     event.getContent(),
                     "/study/plans?date=" + event.getAchievedDate(),

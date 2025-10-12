@@ -1,12 +1,9 @@
 package com.back.domain.notification.controller;
 
-import com.back.domain.notification.dto.NotificationCreateRequest;
 import com.back.domain.notification.dto.NotificationResponse;
 import com.back.domain.notification.dto.NotificationListResponse;
 import com.back.domain.notification.entity.Notification;
-import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.service.NotificationService;
-import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.repository.RoomRepository;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
@@ -37,116 +34,7 @@ public class NotificationController {
     private final UserRepository userRepository;
     private final RoomRepository roomRepository;
 
-    @Operation(
-            summary = "알림 전송",
-            description = "USER/ROOM/COMMUNITY/SYSTEM 타입별 알림 생성 및 전송\n\n" +
-                    "- USER: 개인 알림 (actorId, targetId 필수)\n" +
-                    "- ROOM: 스터디룸 알림 (actorId, targetId(roomId) 필수)\n" +
-                    "- COMMUNITY: 커뮤니티 알림 (actorId, targetId 필수)\n" +
-                    "- SYSTEM: 시스템 전체 알림 (actorId, targetId 불필요)"
-    )
-    @PostMapping
-    public ResponseEntity<RsData<NotificationResponse>> createNotification(
-            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestBody NotificationCreateRequest request) {
-
-        log.info("알림 전송 요청 - 타입: {}, 제목: {}", request.targetType(), request.title());
-
-        // targetType 검증
-        if (!isValidTargetType(request.targetType())) {
-            throw new CustomException(ErrorCode.NOTIFICATION_INVALID_TARGET_TYPE);
-        }
-
-        // SYSTEM이 아닌 경우 필수 필드 검증
-        if (!"SYSTEM".equals(request.targetType())) {
-            if (request.actorId() == null) {
-                throw new CustomException(ErrorCode.NOTIFICATION_MISSING_ACTOR);
-            }
-            if (request.targetId() == null) {
-                throw new CustomException(ErrorCode.NOTIFICATION_MISSING_TARGET);
-            }
-        }
-
-        Notification notification = switch (request.targetType()) {
-            case "USER" -> {
-                // 수신자 조회
-                User receiver = userRepository.findById(request.targetId())
-                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-                // 발신자 조회
-                User actor = userRepository.findById(request.actorId())
-                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-                // 개인 알림 생성
-                yield notificationService.createPersonalNotification(
-                        receiver,
-                        actor,
-                        request.title(),
-                        request.message(),
-                        request.redirectUrl(),
-                        NotificationSettingType.SYSTEM
-                );
-            }
-            case "ROOM" -> {
-                // 스터디룸 조회
-                Room room = roomRepository.findById(request.targetId())
-                        .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-
-                // 발신자 조회
-                User actor = userRepository.findById(request.actorId())
-                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-                // 스터디룸 알림 생성
-                yield notificationService.createRoomNotification(
-                        room,
-                        actor,
-                        request.title(),
-                        request.message(),
-                        request.redirectUrl(),
-                        NotificationSettingType.ROOM_NOTICE
-                );
-            }
-            case "COMMUNITY" -> {
-                // 수신자 조회 (리뷰/게시글 작성자)
-                User receiver = userRepository.findById(request.targetId())
-                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-                // 발신자 조회 (댓글/좋아요 작성자)
-                User actor = userRepository.findById(request.actorId())
-                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-                // 커뮤니티 알림 생성
-                yield notificationService.createCommunityNotification(
-                        receiver,
-                        actor,
-                        request.title(),
-                        request.message(),
-                        request.redirectUrl(),
-                        NotificationSettingType.POST_COMMENT
-                );
-            }
-            case "SYSTEM" -> {
-                // 시스템 알림은 발신자/수신자 없음
-                yield notificationService.createSystemNotification(
-                        request.title(),
-                        request.message(),
-                        request.redirectUrl()
-                );
-            }
-            default -> throw new CustomException(ErrorCode.NOTIFICATION_INVALID_TARGET_TYPE);
-        };
-
-        NotificationResponse response = NotificationResponse.from(notification);
-
-        return ResponseEntity.ok(RsData.success("알림 전송 성공", response));
-    }
-
-    @Operation(
-            summary = "알림 목록 조회",
-            description = "사용자의 알림 목록 조회 (페이징)\n\n" +
-                    "- unreadOnly=true: 읽지 않은 알림만\n" +
-                    "- unreadOnly=false: 모든 알림"
-    )
+    @Operation(summary = "알림 목록 조회")
     @GetMapping
     public ResponseEntity<RsData<NotificationListResponse>> getNotifications(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -157,13 +45,10 @@ public class NotificationController {
         log.info("알림 목록 조회 - 유저 ID: {}, 읽지 않은 것만: {}", userDetails.getUserId(), unreadOnly);
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<Notification> notifications;
 
-        if (unreadOnly) {
-            notifications = notificationService.getUnreadNotifications(userDetails.getUserId(), pageable);
-        } else {
-            notifications = notificationService.getUserNotifications(userDetails.getUserId(), pageable);
-        }
+        Page<Notification> notifications = notificationService.getNotifications(
+                userDetails.getUserId(), pageable, unreadOnly
+        );
 
         long unreadCount = notificationService.getUnreadCount(userDetails.getUserId());
 
@@ -220,15 +105,5 @@ public class NotificationController {
         notificationService.markMultipleAsRead(userDetails.getUserId(), user);
 
         return ResponseEntity.ok(RsData.success("전체 알림 읽음 처리 성공"));
-    }
-
-    // ==================== 헬퍼 메서드 ====================
-
-    private boolean isValidTargetType(String targetType) {
-        return targetType != null &&
-                (targetType.equals("USER") ||
-                        targetType.equals("ROOM") ||
-                        targetType.equals("COMMUNITY") ||
-                        targetType.equals("SYSTEM"));
     }
 }

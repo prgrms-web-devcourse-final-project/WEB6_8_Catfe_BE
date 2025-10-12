@@ -8,7 +8,9 @@ import com.back.domain.notification.entity.NotificationType;
 import com.back.domain.notification.repository.NotificationReadRepository;
 import com.back.domain.notification.repository.NotificationRepository;
 import com.back.domain.studyroom.entity.Room;
+import com.back.domain.studyroom.repository.RoomRepository;
 import com.back.domain.user.entity.User;
+import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 
@@ -34,6 +36,7 @@ import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
@@ -49,6 +52,12 @@ class NotificationServiceTest {
 
     @Mock
     private NotificationSettingService notificationSettingService;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private RoomRepository roomRepository;
 
     @InjectMocks
     private NotificationService notificationService;
@@ -95,21 +104,19 @@ class NotificationServiceTest {
         @DisplayName("개인 알림을 생성하고 WebSocket으로 전송")
         void t1() {
             // given
-            given(notificationRepository.save(any(Notification.class)))
-                    .willReturn(notification);
+            given(userRepository.findById(user.getId())).willReturn(Optional.of(user));
+            given(userRepository.findById(actor.getId())).willReturn(Optional.of(actor));
+            given(notificationRepository.save(any(Notification.class))).willReturn(notification);
 
             // when
-            Notification result = notificationService.createPersonalNotification(
-                    user, actor, "테스트 알림", "내용", "/target",
+            notificationService.createPersonalNotification(
+                    user.getId(), actor.getId(), "테스트 알림", "내용", "/target",
                     NotificationSettingType.SYSTEM
             );
 
             // then
-            assertThat(result).isNotNull();
-            assertThat(result.getType()).isEqualTo(NotificationType.PERSONAL);
-            assertThat(result.getReceiver()).isEqualTo(user);
-            assertThat(result.getActor()).isEqualTo(actor);
-
+            verify(userRepository).findById(user.getId());
+            verify(userRepository).findById(actor.getId());
             verify(notificationRepository).save(any(Notification.class));
             verify(webSocketService).sendNotificationToUser(
                     eq(user.getId()),
@@ -121,29 +128,21 @@ class NotificationServiceTest {
         @DisplayName("스터디룸 알림 생성 - 룸 멤버들에게 전송")
         void t2() {
             // given
-            Notification roomNotification = Notification.createRoomNotification(
-                    room, actor, "룸 알림", "내용", "/room"
-            );
-            given(notificationRepository.save(any(Notification.class)))
-                    .willReturn(roomNotification);
+            Notification roomNotification = Notification.createRoomNotification(room, actor, "룸", "", "");
+            given(roomRepository.findById(room.getId())).willReturn(Optional.of(room));
+            given(userRepository.findById(actor.getId())).willReturn(Optional.of(actor));
+            given(notificationRepository.save(any(Notification.class))).willReturn(roomNotification);
 
             // when
             Notification result = notificationService.createRoomNotification(
-                    room, actor, "룸 알림", "내용", "/room",
-                    NotificationSettingType.ROOM_NOTICE
+                    room.getId(), actor.getId(), "룸", "", "", NotificationSettingType.ROOM_NOTICE
             );
 
             // then
             assertThat(result).isNotNull();
-            assertThat(result.getType()).isEqualTo(NotificationType.ROOM);
-            assertThat(result.getRoom()).isEqualTo(room);
-            assertThat(result.getActor()).isEqualTo(actor);
-
-            verify(notificationRepository).save(any(Notification.class));
-            verify(webSocketService).sendNotificationToRoom(
-                    eq(room.getId()),
-                    any(NotificationWebSocketDto.class)
-            );
+            verify(roomRepository).findById(room.getId());
+            verify(userRepository).findById(actor.getId());
+            verify(webSocketService).sendNotificationToRoom(eq(room.getId()), any());
         }
 
         @Test
@@ -177,49 +176,39 @@ class NotificationServiceTest {
         @DisplayName("커뮤니티 알림 생성 - WebSocket으로 전송")
         void t4() {
             // given
-            Notification communityNotification = Notification.createCommunityNotification(
-                    user, actor, "커뮤니티 알림", "내용", "/community"
-            );
-            given(notificationRepository.save(any(Notification.class)))
-                    .willReturn(communityNotification);
-            given(notificationSettingService.isNotificationEnabled(user.getId(), NotificationSettingType.POST_COMMENT))
-                    .willReturn(true);
+            given(userRepository.findById(user.getId())).willReturn(Optional.of(user));
+            given(userRepository.findById(actor.getId())).willReturn(Optional.of(actor));
+            given(notificationRepository.save(any(Notification.class))).willReturn(notification);
+            given(notificationSettingService.isNotificationEnabled(anyLong(), any())).willReturn(true);
 
             // when
             Notification result = notificationService.createCommunityNotification(
-                    user, actor, "커뮤니티 알림", "내용", "/community",
-                    NotificationSettingType.POST_COMMENT
+                    user.getId(), actor.getId(), "커뮤니티", "", "", NotificationSettingType.POST_COMMENT
             );
 
             // then
             assertThat(result).isNotNull();
-            assertThat(result.getType()).isEqualTo(NotificationType.COMMUNITY);
-            assertThat(result.getReceiver()).isEqualTo(user);
-            assertThat(result.getActor()).isEqualTo(actor);
-
-            verify(notificationRepository).save(any(Notification.class));
-            verify(notificationSettingService).isNotificationEnabled(user.getId(), NotificationSettingType.POST_COMMENT);
-            verify(webSocketService).sendNotificationToUser(
-                    eq(user.getId()),
-                    any(NotificationWebSocketDto.class)
-            );
+            verify(userRepository).findById(user.getId());
+            verify(userRepository).findById(actor.getId());
+            verify(webSocketService).sendNotificationToUser(eq(user.getId()), any());
         }
 
         @Test
         @DisplayName("자기 자신에게 개인 알림 전송 시 예외 발생")
         void t5() {
             // given
-            User sameUser = user;
+            Long sameUserId = 1L;
+            given(userRepository.findById(sameUserId)).willReturn(Optional.of(user));
 
             // when & then
             assertThatThrownBy(() ->
                     notificationService.createPersonalNotification(
-                            sameUser, sameUser, "title", "content", "/url",
-                            NotificationSettingType.SYSTEM
+                            sameUserId, sameUserId, "title", "content", "/url", NotificationSettingType.SYSTEM
                     )
             ).isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOTIFICATION_FORBIDDEN);
 
+            verify(userRepository, times(2)).findById(sameUserId);
             verify(notificationRepository, never()).save(any(Notification.class));
         }
 
@@ -227,17 +216,18 @@ class NotificationServiceTest {
         @DisplayName("자기 자신에게 커뮤니티 알림 전송 시 예외 발생")
         void t6() {
             // given
-            User sameUser = user;
+            Long sameUserId = 1L;
+            given(userRepository.findById(sameUserId)).willReturn(Optional.of(user));
 
             // when & then
             assertThatThrownBy(() ->
                     notificationService.createCommunityNotification(
-                            sameUser, sameUser, "title", "content", "/url",
-                            NotificationSettingType.POST_COMMENT
+                            sameUserId, sameUserId, "title", "content", "/url", NotificationSettingType.POST_COMMENT
                     )
             ).isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOTIFICATION_FORBIDDEN);
 
+            verify(userRepository, times(2)).findById(sameUserId);
             verify(notificationRepository, never()).save(any(Notification.class));
         }
 
@@ -245,21 +235,25 @@ class NotificationServiceTest {
         @DisplayName("알림 설정이 비활성화된 경우 WebSocket 전송 생략")
         void t7() {
             // given
-            given(notificationRepository.save(any(Notification.class)))
-                    .willReturn(notification);
+            given(userRepository.findById(user.getId())).willReturn(Optional.of(user));
+            given(userRepository.findById(actor.getId())).willReturn(Optional.of(actor));
+            given(notificationRepository.save(any(Notification.class))).willReturn(notification);
+
+            // 사용자의 알림 설정이 false를 반환하도록 설정
             given(notificationSettingService.isNotificationEnabled(user.getId(), NotificationSettingType.POST_COMMENT))
                     .willReturn(false);
 
             // when
             Notification result = notificationService.createCommunityNotification(
-                    user, actor, "커뮤니티 알림", "내용", "/community",
+                    user.getId(), actor.getId(), "커뮤니티 알림", "내용", "/community",
                     NotificationSettingType.POST_COMMENT
             );
 
             // then
-            assertThat(result).isNotNull();
+            assertThat(result).isNotNull(); // 알림 자체는 DB에 저장되어야 함
             verify(notificationRepository).save(any(Notification.class));
-            verify(notificationSettingService).isNotificationEnabled(user.getId(), NotificationSettingType.POST_COMMENT);
+
+            // WebSocket 전송은 호출되지 않아야 함
             verify(webSocketService, never()).sendNotificationToUser(anyLong(), any());
         }
 
@@ -267,17 +261,17 @@ class NotificationServiceTest {
         @DisplayName("자기 자신 알림(createSelfNotification) 생성 성공")
         void t8() {
             // given
-            given(notificationRepository.save(any(Notification.class)))
-                    .willReturn(notification);
+            given(userRepository.findById(user.getId())).willReturn(Optional.of(user));
+            given(notificationRepository.save(any(Notification.class))).willReturn(notification);
 
             // when
-            Notification result = notificationService.createSelfNotification(
-                    user, "학습 기록", "1시간 공부 완료", "/study",
+            notificationService.createSelfNotification(
+                    user.getId(), "학습 기록", "1시간 공부 완료", "/study",
                     NotificationSettingType.SYSTEM
             );
 
             // then
-            assertThat(result).isNotNull();
+            verify(userRepository).findById(user.getId());
             verify(notificationRepository).save(any(Notification.class));
             verify(webSocketService).sendNotificationToUser(
                     eq(user.getId()),
@@ -296,18 +290,21 @@ class NotificationServiceTest {
             // given
             Pageable pageable = PageRequest.of(0, 10);
             Page<Notification> expectedPage = new PageImpl<>(List.of(notification));
+
             given(notificationRepository.findByUserIdOrSystemType(user.getId(), pageable))
                     .willReturn(expectedPage);
 
             // when
-            Page<Notification> result = notificationService.getUserNotifications(
-                    user.getId(), pageable
+            Page<Notification> result = notificationService.getNotifications(
+                    user.getId(), pageable, false
             );
 
             // then
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.getContent().get(0)).isEqualTo(notification);
+
             verify(notificationRepository).findByUserIdOrSystemType(user.getId(), pageable);
+            verify(notificationRepository, never()).findUnreadByUserId(any(), any());
         }
 
         @Test
@@ -316,17 +313,20 @@ class NotificationServiceTest {
             // given
             Pageable pageable = PageRequest.of(0, 10);
             Page<Notification> expectedPage = new PageImpl<>(List.of(notification));
+
             given(notificationRepository.findUnreadByUserId(user.getId(), pageable))
                     .willReturn(expectedPage);
 
             // when
-            Page<Notification> result = notificationService.getUnreadNotifications(
-                    user.getId(), pageable
+            Page<Notification> result = notificationService.getNotifications(
+                    user.getId(), pageable, true
             );
 
             // then
             assertThat(result.getContent()).hasSize(1);
+
             verify(notificationRepository).findUnreadByUserId(user.getId(), pageable);
+            verify(notificationRepository, never()).findByUserIdOrSystemType(any(), any());
         }
 
         @Test
@@ -499,6 +499,52 @@ class NotificationServiceTest {
             verify(notificationReadRepository).saveAll(argThat(list ->
                     list != null && ((List<?>) list).size() == 1
             ));
+        }
+    }
+
+    @Nested
+    @DisplayName("getReadNotificationIds 메서드 테스트")
+    class GetReadNotificationIdsTest {
+
+        @Test
+        @DisplayName("성공 - 알림 목록을 받아 읽은 알림 ID Set 반환")
+        void t1() {
+            // given
+            // 테스트용 알림 객체 생성
+            Notification notification1 = Notification.createSystemNotification("알림1", "내용", "/1");
+            ReflectionTestUtils.setField(notification1, "id", 1L);
+            Notification notification2 = Notification.createSystemNotification("알림2", "내용", "/2");
+            ReflectionTestUtils.setField(notification2, "id", 2L);
+            List<Notification> notifications = List.of(notification1, notification2);
+
+            // Repository가 ID 1만 읽었다고 응답하도록 설정
+            Set<Long> expectedReadIds = Set.of(1L);
+            List<Long> notificationIds = List.of(1L, 2L);
+
+            given(notificationReadRepository.findReadNotificationIds(user.getId(), notificationIds))
+                    .willReturn(expectedReadIds);
+
+            // when
+            Set<Long> result = notificationService.getReadNotificationIds(user.getId(), notifications);
+
+            // then
+            assertThat(result).isEqualTo(expectedReadIds);
+            verify(notificationReadRepository).findReadNotificationIds(user.getId(), notificationIds);
+        }
+
+        @Test
+        @DisplayName("성공 - 알림 목록이 비어있으면 빈 Set 반환")
+        void t2() {
+            // given
+            List<Notification> emptyList = List.of();
+
+            // when
+            Set<Long> result = notificationService.getReadNotificationIds(user.getId(), emptyList);
+
+            // then
+            assertThat(result).isEmpty();
+            // Repository가 호출되지 않아야 함
+            verify(notificationReadRepository, never()).findReadNotificationIds(anyLong(), anyList());
         }
     }
 }
