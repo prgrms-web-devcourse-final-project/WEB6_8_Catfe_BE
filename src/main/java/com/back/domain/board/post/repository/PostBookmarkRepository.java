@@ -1,6 +1,8 @@
 package com.back.domain.board.post.repository;
 
 import com.back.domain.board.post.entity.PostBookmark;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,4 +12,5 @@ import java.util.Optional;
 public interface PostBookmarkRepository extends JpaRepository<PostBookmark, Long> {
     boolean existsByUserIdAndPostId(Long userId, Long postId);
     Optional<PostBookmark> findByUserIdAndPostId(Long userId, Long postId);
+    Page<PostBookmark> findAllByUserId(Long userId, Pageable pageable);
 }
