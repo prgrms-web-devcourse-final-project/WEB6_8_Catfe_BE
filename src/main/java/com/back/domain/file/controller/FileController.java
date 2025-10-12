@@ -29,8 +29,6 @@ public class FileController {
     ) {
         FileUploadResponseDto res = fileService.uploadFile(
                 req.getMultipartFile(),
-                req.getEntityType(),
-                req.getEntityId(),
                 user.getUserId()
         );
 
