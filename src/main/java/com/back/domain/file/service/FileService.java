@@ -51,7 +51,7 @@ public class FileService {
         String storedFileName = createFileName(multipartFile.getOriginalFilename());
 
         // S3의 저장된 파일의 PublicURL
-        String filePath = s3Upload(storedFileName, multipartFile);
+        String publicURL = s3Upload(storedFileName, multipartFile);
 
         // FileAttachment 정보 저장
         FileAttachment fileAttachment = fileAttachmentRepository.save(
@@ -59,11 +59,11 @@ public class FileService {
                         storedFileName,
                         multipartFile,
                         user,
-                        filePath
+                        publicURL
                 )
         );
 
-        return new FileUploadResponseDto(fileAttachment.getId(), filePath);
+        return new FileUploadResponseDto(fileAttachment.getId(), publicURL);
     }
 
 
