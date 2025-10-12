@@ -1,5 +1,6 @@
 package com.back.domain.user.controller;
 
+import com.back.domain.board.comment.dto.MyCommentResponse;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.user.dto.ChangePasswordRequest;
@@ -85,6 +86,20 @@ public class UserController implements UserControllerDocs {
         return ResponseEntity
                 .ok(RsData.success(
                         "내 게시글 목록이 조회되었습니다.",
+                        response
+                ));
+    }
+
+    // 내 댓글 목록 조회
+    @GetMapping("/me/comments")
+    public ResponseEntity<RsData<PageResponse<MyCommentResponse>>> getMyComments(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        PageResponse<MyCommentResponse> response = userService.getMyComments(user.getUserId(), pageable);
+        return ResponseEntity
+                .ok(RsData.success(
+                        "내 댓글 목록이 조회되었습니다.",
                         response
                 ));
     }

@@ -1,5 +1,7 @@
 package com.back.domain.user.service;
 
+import com.back.domain.board.comment.dto.MyCommentResponse;
+import com.back.domain.board.comment.repository.CommentRepository;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.repository.PostRepository;
@@ -30,6 +32,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
     private final PasswordEncoder passwordEncoder;
 
     /**
@@ -147,6 +150,24 @@ public class UserService {
         // 게시글 목록 조회 및 응답 반환
         Page<PostListResponse> page = postRepository.findAllByUserId(userId, pageable)
                 .map(PostListResponse::from);
+        return PageResponse.from(page);
+    }
+
+    /**
+     * 내 댓글 목록 조회 서비스
+     * 1. 사용자 조회 및 상태 검증
+     * 2. 댓글 목록 조회
+     * 3. PageResponse 반환
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<MyCommentResponse> getMyComments(Long userId, Pageable pageable) {
+
+        // 사용자 조회 및 상태 검증
+        User user = getValidUser(userId);
+
+        // 댓글 목록 조회 및 응답 반환
+        Page<MyCommentResponse> page = commentRepository.findAllByUserId(user.getId(), pageable)
+                .map(MyCommentResponse::from);
         return PageResponse.from(page);
     }
 
