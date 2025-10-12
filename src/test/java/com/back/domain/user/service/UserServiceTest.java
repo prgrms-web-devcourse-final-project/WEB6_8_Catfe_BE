@@ -1,5 +1,9 @@
 package com.back.domain.user.service;
 
+import com.back.domain.board.common.dto.PageResponse;
+import com.back.domain.board.post.dto.PostListResponse;
+import com.back.domain.board.post.entity.Post;
+import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.user.dto.ChangePasswordRequest;
 import com.back.domain.user.dto.UpdateUserProfileRequest;
 import com.back.domain.user.dto.UserDetailResponse;
@@ -14,11 +18,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,7 +43,7 @@ class UserServiceTest {
     private UserRepository userRepository;
 
     @Autowired
-    private UserProfileRepository userProfileRepository;
+    private PostRepository postRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -365,4 +373,76 @@ class UserServiceTest {
                 .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
     }
 
+    // ====================== 내 게시글 목록 조회 테스트 ======================
+
+    @Test
+    @DisplayName("내 게시글 목록 조회 성공")
+    void getMyPosts_success() {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        // 게시글 2개 작성
+        Post post1 = new Post(user, "제목1", "내용1", null);
+        Post post2 = new Post(user, "제목2", "내용2", null);
+        postRepository.saveAll(List.of(post1, post2));
+
+        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // when
+        PageResponse<PostListResponse> response = userService.getMyPosts(user.getId(), pageable);
+
+        // then
+        assertThat(response.items()).hasSize(2);
+        assertThat(response.items().get(0).getTitle()).isEqualTo("제목2"); // 최신순 정렬
+        assertThat(response.items().get(1).getTitle()).isEqualTo("제목1");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 사용자 ID → USER_NOT_FOUND 예외 발생")
+    void getMyPosts_userNotFound() {
+        // given
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyPosts(999L, pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("탈퇴된 사용자 → USER_DELETED 예외 발생")
+    void getMyPosts_deletedUser() {
+        // given
+        User user = User.createUser("deleted", "deleted@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.DELETED);
+        userRepository.save(user);
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyPosts(user.getId(), pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_DELETED.getMessage());
+    }
+
+    @Test
+    @DisplayName("정지된 사용자 → USER_SUSPENDED 예외 발생")
+    void getMyPosts_suspendedUser() {
+        // given
+        User user = User.createUser("suspended", "suspended@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "닉네임", null, null, null, 0));
+        user.setUserStatus(UserStatus.SUSPENDED);
+        userRepository.save(user);
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyPosts(user.getId(), pageable))
+                .isInstanceOf(CustomException.class)
+                .hasMessage(ErrorCode.USER_SUSPENDED.getMessage());
+    }
 }
