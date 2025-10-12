@@ -39,10 +39,9 @@ public class FileController {
 
     @GetMapping(value = "/read")
     public ResponseEntity<RsData<FileReadResponseDto>> getFile(
-            @RequestParam("entityType") @NotBlank(message = "entityType은 필수입니다.") EntityType entityType,
-            @RequestParam("entityId") @NotBlank(message = "entityId는 필수입니다.") Long entityId
+            @PathVariable("attachmentId") Long attachmentId
     ) {
-        FileReadResponseDto res = fileService.getFile(entityType, entityId);
+        FileReadResponseDto res = fileService.getFile(attachmentId);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
