@@ -8,6 +8,8 @@ import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserRepository;
 import com.back.fixture.TestJwtTokenProvider;
+import io.findify.s3mock.S3Mock;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +40,9 @@ class FileControllerTest {
     private MockMvc mvc;
 
     @Autowired
+    private S3Mock s3Mock;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -55,6 +60,11 @@ class FileControllerTest {
                 user.getUsername(),
                 user.getRole().name()
         );
+    }
+
+    @AfterEach
+    public void tearDown() {
+        s3Mock.stop();
     }
 
     @Test
