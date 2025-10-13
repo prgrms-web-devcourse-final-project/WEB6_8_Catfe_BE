@@ -1,7 +1,6 @@
 package com.back.domain.board.post.dto;
 
 import com.back.domain.board.common.dto.AuthorResponse;
-import com.back.domain.board.post.entity.Post;
 import com.querydsl.core.annotations.QueryProjection;
 import lombok.Getter;
 import lombok.Setter;
@@ -49,22 +48,5 @@ public class PostListResponse {
         this.commentCount = commentCount;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
-    }
-
-    public static PostListResponse from(Post post) {
-        return new PostListResponse(
-                post.getId(),
-                AuthorResponse.from(post.getUser()),
-                post.getTitle(),
-                post.getThumbnailUrl(),
-                post.getCategories().stream()
-                        .map(CategoryResponse::from)
-                        .toList(),
-                post.getLikeCount(),
-                post.getBookmarkCount(),
-                post.getCommentCount(),
-                post.getCreatedAt(),
-                post.getUpdatedAt()
-        );
     }
 }

@@ -3,6 +3,7 @@ package com.back.domain.board.post.repository.custom;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.entity.*;
 import com.back.domain.board.post.enums.CategoryType;
+import com.back.domain.board.post.repository.PostBookmarkRepository;
 import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.board.post.repository.PostCategoryRepository;
 import com.back.domain.user.entity.User;
@@ -10,6 +11,9 @@ import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.config.QueryDslConfig;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +37,9 @@ class PostRepositoryImplTest {
 
     @Autowired
     private PostRepository postRepository;
+
+    @Autowired
+    private PostBookmarkRepository postBookmarkRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -145,7 +152,7 @@ class PostRepositoryImplTest {
         assertThat(page.getContent()).isEmpty();
     }
 
-    // ====================== 내 게시글 목록 조회 테스트 ======================
+    // ====================== 특정 사용자의 게시글 목록 조회 테스트 ======================
 
     @Test
     @DisplayName("특정 사용자의 게시글 목록 페이징 조회")
@@ -228,5 +235,73 @@ class PostRepositoryImplTest {
                 .orElseThrow();
 
         assertThat(target.getCategories()).isEmpty();
+    }
+
+    // ====================== 특정 사용자의 북마크 게시글 목록 조회 테스트 ======================
+
+    @Test
+    @DisplayName("특정 사용자의 북마크 게시글 목록 정상 조회")
+    void findBookmarkedPostsByUserId_basic() {
+        // given
+        PostBookmark b1 = new PostBookmark(post1, user);
+        PostBookmark b2 = new PostBookmark(post3, user);
+        postBookmarkRepository.saveAll(List.of(b1, b2));
+
+        PageRequest pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // when
+        Page<PostListResponse> page = postRepository.findBookmarkedPostsByUserId(user.getId(), pageable);
+
+        // then
+        assertThat(page.getTotalElements()).isEqualTo(2);
+        assertThat(page.getContent()).hasSize(2);
+
+        // 최신순 정렬 확인
+        assertThat(page.getContent().get(0).getTitle()).isEqualTo("10대 대상 스터디");
+        assertThat(page.getContent().get(1).getTitle()).isEqualTo("수학 공부 팁");
+
+        // 작성자 정보 확인
+        PostListResponse first = page.getContent().getFirst();
+        assertThat(first.getAuthor().nickname()).isEqualTo("작성자");
+
+        // 카테고리 목록 주입 검증
+        assertThat(first.getCategories()).isNotEmpty();
+        assertThat(first.getCategories())
+                .extracting("name")
+                .containsAnyOf("10대", "2인", "수학");
+    }
+
+    @Test
+    @DisplayName("사용자가 북마크한 게시글이 없으면 빈 페이지 반환")
+    void findBookmarkedPostsByUserId_empty() {
+        // given
+        PageRequest pageable = PageRequest.of(0, 10);
+
+        // when
+        Page<PostListResponse> page = postRepository.findBookmarkedPostsByUserId(user.getId(), pageable);
+
+        // then
+        assertThat(page.getTotalElements()).isZero();
+        assertThat(page.getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("정렬 조건(createdAt DESC)이 올바르게 적용")
+    void findBookmarkedPostsByUserId_sorting() {
+        // given
+        PostBookmark b1 = new PostBookmark(post1, user);
+        PostBookmark b2 = new PostBookmark(post2, user);
+        PostBookmark b3 = new PostBookmark(post3, user);
+        postBookmarkRepository.saveAll(List.of(b1, b2, b3));
+
+        PageRequest pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // when
+        Page<PostListResponse> page = postRepository.findBookmarkedPostsByUserId(user.getId(), pageable);
+
+        // then
+        assertThat(page.getContent()).hasSize(2);
+        assertThat(page.getContent().get(0).getTitle()).isEqualTo("10대 대상 스터디");
+        assertThat(page.getContent().get(1).getTitle()).isEqualTo("과학 토론 모집");
     }
 }

@@ -73,7 +73,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
     }
 
     /**
-     * 내 게시글 목록 조회
+     * 특정 사용자의 게시글 목록 조회
      * - 총 쿼리 수: 3회
      *  1. 게시글 목록 조회 (User, UserProfile join)
      *  2. 카테고리 목록 조회 (IN 쿼리)
@@ -105,6 +105,67 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
 
         // 5. 전체 게시글 수 조회
         long total = countPosts(where);
+
+        return new PageImpl<>(posts, pageable, total);
+    }
+
+    /**
+     * 특정 사용자의 북마크 게시글 목록 조회
+     * - 총 쿼리 수: 3회
+     *   1. 북마크된 게시글 목록 조회 (Post, User, UserProfile join)
+     *   2. 카테고리 목록 조회 (IN 쿼리)
+     *   3. 전체 count 조회
+     *
+     * @param userId   사용자 ID
+     * @param pageable 페이징 + 정렬 조건
+     */
+    @Override
+    public Page<PostListResponse> findBookmarkedPostsByUserId(Long userId, Pageable pageable) {
+        QPost post = QPost.post;
+        QPostBookmark bookmark = QPostBookmark.postBookmark;
+        QUser user = QUser.user;
+        QUserProfile profile = QUserProfile.userProfile;
+
+        // 1. 검색 조건 생성
+        BooleanBuilder where = new BooleanBuilder(bookmark.user.id.eq(userId));
+
+        // 2. 정렬 조건 생성 (화이트리스트 기반)
+        List<OrderSpecifier<?>> orders = buildOrderSpecifiers(pageable);
+
+        // 3. 북마크된 게시글 목록 조회 (Post, User, UserProfile join으로 N+1 방지)
+        List<PostListResponse> posts = queryFactory
+                .select(new QPostListResponse(
+                        post.id,
+                        new QAuthorResponse(post.user.id, post.user.userProfile.nickname, post.user.userProfile.profileImageUrl),
+                        post.title,
+                        post.thumbnailUrl,
+                        Expressions.constant(Collections.emptyList()), // categories는 별도 주입
+                        post.likeCount,
+                        post.bookmarkCount,
+                        post.commentCount,
+                        post.createdAt,
+                        post.updatedAt
+                ))
+                .from(bookmark)
+                .join(bookmark.post, post)
+                .leftJoin(post.user, user)
+                .leftJoin(user.userProfile, profile)
+                .where(where)
+                .orderBy(orders.toArray(new OrderSpecifier[0]))
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        // 결과가 없으면 즉시 빈 페이지 반환
+        if (posts.isEmpty()) {
+            return new PageImpl<>(posts, pageable, 0);
+        }
+
+        // 4. 카테고리 목록 주입 (postIds 기반 IN 쿼리 1회)
+        injectCategories(posts);
+
+        // 5. 전체 북마크 게시글 수 조회
+        long total = countBookmarkedPosts(userId);
 
         return new PageImpl<>(posts, pageable, total);
     }
@@ -284,6 +345,20 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                 .select(post.countDistinct())
                 .from(post)
                 .where(where)
+                .fetchOne();
+        return total != null ? total : 0L;
+    }
+
+    /**
+     * 내 북마크 게시글 총 개수 조회
+     * - 단순 count 쿼리 1회
+     */
+    private long countBookmarkedPosts(Long userId) {
+        QPostBookmark bookmark = QPostBookmark.postBookmark;
+        Long total = queryFactory
+                .select(bookmark.count())
+                .from(bookmark)
+                .where(bookmark.user.id.eq(userId))
                 .fetchOne();
         return total != null ? total : 0L;
     }
