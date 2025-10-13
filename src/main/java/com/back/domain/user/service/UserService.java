@@ -137,7 +137,6 @@ public class UserService {
         }
     }
 
-    // TODO: 내 게시글/댓글/북마크 목록 조회 N+1 발생 가능, 추후 리팩토링 필요
     /**
      * 내 게시글 목록 조회 서비스
      * 1. 사용자 조회 및 상태 검증
@@ -151,13 +150,13 @@ public class UserService {
         User user = getValidUser(userId);
 
         // 게시글 목록 조회
-        Page<PostListResponse> page = postRepository.findAllByUserId(userId, pageable)
-                .map(PostListResponse::from);
+        Page<PostListResponse> page = postRepository.findPostsByUserId(userId, pageable);
 
         // 페이지 응답 반환
         return PageResponse.from(page);
     }
 
+    // TODO: 내 댓글/북마크 목록 조회 N+1 발생 가능, 추후 리팩토링 필요
     /**
      * 내 댓글 목록 조회 서비스
      * 1. 사용자 조회 및 상태 검증

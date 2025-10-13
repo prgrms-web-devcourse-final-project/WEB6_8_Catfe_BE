@@ -13,7 +13,6 @@ import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
-import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.PathBuilder;
 import com.querydsl.jpa.JPAExpressions;
@@ -37,11 +36,11 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
     /**
      * 게시글 다건 검색
      * - 총 쿼리 수: 3회
-     * 1. 게시글 목록 조회 (User, UserProfile join)
-     * 2. 카테고리 목록 조회 (IN 쿼리)
-     * 3. 전체 count 조회
+     *  1. 게시글 목록 조회 (User, UserProfile join)
+     *  2. 카테고리 목록 조회 (IN 쿼리)
+     *  3. 전체 count 조회
      * - categoryIds 포함 시, 총 쿼리 수: 4회
-     * 4. CategoryType 매핑 조회 추가 (buildWhere 내부)
+     *  4. CategoryType 매핑 조회 추가 (buildWhere 내부)
      *
      * @param keyword     검색 키워드
      * @param searchType  검색 유형(title/content/author/전체)
@@ -52,6 +51,43 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
     public Page<PostListResponse> searchPosts(String keyword, String searchType, List<Long> categoryIds, Pageable pageable) {
         // 1. 검색 조건 생성
         BooleanBuilder where = buildWhere(keyword, searchType, categoryIds);
+
+        // 2. 정렬 조건 생성 (화이트리스트 기반)
+        List<OrderSpecifier<?>> orders = buildOrderSpecifiers(pageable);
+
+        // 3. 게시글 목록 조회 (User, UserProfile join으로 N+1 방지)
+        List<PostListResponse> posts = fetchPosts(where, orders, pageable);
+
+        // 결과가 없으면 즉시 빈 페이지 반환
+        if (posts.isEmpty()) {
+            return new PageImpl<>(posts, pageable, 0);
+        }
+
+        // 4. 카테고리 목록 주입 (postIds 기반 IN 쿼리 1회)
+        injectCategories(posts);
+
+        // 5. 전체 게시글 수 조회
+        long total = countPosts(where);
+
+        return new PageImpl<>(posts, pageable, total);
+    }
+
+    /**
+     * 내 게시글 목록 조회
+     * - 총 쿼리 수: 3회
+     *  1. 게시글 목록 조회 (User, UserProfile join)
+     *  2. 카테고리 목록 조회 (IN 쿼리)
+     *  3. 전체 count 조회
+     *
+     * @param userId   사용자 ID
+     * @param pageable 페이징 + 정렬 조건
+     */
+    @Override
+    public Page<PostListResponse> findPostsByUserId(Long userId, Pageable pageable) {
+        QPost post = QPost.post;
+
+        // 1. 검색 조건 생성
+        BooleanBuilder where = new BooleanBuilder(post.user.id.eq(userId));
 
         // 2. 정렬 조건 생성 (화이트리스트 기반)
         List<OrderSpecifier<?>> orders = buildOrderSpecifiers(pageable);

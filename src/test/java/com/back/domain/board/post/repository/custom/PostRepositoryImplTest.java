@@ -70,6 +70,8 @@ class PostRepositoryImplTest {
         post3.updateCategories(List.of(teen, group2));
     }
 
+    // ====================== 게시글 다건 검색 테스트 ======================
+
     @Test
     @DisplayName("기본 게시글 목록 조회 (카테고리, 키워드 없이)")
     void searchPosts_basic() {
@@ -141,5 +143,90 @@ class PostRepositoryImplTest {
         // then
         assertThat(page.getTotalElements()).isZero();
         assertThat(page.getContent()).isEmpty();
+    }
+
+    // ====================== 내 게시글 목록 조회 테스트 ======================
+
+    @Test
+    @DisplayName("특정 사용자의 게시글 목록 페이징 조회")
+    void findPostsByUserId_basic() {
+        // given
+        PageRequest pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // when
+        Page<PostListResponse> page = postRepository.findPostsByUserId(user.getId(), pageable);
+
+        // then
+        assertThat(page.getTotalElements()).isEqualTo(3);
+        assertThat(page.getContent()).hasSize(3);
+
+        // 게시글 제목 확인 (생성일 역순)
+        assertThat(page.getContent().get(0).getTitle()).isEqualTo("10대 대상 스터디");
+        assertThat(page.getContent().get(1).getTitle()).isEqualTo("과학 토론 모집");
+        assertThat(page.getContent().get(2).getTitle()).isEqualTo("수학 공부 팁");
+
+        // 작성자 정보가 즉시 조회되었는지 확인
+        PostListResponse first = page.getContent().getFirst();
+        assertThat(first.getAuthor().nickname()).isEqualTo("작성자");
+
+        // 카테고리 목록이 정상 주입되었는지 (별도 쿼리 1회로 주입되는 구조)
+        assertThat(first.getCategories()).isNotEmpty();
+        assertThat(first.getCategories())
+                .extracting("name")
+                .containsAnyOf("수학", "과학", "10대", "2인");
+    }
+
+    @Test
+    @DisplayName("사용자가 작성한 게시글이 없으면 빈 페이지 반환")
+    void findPostsByUserId_empty() {
+        // given: 다른 사용자
+        User other = User.createUser("other", "other@example.com", "encodedPwd");
+        other.setUserProfile(new UserProfile(other, "다른작성자", null, null, null, 0));
+        userRepository.save(other);
+
+        PageRequest pageable = PageRequest.of(0, 10);
+
+        // when
+        Page<PostListResponse> page = postRepository.findPostsByUserId(other.getId(), pageable);
+
+        // then
+        assertThat(page.getTotalElements()).isZero();
+        assertThat(page.getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("정렬 조건(createdAt DESC)이 올바르게 적용")
+    void findPostsByUserId_sorting() {
+        // given
+        PageRequest pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // when
+        Page<PostListResponse> page = postRepository.findPostsByUserId(user.getId(), pageable);
+
+        // then
+        assertThat(page.getContent()).hasSize(2);
+        assertThat(page.getContent().get(0).getTitle()).isEqualTo("10대 대상 스터디");
+        assertThat(page.getContent().get(1).getTitle()).isEqualTo("과학 토론 모집");
+    }
+
+    @Test
+    @DisplayName("카테고리가 없는 게시글도 정상 조회")
+    void findPostsByUserId_noCategory() {
+        // given
+        Post uncategorized = new Post(user, "카테고리 없음 글", "내용", null);
+        postRepository.save(uncategorized);
+
+        PageRequest pageable = PageRequest.of(0, 10);
+
+        // when
+        Page<PostListResponse> page = postRepository.findPostsByUserId(user.getId(), pageable);
+
+        // then
+        PostListResponse target = page.getContent().stream()
+                .filter(p -> p.getTitle().equals("카테고리 없음 글"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(target.getCategories()).isEmpty();
     }
 }
