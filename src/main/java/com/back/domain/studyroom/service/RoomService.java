@@ -257,12 +257,8 @@ public class RoomService {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        if (room.isPrivate()) {
-            boolean isMember = roomMemberRepository.existsByRoomIdAndUserId(roomId, userId);
-            if (!isMember) {
-                throw new CustomException(ErrorCode.ROOM_FORBIDDEN);
-            }
-        }
+        // ⭐ 비공개 방 접근 제한 제거 - 모든 사용자가 조회 가능
+        // (프론트엔드에서 입장 시 로그인 체크)
 
         return room;
     }
@@ -534,12 +530,7 @@ public class RoomService {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        if (room.isPrivate()) {
-            boolean isMember = roomMemberRepository.existsByRoomIdAndUserId(roomId, userId);
-            if (!isMember) {
-                throw new CustomException(ErrorCode.ROOM_FORBIDDEN);
-            }
-        }
+        // ⭐ 비공개 방 접근 제한 제거 - 모든 사용자가 조회 가능
 
         // 1. Redis에서 온라인 사용자 ID 조회
         Set<Long> onlineUserIds = roomParticipantService.getParticipants(roomId);

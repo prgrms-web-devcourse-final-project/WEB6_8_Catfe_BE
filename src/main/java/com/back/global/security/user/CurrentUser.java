@@ -30,6 +30,21 @@ public class CurrentUser {
     }
 
     public Long getUserId() { return getDetails().getUserId(); }
+    
+    /**
+     * 현재 사용자 ID 조회 (비로그인 시 null 반환)
+     * 비로그인 접근이 허용되는 API에서 사용
+     */
+    public Long getUserIdOrNull() {
+        try {
+            return getDetails().getUserId();
+        } catch (CustomException e) {
+            if (e.getErrorCode() == ErrorCode.UNAUTHORIZED) {
+                return null;
+            }
+            throw e;
+        }
+    }
 
     public String getUsername() { return getDetails().getUsername(); }
 

@@ -157,13 +157,13 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
     }
 
     /**
-     * 인기 방 조회 (참가자 수 기준)
+     * 인기 방 조회 (참가자 수 기준) - 공개+비공개 포함
      * 
      * 참고: 참가자 수는 Redis에서 조회하므로 DB에서는 정렬 불가
      * 서비스 레이어에서 Redis 데이터로 정렬 필요
      * 
      * 조회 조건:
-     * - 공개 방만 (isPrivate = false)
+     * - 공개 방 + 비공개 방 모두 포함
      * - 활성화된 방만 (isActive = true)
      * @param pageable 페이징 정보
      * @return 페이징된 방 목록 (최신순 정렬)
@@ -174,7 +174,6 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .selectFrom(room)
                 .leftJoin(room.createdBy, user).fetchJoin()  // N+1 방지
                 .where(
-                        room.isPrivate.eq(false),
                         room.isActive.eq(true)
                 )
                 .orderBy(room.createdAt.desc())  // 최신순 (서비스에서 Redis 기반으로 재정렬)
@@ -187,7 +186,6 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .select(room.count())
                 .from(room)
                 .where(
-                        room.isPrivate.eq(false),
                         room.isActive.eq(true)
                 )
                 .fetchOne();
