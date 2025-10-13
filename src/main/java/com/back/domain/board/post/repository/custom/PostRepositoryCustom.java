@@ -8,4 +8,6 @@ import java.util.List;
 
 public interface PostRepositoryCustom {
     Page<PostListResponse> searchPosts(String keyword, String searchType, List<Long> categoryIds, Pageable pageable);
+    Page<PostListResponse> findPostsByUserId(Long userId, Pageable pageable);
+    Page<PostListResponse> findBookmarkedPostsByUserId(Long userId, Pageable pageable);
 }
