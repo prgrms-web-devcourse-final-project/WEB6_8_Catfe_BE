@@ -10,6 +10,7 @@ import com.back.global.common.dto.RsData;
 import com.back.global.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +35,7 @@ public class StudyPlanController {
     public ResponseEntity<RsData<StudyPlanResponse>> createStudyPlan(
             // 로그인 유저 정보 받기
             @AuthenticationPrincipal CustomUserDetails user,
-            @RequestBody StudyPlanRequest request) {
+            @Valid @RequestBody StudyPlanRequest request) {
         //커스텀 디테일 구현 시 사용
         Long userId = user.getUserId();
         StudyPlanResponse response = studyPlanService.createStudyPlan(userId, request);
@@ -93,7 +94,7 @@ public class StudyPlanController {
     public ResponseEntity<RsData<StudyPlanResponse>> updateStudyPlan(
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long planId,
-            @RequestBody StudyPlanRequest request,
+            @Valid @RequestBody StudyPlanRequest request,
             @RequestParam(name = "applyScope", required = true) ApplyScope applyScope) {
         Long userId = user.getUserId();
 

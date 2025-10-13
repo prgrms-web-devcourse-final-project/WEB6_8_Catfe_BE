@@ -125,17 +125,51 @@ resource "aws_security_group" "sg_1" {
     Name  = "team5-sg-1"
   }
 
+  # SSH
   ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "all" # 모든 프로토콜
-    cidr_blocks = ["0.0.0.0/0"] # 모든 IP 허용
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # 필요 시 특정 IP로 제한 가능
   }
 
+  # HTTP
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # HTTPS
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # WebRTC UDP
+  ingress {
+    from_port   = 10000
+    to_port     = 20000
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # NPM (port 81)
+  ingress {
+    from_port   = 81
+    to_port     = 81
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # 아웃바운드 모든 프로토콜
   egress {
     from_port   = 0
     to_port     = 0
-    protocol    = "all" # 모든 프로토콜
+    protocol    = "all"
     cidr_blocks = ["0.0.0.0/0"] # 모든 IP 허용
   }
 }

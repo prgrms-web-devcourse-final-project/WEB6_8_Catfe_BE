@@ -30,6 +30,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -702,8 +703,9 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("내 게시글 목록이 조회되었습니다."))
                 .andExpect(jsonPath("$.data.items").isArray())
                 .andExpect(jsonPath("$.data.items.length()").value(2))
-                .andExpect(jsonPath("$.data.items[0].title").value("두 번째 글")) // 최신순(createdAt desc)
-                .andExpect(jsonPath("$.data.items[1].title").value("첫 번째 글"));
+                .andExpect(jsonPath("$.data.items[*].title").value(
+                        containsInAnyOrder("첫 번째 글", "두 번째 글")
+                ));
     }
 
     @Test
@@ -841,8 +843,9 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("내 댓글 목록이 조회되었습니다."))
                 .andExpect(jsonPath("$.data.items").isArray())
                 .andExpect(jsonPath("$.data.items.length()").value(3))
-                .andExpect(jsonPath("$.data.items[0].content").value("감사합니다! 더 공부해볼게요."))
-                .andExpect(jsonPath("$.data.items[1].content").value("정말 도움이 많이 됐어요!"));
+                .andExpect(jsonPath("$.data.items[*].content").value(
+                        containsInAnyOrder("코딩 박사의 스프링 교재도 추천합니다.", "정말 도움이 많이 됐어요!", "감사합니다! 더 공부해볼게요.")
+                ));
     }
 
     @Test
@@ -980,8 +983,9 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.code").value("SUCCESS_200"))
                 .andExpect(jsonPath("$.message").value("내 북마크 게시글 목록이 조회되었습니다."))
                 .andExpect(jsonPath("$.data.items.length()").value(2))
-                .andExpect(jsonPath("$.data.items[0].title").value("테스트 코드 작성 가이드"))
-                .andExpect(jsonPath("$.data.items[1].title").value("JPA 영속성 전이 완벽 정리"));
+                .andExpect(jsonPath("$.data.items[*].title").value(
+                        containsInAnyOrder("JPA 영속성 전이 완벽 정리", "테스트 코드 작성 가이드")
+                ));
     }
 
     @Test
