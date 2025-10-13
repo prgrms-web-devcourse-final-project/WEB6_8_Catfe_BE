@@ -258,8 +258,8 @@ class RoomServiceTest {
     }
 
     @Test
-    @DisplayName("방 상세 정보 조회 - 비공개 방 권한 없음")
-    void getRoomDetail_PrivateRoomForbidden() {
+    @DisplayName("방 상세 정보 조회 - 비공개 방도 조회 가능")
+    void getRoomDetail_PrivateRoomAllowed() {
         // given
         Room privateRoom = Room.create(
                 "비공개 방",
@@ -273,12 +273,16 @@ class RoomServiceTest {
                 null   // thumbnailUrl
         );
         given(roomRepository.findById(1L)).willReturn(Optional.of(privateRoom));
-        given(roomMemberRepository.existsByRoomIdAndUserId(1L, 2L)).willReturn(false);
+        // ⭐ 비공개 방 접근 제한 제거되었으므로 권한 체크 안 함
 
-        // when & then
-        assertThatThrownBy(() -> roomService.getRoomDetail(1L, 2L))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ROOM_FORBIDDEN);
+        // when
+        Room result = roomService.getRoomDetail(1L, 2L);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getTitle()).isEqualTo("비공개 방");
+        assertThat(result.isPrivate()).isTrue();
+        verify(roomMemberRepository, never()).existsByRoomIdAndUserId(any(), any());
     }
 
     @Test

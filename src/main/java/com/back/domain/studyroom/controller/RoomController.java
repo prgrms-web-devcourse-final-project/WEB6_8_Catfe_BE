@@ -130,11 +130,10 @@ public class RoomController {
     @GetMapping("/all")
     @Operation(
         summary = "모든 방 목록 조회", 
-        description = "공개 방과 비공개 방 전체를 조회합니다. 비공개 방은 제목과 방장 정보가 마스킹됩니다. 열린 방(WAITING, ACTIVE)이 우선 표시되고, 닫힌 방(PAUSED, TERMINATED)은 뒤로 밀립니다."
+        description = "공개 방과 비공개 방 전체를 조회합니다. 열린 방(WAITING, ACTIVE)이 우선 표시되고, 닫힌 방(PAUSED, TERMINATED)은 뒤로 밀립니다. 비로그인 사용자도 조회 가능합니다."
     )
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "조회 성공"),
-        @ApiResponse(responseCode = "401", description = "인증 실패")
+        @ApiResponse(responseCode = "200", description = "조회 성공")
     })
     public ResponseEntity<RsData<Map<String, Object>>> getAllRooms(
             @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,
@@ -143,8 +142,8 @@ public class RoomController {
         Pageable pageable = PageRequest.of(page, size);
         Page<Room> rooms = roomService.getAllRooms(pageable);
 
-        // 비공개 방 마스킹 포함한 변환
-        List<RoomResponse> roomList = roomService.toRoomResponseListWithMasking(rooms.getContent());
+        // 모든 정보 공개
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
 
         Map<String, Object> response = new HashMap<>();
         response.put("rooms", roomList);
@@ -162,11 +161,10 @@ public class RoomController {
     @GetMapping("/public")
     @Operation(
         summary = "공개 방 목록 조회", 
-        description = "공개 방 전체를 조회합니다. includeInactive=true로 설정하면 닫힌 방도 포함됩니다 (기본값: true). 열린 방이 우선 표시됩니다."
+        description = "공개 방 전체를 조회합니다. includeInactive=true로 설정하면 닫힌 방도 포함됩니다 (기본값: true). 열린 방이 우선 표시됩니다. 비로그인 사용자도 조회 가능합니다."
     )
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "조회 성공"),
-        @ApiResponse(responseCode = "401", description = "인증 실패")
+        @ApiResponse(responseCode = "200", description = "조회 성공")
     })
     public ResponseEntity<RsData<Map<String, Object>>> getPublicRooms(
             @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,
@@ -261,11 +259,10 @@ public class RoomController {
     @GetMapping
     @Operation(
         summary = "입장 가능한 공개 방 목록 조회 (기존)", 
-        description = "입장 가능한 공개 스터디 룸 목록을 페이징하여 조회합니다. 최신 생성 순으로 정렬됩니다."
+        description = "입장 가능한 공개 스터디 룸 목록을 페이징하여 조회합니다. 최신 생성 순으로 정렬됩니다. 비로그인 사용자도 조회 가능합니다."
     )
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "조회 성공"),
-        @ApiResponse(responseCode = "401", description = "인증 실패")
+        @ApiResponse(responseCode = "200", description = "조회 성공")
     })
     public ResponseEntity<RsData<Map<String, Object>>> getRooms(
             @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,
@@ -292,18 +289,17 @@ public class RoomController {
     @GetMapping("/{roomId}")
     @Operation(
         summary = "방 상세 정보 조회", 
-        description = "특정 방의 상세 정보와 현재 온라인 멤버 목록을 조회합니다. 비공개 방은 멤버만 조회 가능합니다."
+        description = "특정 방의 상세 정보와 현재 온라인 멤버 목록을 조회합니다. 비로그인 사용자도 조회 가능합니다."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "조회 성공"),
-        @ApiResponse(responseCode = "403", description = "비공개 방에 대한 접근 권한 없음"),
-        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
-        @ApiResponse(responseCode = "401", description = "인증 실패")
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방")
     })
     public ResponseEntity<RsData<RoomDetailResponse>> getRoomDetail(
             @Parameter(description = "방 ID", required = true) @PathVariable Long roomId) {
 
-        Long currentUserId = currentUser.getUserId();
+        // 비로그인 사용자는 userId = null로 처리
+        Long currentUserId = currentUser.getUserIdOrNull();
 
         Room room = roomService.getRoomDetail(roomId, currentUserId);
         List<RoomMember> members = roomService.getRoomMembers(roomId, currentUserId);
@@ -522,11 +518,10 @@ public class RoomController {
     @GetMapping("/popular")
     @Operation(
         summary = "인기 방 목록 조회", 
-        description = "참가자 수가 많은 인기 방 목록을 페이징하여 조회합니다. 참가자 수 내림차순에서 최신순으로 정렬됩니다."
+        description = "참가자 수가 많은 인기 방 목록을 페이징하여 조회합니다. 공개방과 비공개방 모두 포함됩니다. 참가자 수 내림차순에서 최신순으로 정렬됩니다. 비로그인 사용자도 조회 가능합니다."
     )
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "조회 성공"),
-        @ApiResponse(responseCode = "401", description = "인증 실패")
+        @ApiResponse(responseCode = "200", description = "조회 성공")
     })
     public ResponseEntity<RsData<Map<String, Object>>> getPopularRooms(
             @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,

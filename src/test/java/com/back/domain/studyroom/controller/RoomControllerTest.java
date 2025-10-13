@@ -208,7 +208,7 @@ class RoomControllerTest {
     @DisplayName("방 상세 정보 조회 API 테스트 - JWT 인증")
     void getRoomDetail() {
         // given
-        given(currentUser.getUserId()).willReturn(1L);
+        given(currentUser.getUserIdOrNull()).willReturn(1L);
         
         given(roomService.getRoomDetail(eq(1L), eq(1L))).willReturn(testRoom);
         given(roomService.getRoomMembers(eq(1L), eq(1L))).willReturn(Arrays.asList(testMember));
@@ -229,7 +229,7 @@ class RoomControllerTest {
         assertThat(response.getBody().isSuccess()).isTrue();
         assertThat(response.getBody().getData().getTitle()).isEqualTo("테스트 방");
 
-        verify(currentUser, times(1)).getUserId();
+        verify(currentUser, times(1)).getUserIdOrNull();
         verify(roomService, times(1)).getRoomDetail(eq(1L), eq(1L));
         verify(roomService, times(1)).getRoomMembers(eq(1L), eq(1L));
         verify(roomService, times(1)).toRoomDetailResponse(any(Room.class), anyList());
