@@ -166,7 +166,7 @@ public class FileService {
 
     // 파일 접근 권한 체크
     private void checkAccessPermission(FileAttachment fileAttachment, Long userId) {
-        if (fileAttachment.getUser().getId() != userId) {
+        if (!fileAttachment.getUser().getId().equals(userId)) {
             throw new CustomException(ErrorCode.FILE_ACCESS_DENIED);
         }
     }
