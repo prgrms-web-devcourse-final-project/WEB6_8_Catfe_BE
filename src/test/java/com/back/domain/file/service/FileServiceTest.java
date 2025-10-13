@@ -49,9 +49,6 @@ class FileServiceTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private PostRepository postRepository;
-
     @AfterEach
     public void tearDown() {
         s3Mock.stop();
@@ -65,9 +62,6 @@ class FileServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용", null);
-        postRepository.save(post);
-
         String path = "test.png";
         String contentType = "image/png";
         String dirName = "test";
@@ -75,11 +69,12 @@ class FileServiceTest {
         MockMultipartFile file = new MockMultipartFile("test", path, contentType, "test".getBytes());
 
         // when
-        FileUploadResponseDto res = fileService.uploadFile(file, EntityType.POST, post.getId(), user.getId());
+        FileUploadResponseDto res = fileService.uploadFile(file, user.getId());
 
         // then
-        assertThat(res.getImageUrl()).contains(path);
-        assertThat(res.getImageUrl()).contains(dirName);
+        assertThat(res.getAttachmentId()).isPositive();
+        assertThat(res.getPublicURL()).contains(path);
+        assertThat(res.getPublicURL()).contains(dirName);
     }
 
     @Test
@@ -90,21 +85,18 @@ class FileServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용", null);
-        postRepository.save(post);
-
         String path = "test.png";
         String contentType = "image/png";
         String dirName = "test";
         MockMultipartFile file = new MockMultipartFile("test", path, contentType, "test".getBytes());
-        fileService.uploadFile(file, EntityType.POST, post.getId(), user.getId());
+        Long attachmentId = fileService.uploadFile(file, user.getId()).getAttachmentId();
 
         //when
-        FileReadResponseDto res = fileService.getFile(EntityType.POST, post.getId());
+        FileReadResponseDto res = fileService.getFile(attachmentId);
 
         // then
-        assertThat(res.getImageUrl()).contains(path);
-        assertThat(res.getImageUrl()).contains(dirName);
+        assertThat(res.getPublicURL()).contains(path);
+        assertThat(res.getPublicURL()).contains(dirName);
     }
 
     @Test
@@ -115,15 +107,11 @@ class FileServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용", null);
-        postRepository.save(post);
-
         // 기존(삭제할) 파일 정보
         String path = "test.png";
         String contentType = "image/png";
-        String dirName = "test";
         MockMultipartFile oldFile = new MockMultipartFile("test", path, contentType, "test".getBytes());
-        fileService.uploadFile(oldFile, EntityType.POST, post.getId(), user.getId());
+        Long attachmentId = fileService.uploadFile(oldFile, user.getId()).getAttachmentId();
 
         // 새 파일 정보
         String newPath = "newTest.png";
@@ -131,12 +119,12 @@ class FileServiceTest {
         MockMultipartFile newFile = new MockMultipartFile("newTest", newPath, contentType, "newTest".getBytes());
 
         // when
-        fileService.updateFile(newFile, EntityType.POST, post.getId(), user.getId());
-        FileReadResponseDto res = fileService.getFile(EntityType.POST, post.getId());
+        fileService.updateFile(attachmentId, newFile, user.getId());
+        FileReadResponseDto res = fileService.getFile(attachmentId);
 
         // then
-        assertThat(res.getImageUrl()).contains(newPath);
-        assertThat(res.getImageUrl()).contains(newDirName);
+        assertThat(res.getPublicURL()).contains(newPath);
+        assertThat(res.getPublicURL()).contains(newDirName);
     }
 
     @Test
@@ -147,23 +135,20 @@ class FileServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        Post post = new Post(user, "제목", "내용", null);
-        postRepository.save(post);
-
         // 기존(삭제할) 파일 정보
         String path = "test.png";
         String contentType = "image/png";
-        String dirName = "test";
         MockMultipartFile oldFile = new MockMultipartFile("test", path, contentType, "test".getBytes());
-        fileService.uploadFile(oldFile, EntityType.POST, post.getId(), user.getId());
+        Long attachmentId = fileService.uploadFile(oldFile, user.getId()).getAttachmentId();
+
 
         // when
-        fileService.deleteFile(EntityType.POST, post.getId(), user.getId());
+        fileService.deleteFile(attachmentId, user.getId());
         CustomException exception = assertThrows(CustomException.class, () -> {
-            fileService.getFile(EntityType.POST, post.getId());
+            fileService.getFile(attachmentId);
         });
 
         // then
-        assertEquals(ErrorCode.ATTACHMENT_MAPPING_NOT_FOUND, exception.getErrorCode());
+        assertEquals(ErrorCode.FILE_NOT_FOUND, exception.getErrorCode());
     }
 }
