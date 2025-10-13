@@ -50,7 +50,7 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.GET, "/api/rooms/*").permitAll() // 방 상세 조회
                                 //.requestMatchers("/api/rooms/RoomChatApiControllerTest").permitAll() // 테스트용 임시 허용
                                 .requestMatchers("/","/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger 허용
-                                .requestMatchers("/h2-console/**").permitAll() // H2 Console 허용
+//                                .requestMatchers("/h2-console/**").permitAll() // H2 Console 허용
                                 .requestMatchers("/actuator/health").permitAll() // 헬스 체크 허용
                                 .requestMatchers("/file/**").permitAll() // 파일 관련 요청 모두 허용(테스트 완료 후, 요청제한 예정)
                                 .anyRequest().authenticated()
