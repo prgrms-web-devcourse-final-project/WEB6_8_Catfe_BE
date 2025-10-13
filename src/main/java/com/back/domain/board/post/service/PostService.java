@@ -49,17 +49,18 @@ public class PostService {
         // Post 생성
         Post post = new Post(user, request.title(), request.content(), request.thumbnailUrl());
 
+        // Post 저장
+        Post saved = postRepository.save(post);
+
         // Category 매핑
         if (request.categoryIds() != null) {
             List<PostCategory> categories = postCategoryRepository.findAllById(request.categoryIds());
             if (categories.size() != request.categoryIds().size()) {
                 throw new CustomException(ErrorCode.CATEGORY_NOT_FOUND);
             }
-            post.updateCategories(categories);
+            saved.updateCategories(categories);
         }
 
-        // Post 저장 및 응답 반환
-        Post saved = postRepository.save(post);
         return PostResponse.from(saved);
     }
 
