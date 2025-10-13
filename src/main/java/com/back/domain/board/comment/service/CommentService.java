@@ -4,7 +4,6 @@ import com.back.domain.board.comment.dto.CommentListResponse;
 import com.back.domain.board.comment.dto.CommentRequest;
 import com.back.domain.board.comment.dto.CommentResponse;
 import com.back.domain.board.comment.dto.ReplyResponse;
-import com.back.domain.board.comment.entity.CommentLike;
 import com.back.domain.board.comment.repository.CommentLikeRepository;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.comment.entity.Comment;
@@ -91,7 +90,7 @@ public class CommentService {
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
         // 댓글 목록 조회
-        Page<CommentListResponse> comments = commentRepository.getCommentsByPostId(postId, pageable);
+        Page<CommentListResponse> comments = commentRepository.findCommentsByPostId(postId, pageable);
 
         return PageResponse.from(comments);
     }

@@ -1,6 +1,6 @@
 package com.back.domain.board.comment.dto;
 
-import com.back.domain.board.comment.entity.Comment;
+import com.querydsl.core.annotations.QueryProjection;
 
 import java.time.LocalDateTime;
 
@@ -28,28 +28,6 @@ public record MyCommentResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
-    public static MyCommentResponse from(Comment comment) {
-        return new MyCommentResponse(
-                comment.getId(),
-                comment.getPost().getId(),
-                comment.getPost().getTitle(),
-                comment.getParent() != null
-                        ? comment.getParent().getId()
-                        : null,
-                comment.getParent() != null
-                        ? truncate(comment.getParent().getContent())
-                        : null,
-                comment.getContent(),
-                comment.getLikeCount(),
-                comment.getCreatedAt(),
-                comment.getUpdatedAt()
-        );
-    }
-
-    private static String truncate(String content) {
-        int length = 50;
-        return (content == null || content.length() <= length)
-                ? content
-                : content.substring(0, length) + "...";
-    }
+    @QueryProjection
+    public MyCommentResponse {}
 }
