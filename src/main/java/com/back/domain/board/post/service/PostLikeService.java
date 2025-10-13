@@ -5,11 +5,13 @@ import com.back.domain.board.post.entity.Post;
 import com.back.domain.board.post.entity.PostLike;
 import com.back.domain.board.post.repository.PostLikeRepository;
 import com.back.domain.board.post.repository.PostRepository;
+import com.back.domain.notification.event.community.PostLikedEvent;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ public class PostLikeService {
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 게시글 좋아요 서비스
@@ -27,7 +30,8 @@ public class PostLikeService {
      * 2. Post 조회
      * 3. 이미 존재하는 경우 예외 처리
      * 4. PostLike 저장 및 likeCount 증가
-     * 5. PostLikeResponse 반환
+     * 5. 알림 이벤트 발행 (자기 글이 아닐 경우)
+     * 6. PostLikeResponse 반환
      */
     public PostLikeResponse likePost(Long postId, Long userId) {
         // User 조회
@@ -48,6 +52,19 @@ public class PostLikeService {
 
         // PostLike 저장 및 응답 반환
         postLikeRepository.save(new PostLike(post, user));
+
+        // 알림 이벤트 발행 (자기 자신의 글이 아닐 때만)
+        if (!post.getUser().getId().equals(userId)) {
+            eventPublisher.publishEvent(
+                    new PostLikedEvent(
+                            userId,                    // 좋아요 누른 사람
+                            post.getUser().getId(),    // 게시글 작성자
+                            post.getId(),
+                            post.getTitle()
+                    )
+            );
+        }
+
         return PostLikeResponse.from(post);
     }
 

@@ -5,6 +5,7 @@ import com.amazonaws.services.s3.model.DeleteObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.back.domain.file.dto.FileReadResponseDto;
+import com.back.domain.file.dto.FileUpdateResponseDto;
 import com.back.domain.file.dto.FileUploadResponseDto;
 import com.back.domain.file.entity.AttachmentMapping;
 import com.back.domain.file.entity.EntityType;
@@ -20,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -34,14 +37,10 @@ public class FileService {
     private final AmazonS3 amazonS3;
     private final FileAttachmentRepository fileAttachmentRepository;
     private final UserRepository userRepository;
-    private final AttachmentMappingRepository attachmentMappingRepository;
-    private final EntityValidator entityValidator;
 
     @Transactional
     public FileUploadResponseDto uploadFile(
             MultipartFile multipartFile,
-            EntityType entityType,
-            Long entityId,
             Long userId
     ) {
         User user = userRepository.findById(userId)
@@ -53,46 +52,44 @@ public class FileService {
         String storedFileName = createFileName(multipartFile.getOriginalFilename());
 
         // S3의 저장된 파일의 PublicURL
-        String filePath = s3Upload(storedFileName, multipartFile);
+        String publicURL = s3Upload(storedFileName, multipartFile);
 
         // FileAttachment 정보 저장
-        fileAttachmentRepository.save(
+        FileAttachment fileAttachment = fileAttachmentRepository.save(
                 new FileAttachment(
                         storedFileName,
                         multipartFile,
                         user,
-                        entityType,
-                        entityId,
-                        filePath
+                        publicURL
                 )
         );
 
-        return new FileUploadResponseDto(filePath);
+        return new FileUploadResponseDto(fileAttachment.getId(), publicURL);
     }
 
 
     @Transactional(readOnly = true)
-    public FileReadResponseDto getFile(
-            EntityType entityType,
-            Long entityId
-    ) {
-        FileAttachment fileAttachment = getFileAttachmentOrThrow(entityType, entityId);
+    public FileReadResponseDto getFile(Long attachmentId) {
+        FileAttachment fileAttachment = fileAttachmentRepository.findById(attachmentId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.FILE_NOT_FOUND)
+                );
 
-        String filePath = fileAttachment.getFilePath();
+        String publicURL = fileAttachment.getPublicURL();
 
-        return new FileReadResponseDto(filePath);
+        return new FileReadResponseDto(publicURL);
     }
 
     @Transactional
-    public void updateFile(
+    public FileUpdateResponseDto updateFile(
+            Long attachmentId,
             MultipartFile multipartFile,
-            EntityType entityType,
-            Long entityId,
             Long userId
     ) {
-        entityValidator.validate(entityType, entityId);
-
-        FileAttachment fileAttachment = getFileAttachmentOrThrow(entityType, entityId);
+        FileAttachment fileAttachment = fileAttachmentRepository.findById(attachmentId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.FILE_NOT_FOUND)
+                );
 
         checkAccessPermission(fileAttachment, userId);
 
@@ -102,25 +99,21 @@ public class FileService {
         // S3에 새롭게 저장할 파일 이름
         String newStoredName = createFileName(multipartFile.getOriginalFilename());
 
-        String filePath = s3Upload(newStoredName, multipartFile);
+        String publicURL = s3Upload(newStoredName, multipartFile);
 
         s3Delete(oldStoredName);
 
         // fileAttachment 정보 업데이트
-        fileAttachment.update(newStoredName, multipartFile, filePath);
+        fileAttachment.update(newStoredName, multipartFile, publicURL);
+        return new FileUpdateResponseDto(publicURL);
     }
 
     @Transactional
-    public void deleteFile(EntityType entityType, Long entityId, Long userId) {
-        entityValidator.validate(entityType, entityId);
-
-        AttachmentMapping attachmentMapping = attachmentMappingRepository
-                .findByEntityTypeAndEntityId(entityType, entityId)
+    public void deleteFile(Long attachmentId, Long userId) {
+        FileAttachment fileAttachment = fileAttachmentRepository.findById(attachmentId)
                 .orElseThrow(() ->
-                        new CustomException(ErrorCode.ATTACHMENT_MAPPING_NOT_FOUND)
+                        new CustomException(ErrorCode.FILE_NOT_FOUND)
                 );
-
-        FileAttachment fileAttachment = attachmentMapping.getFileAttachment();
 
         checkAccessPermission(fileAttachment, userId);
 
@@ -173,19 +166,8 @@ public class FileService {
 
     // 파일 접근 권한 체크
     private void checkAccessPermission(FileAttachment fileAttachment, Long userId) {
-        if (fileAttachment.getUser().getId() != userId) {
+        if (!fileAttachment.getUser().getId().equals(userId)) {
             throw new CustomException(ErrorCode.FILE_ACCESS_DENIED);
         }
-    }
-
-    // AttachmentMapping -> fileAttachment 추출
-    private FileAttachment getFileAttachmentOrThrow(EntityType entityType, Long entityId) {
-        AttachmentMapping attachmentMapping = attachmentMappingRepository
-                .findByEntityTypeAndEntityId(entityType, entityId)
-                .orElseThrow(() ->
-                        new CustomException(ErrorCode.ATTACHMENT_MAPPING_NOT_FOUND)
-                );
-
-        return attachmentMapping.getFileAttachment();
     }
 }

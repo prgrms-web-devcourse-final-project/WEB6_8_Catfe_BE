@@ -9,7 +9,7 @@ public record WebRTCSignalResponse(
         Long fromUserId,
         Long targetUserId,
         Long roomId,
-        String sdp,
+        SdpData sdp,
         WebRTCMediaType mediaType,
         String candidate,
         String sdpMid,
@@ -23,7 +23,7 @@ public record WebRTCSignalResponse(
             Long fromUserId,
             Long targetUserId,
             Long roomId,
-            String sdp,
+            SdpData sdp,
             WebRTCMediaType mediaType
     ) {
         return new WebRTCSignalResponse(
