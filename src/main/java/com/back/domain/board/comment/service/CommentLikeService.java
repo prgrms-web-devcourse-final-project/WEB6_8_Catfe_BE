@@ -5,11 +5,13 @@ import com.back.domain.board.comment.entity.Comment;
 import com.back.domain.board.comment.entity.CommentLike;
 import com.back.domain.board.comment.repository.CommentLikeRepository;
 import com.back.domain.board.comment.repository.CommentRepository;
+import com.back.domain.notification.event.community.CommentLikedEvent;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ public class CommentLikeService {
     private final CommentRepository commentRepository;
     private final CommentLikeRepository commentLikeRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 댓글 좋아요 서비스
@@ -27,6 +30,7 @@ public class CommentLikeService {
      * 2. Comment 조회
      * 3. 이미 존재하는 경우 예외 처리
      * 4. CommentLike 저장 및 likeCount 증가
+     * 5. 알림 이벤트 발행 (자기 글이 아닐 경우)
      */
     public CommentLikeResponse likeComment(Long commentId, Long userId) {
         // User 조회
@@ -47,6 +51,19 @@ public class CommentLikeService {
 
         // CommentLike 저장 및 응답 반환
         commentLikeRepository.save(new CommentLike(comment, user));
+
+        if (!comment.getUser().getId().equals(userId)) {
+            eventPublisher.publishEvent(
+                    new CommentLikedEvent(
+                            userId,                      // 좋아요 누른 사람
+                            comment.getUser().getId(),   // 댓글 작성자
+                            comment.getPost().getId(),   // 게시글 ID
+                            comment.getId(),
+                            comment.getContent()
+                    )
+            );
+        }
+
         return CommentLikeResponse.from(comment);
     }
 
