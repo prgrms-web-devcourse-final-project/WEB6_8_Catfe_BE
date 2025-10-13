@@ -1,8 +1,8 @@
 package com.back.domain.file.controller;
 
-import com.back.domain.board.post.entity.Post;
-import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.file.config.S3MockConfig;
+import com.back.domain.file.dto.FileUploadResponseDto;
+import com.back.domain.file.service.FileService;
 import com.back.domain.user.entity.User;
 import com.back.domain.user.entity.UserProfile;
 import com.back.domain.user.entity.UserStatus;
@@ -25,7 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,10 +50,10 @@ class FileControllerTest {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
-    private PostRepository postRepository;
+    private TestJwtTokenProvider testJwtTokenProvider;
 
     @Autowired
-    private TestJwtTokenProvider testJwtTokenProvider;
+    private FileService fileService;
 
     private String generateAccessToken(User user) {
         return testJwtTokenProvider.createAccessToken(
@@ -78,9 +79,6 @@ class FileControllerTest {
 
         String accessToken = generateAccessToken(user);
 
-        Post post = new Post(user, "첫 글", "내용", null);
-        postRepository.save(post);
-
         MockMultipartFile multipartFile = new MockMultipartFile(
                 "multipartFile",
                 "test.png",
@@ -92,8 +90,6 @@ class FileControllerTest {
         ResultActions resultActions = mvc.perform(
                 multipart("/api/file/upload") // 👈 post() 대신 multipart() 사용
                         .file(multipartFile)  // 파일 필드
-                        .param("entityType", "POST") // DTO 필드 매핑
-                        .param("entityId", post.getId().toString())
                         .header("Authorization", "Bearer " + accessToken)
                         .characterEncoding("UTF-8")
         );
@@ -105,7 +101,7 @@ class FileControllerTest {
     }
 
     @Test
-    @DisplayName("파일 업로드 실패 - 파일이 없는 경우")
+    @DisplayName("파일 업로드 실패 - 파일 입력이 없는 경우")
     void uploadFile_fail_noFile() throws Exception {
         // given
         User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
@@ -115,14 +111,9 @@ class FileControllerTest {
 
         String accessToken = generateAccessToken(user);
 
-        Post post = new Post(user, "첫 글", "내용", null);
-        postRepository.save(post);
-
         // when
         ResultActions resultActions = mvc.perform(
                 multipart("/api/file/upload") // 👈 post() 대신 multipart() 사용
-                        .param("entityType", "POST") // DTO 필드 매핑
-                        .param("entityId", post.getId().toString())
                         .header("Authorization", "Bearer " + accessToken)
                         .characterEncoding("UTF-8")
         );
@@ -131,6 +122,316 @@ class FileControllerTest {
         resultActions.andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_400"))
                 .andExpect(jsonPath("$.message").value("잘못된 요청입니다."))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("파일 조회 성공")
+    void readFile_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "multipartFile",
+                "test.png",
+                "image/png",
+                "test".getBytes()
+        );
+
+        FileUploadResponseDto fileUploadResponseDto = fileService.uploadFile(multipartFile, user.getId());
+
+        // when
+        ResultActions resultActions = mvc.perform(
+                get("/api/file/read/" + fileUploadResponseDto.getAttachmentId())
+                        .header("Authorization", "Bearer " + accessToken)
+        );
+
+        // then
+        resultActions.andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("파일 조회 성공"))
+                .andExpect(jsonPath("$.data.publicURL").value(fileUploadResponseDto.getPublicURL()))
+                .andDo(print());
+
+    }
+
+    @Test
+    @DisplayName("파일 조회 실패 - 없는 파일 정보 조회")
+    void readFile_failWhenFileNotFound() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        Long attachmentId = 10000000L;
+
+        // when
+        ResultActions resultActions = mvc.perform(
+                get("/api/file/read/" + attachmentId)
+                        .header("Authorization", "Bearer " + accessToken)
+        );
+
+        // then
+        resultActions.andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FILE_004"))
+                .andExpect(jsonPath("$.message").value("파일 정보를 찾을 수 없습니다."))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("파일 수정 성공")
+    void updateFile_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // 기존(삭제할) 파일 정보
+        String path = "test.png";
+        String contentType = "image/png";
+        MockMultipartFile oldFile = new MockMultipartFile("test", path, contentType, "test".getBytes());
+        FileUploadResponseDto fileUploadResponseDto = fileService.uploadFile(oldFile, user.getId());
+
+        // 새 파일 정보
+        String newPath = "newTest.png";
+        MockMultipartFile newFile = new MockMultipartFile("multipartFile", newPath, contentType, "newTest".getBytes());
+
+        // when
+        ResultActions resultActions = mvc.perform(
+                multipart("/api/file/update/" + fileUploadResponseDto.getAttachmentId())
+                        .file(newFile)  // 파일 필드
+                        .header("Authorization", "Bearer " + accessToken)
+                        .characterEncoding("UTF-8")
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        }) // PUT 매핑인 것을 나타낸다.
+        );
+
+        // then
+        resultActions.andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("파일 업데이트 성공"))
+                .andExpect(jsonPath("$.data.publicURL", not(fileUploadResponseDto.getPublicURL())))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("파일 수정 실패 - 없는 아이디 조회")
+    void updateFile_failWhenFileNotFound() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // 새 파일 정보
+        String newPath = "newTest.png";
+        String contentType = "image/png";
+        MockMultipartFile newFile = new MockMultipartFile("multipartFile", newPath, contentType, "newTest".getBytes());
+
+        Long attachmentId = 1000000L;
+
+        // when
+        ResultActions resultActions = mvc.perform(
+                multipart("/api/file/update/" + attachmentId)
+                        .file(newFile)  // 파일 필드
+                        .header("Authorization", "Bearer " + accessToken)
+                        .characterEncoding("UTF-8")
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        }) // PUT 매핑인 것을 나타낸다.
+        );
+
+        // then
+        resultActions.andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FILE_004"))
+                .andExpect(jsonPath("$.message").value("파일 정보를 찾을 수 없습니다."))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("파일 수정 실패 - 파일 입력이 없는 경우")
+    void updateFile_fail_noFile() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // 기존(삭제할) 파일 정보
+        String path = "test.png";
+        String contentType = "image/png";
+        MockMultipartFile oldFile = new MockMultipartFile("test", path, contentType, "test".getBytes());
+        FileUploadResponseDto fileUploadResponseDto = fileService.uploadFile(oldFile, user.getId());
+
+        // when
+        ResultActions resultActions = mvc.perform(
+                multipart("/api/file/update/" + fileUploadResponseDto.getAttachmentId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .characterEncoding("UTF-8")
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        }) // PUT 매핑인 것을 나타낸다.
+        );
+
+        // then
+        resultActions.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("파일 수정 성공 - 파일 접근 권한 없음")
+    void updateFile_failWhenAccessDenied() throws Exception {
+        // given
+        User writer = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        writer.setUserProfile(new UserProfile(writer, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        writer.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(writer);
+
+        User reader = User.createUser("reader", "reader@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        reader.setUserProfile(new UserProfile(reader, "홍길순", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        reader.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(reader);
+
+        String accessToken = generateAccessToken(reader);
+
+        // 기존(삭제할) 파일 정보
+        String path = "test.png";
+        String contentType = "image/png";
+        MockMultipartFile oldFile = new MockMultipartFile("test", path, contentType, "test".getBytes());
+        FileUploadResponseDto fileUploadResponseDto = fileService.uploadFile(oldFile, writer.getId());
+
+        // 새 파일 정보
+        String newPath = "newTest.png";
+        MockMultipartFile newFile = new MockMultipartFile("multipartFile", newPath, contentType, "newTest".getBytes());
+
+        // when
+        ResultActions resultActions = mvc.perform(
+                multipart("/api/file/update/" + fileUploadResponseDto.getAttachmentId())
+                        .file(newFile)  // 파일 필드
+                        .header("Authorization", "Bearer " + accessToken)
+                        .characterEncoding("UTF-8")
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        }) // PUT 매핑인 것을 나타낸다.
+        );
+
+        // then
+        resultActions.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FILE_003"))
+                .andExpect(jsonPath("$.message").value("파일을 접근할 권한이 없습니다."))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("파일 삭제 성공")
+    void deleteFile_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // 기존(삭제할) 파일 정보
+        String path = "test.png";
+        String contentType = "image/png";
+        MockMultipartFile oldFile = new MockMultipartFile("test", path, contentType, "test".getBytes());
+        FileUploadResponseDto fileUploadResponseDto = fileService.uploadFile(oldFile, user.getId());
+
+        // when
+        ResultActions resultActions = mvc.perform(
+                delete("/api/file/delete/" + fileUploadResponseDto.getAttachmentId())
+                        .header("Authorization", "Bearer " + accessToken)
+        );
+
+        // then
+        resultActions.andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS_200"))
+                .andExpect(jsonPath("$.message").value("파일 삭제 성공"))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("파일 삭제 실패 - 파일 접근 권한 없음")
+    void deleteFile_failWhenAccessDenied() throws Exception {
+        // given
+        User writer = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        writer.setUserProfile(new UserProfile(writer, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        writer.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(writer);
+
+        User reader = User.createUser("reader", "reader@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        reader.setUserProfile(new UserProfile(reader, "홍길순", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        reader.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(reader);
+
+        String accessToken = generateAccessToken(reader);
+
+        // 기존(삭제할) 파일 정보
+        String path = "test.png";
+        String contentType = "image/png";
+        MockMultipartFile oldFile = new MockMultipartFile("test", path, contentType, "test".getBytes());
+        FileUploadResponseDto fileUploadResponseDto = fileService.uploadFile(oldFile, writer.getId());
+
+        // when
+        ResultActions resultActions = mvc.perform(
+                delete("/api/file/delete/" + fileUploadResponseDto.getAttachmentId())
+                        .header("Authorization", "Bearer " + accessToken)
+        );
+
+        // then
+        resultActions.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FILE_003"))
+                .andExpect(jsonPath("$.message").value("파일을 접근할 권한이 없습니다."))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("파일 삭제 실패 - 없는 파일 정보 조회")
+    void deleteFile_failWhenFileNotFound() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        Long attachmentId = 1000000L;
+
+        // when
+        ResultActions resultActions = mvc.perform(
+                delete("/api/file/delete/" + attachmentId)
+                        .header("Authorization", "Bearer " + accessToken)
+        );
+
+        // then
+        resultActions.andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FILE_004"))
+                .andExpect(jsonPath("$.message").value("파일 정보를 찾을 수 없습니다."))
                 .andDo(print());
     }
 }
