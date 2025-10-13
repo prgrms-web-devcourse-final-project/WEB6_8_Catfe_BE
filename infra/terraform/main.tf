@@ -157,7 +157,15 @@ resource "aws_security_group" "sg_1" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # 모든 프로토콜
+  # NPM (port 81)
+  ingress {
+    from_port   = 81
+    to_port     = 81
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # 아웃바운드 모든 프로토콜
   egress {
     from_port   = 0
     to_port     = 0
