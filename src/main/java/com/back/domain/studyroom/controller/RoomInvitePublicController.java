@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/invite")
 @RequiredArgsConstructor
-@Tag(name = "Invite Join API", description = "초대 코드로 방 입장 API")
+@Tag(name = "Room Invite API", description = "초대 코드로 방 입장 API")
 public class RoomInvitePublicController {
 
     private final RoomInviteService inviteService;
