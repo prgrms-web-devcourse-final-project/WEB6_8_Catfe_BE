@@ -3,10 +3,10 @@ package com.back.domain.file.dto;
 import lombok.Data;
 
 @Data
-public class FileReadResponseDto {
+public class FileUpdateResponseDto {
     private String publicURL;
 
-    public FileReadResponseDto(String publicURL) {
+    public FileUpdateResponseDto(String publicURL) {
         this.publicURL = publicURL;
     }
 }

@@ -18,7 +18,7 @@ public class FileAttachment extends BaseEntity {
 
     private String originalName;
 
-    private String filePath;
+    private String publicURL;
 
     private long fileSize;
 
@@ -36,25 +36,21 @@ public class FileAttachment extends BaseEntity {
             String storedName,
             MultipartFile multipartFile,
             User user,
-            EntityType entityType,
-            Long entityId,
-            String filePath
+            String publicURL
     ) {
         this.storedName = storedName;
-        originalName = multipartFile.getOriginalFilename();
-        this.filePath = filePath;
-        fileSize = multipartFile.getSize();
+        this.originalName = multipartFile.getOriginalFilename();
+        this.publicURL = publicURL;
+        this.fileSize = multipartFile.getSize();
         this.contentType = multipartFile.getContentType();
         this.user = user;
-
-        attachmentMappings.add(new AttachmentMapping(this ,entityType, entityId));
     }
 
-    public void update(String storedName, MultipartFile multipartFile, String filePath) {
+    public void update(String storedName, MultipartFile multipartFile, String publicURL) {
         this.storedName = storedName;
-        originalName = multipartFile.getOriginalFilename();
-        this.filePath = filePath;
-        fileSize = multipartFile.getSize();
+        this.originalName = multipartFile.getOriginalFilename();
+        this.publicURL = publicURL;
+        this.fileSize = multipartFile.getSize();
         this.contentType = multipartFile.getContentType();
     }
 }
