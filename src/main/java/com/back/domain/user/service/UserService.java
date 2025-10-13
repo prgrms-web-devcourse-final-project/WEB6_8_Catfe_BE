@@ -156,7 +156,6 @@ public class UserService {
         return PageResponse.from(page);
     }
 
-    // TODO: 내 댓글/북마크 목록 조회 N+1 발생 가능, 추후 리팩토링 필요
     /**
      * 내 댓글 목록 조회 서비스
      * 1. 사용자 조회 및 상태 검증
@@ -170,13 +169,13 @@ public class UserService {
         User user = getValidUser(userId);
 
         // 댓글 목록 조회
-        Page<MyCommentResponse> page = commentRepository.findAllByUserId(user.getId(), pageable)
-                .map(MyCommentResponse::from);
+        Page<MyCommentResponse> page = commentRepository.findCommentsByUserId(user.getId(), pageable);
 
         // 페이지 응답 반환
         return PageResponse.from(page);
     }
 
+    // TODO: 내 북마크 목록 조회 N+1 발생 가능, 추후 리팩토링 필요
     /**
      * 내 북마크 게시글 목록 조회 서비스
      * 1. 사용자 조회 및 상태 검증

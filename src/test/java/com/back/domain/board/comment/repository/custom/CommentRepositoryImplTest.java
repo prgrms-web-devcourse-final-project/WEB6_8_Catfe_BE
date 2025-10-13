@@ -69,14 +69,16 @@ class CommentRepositoryImplTest {
         commentRepository.saveAll(List.of(child11, child12, child21));
     }
 
+    // ====================== 특정 게시글의 댓글 목록 조회 테스트 ======================
+
     @Test
-    @DisplayName("게시글의 부모 댓글 목록과 자식 댓글이 함께 조회된다 (총 쿼리 3회 예상)")
+    @DisplayName("게시글의 부모 댓글 목록과 자식 댓글이 함께 조회")
     void getCommentsByPostId_success() {
         // given
         PageRequest pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         // when
-        Page<CommentListResponse> page = commentRepository.getCommentsByPostId(post.getId(), pageable);
+        Page<CommentListResponse> page = commentRepository.findCommentsByPostId(post.getId(), pageable);
 
         // then
         assertThat(page.getTotalElements()).isEqualTo(3L); // 부모 3개
@@ -115,7 +117,7 @@ class CommentRepositoryImplTest {
         PageRequest pageable = PageRequest.of(0, 5);
 
         // when
-        Page<CommentListResponse> page = commentRepository.getCommentsByPostId(newPost.getId(), pageable);
+        Page<CommentListResponse> page = commentRepository.findCommentsByPostId(newPost.getId(), pageable);
 
         // then
         assertThat(page.getTotalElements()).isZero();
@@ -129,10 +131,56 @@ class CommentRepositoryImplTest {
         PageRequest pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "unknownField"));
 
         // when
-        Page<CommentListResponse> page = commentRepository.getCommentsByPostId(post.getId(), pageable);
+        Page<CommentListResponse> page = commentRepository.findCommentsByPostId(post.getId(), pageable);
 
         // then
         // createdAt DESC 기본 정렬이 적용되어, 마지막에 생성된 parent3이 먼저 나와야 함
-        assertThat(page.getContent().get(0).getCommentId()).isEqualTo(parent3.getId());
+        assertThat(page.getContent().getFirst().getCommentId()).isEqualTo(parent3.getId());
+    }
+
+    // ====================== 특정 사용자의 댓글 목록 조회 테스트 ======================
+
+    @Test
+    @DisplayName("사용자 ID로 자신의 댓글 목록을 조회")
+    void findCommentsByUserId_success() {
+        // given
+        PageRequest pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // when
+        var page = commentRepository.findCommentsByUserId(user.getId(), pageable);
+
+        // then
+        // 총 댓글 수 = 부모 3 + 자식 3 = 6
+        assertThat(page.getTotalElements()).isEqualTo(6L);
+        assertThat(page.getContent()).hasSize(6);
+
+        // 특정 댓글 하나 검증
+        var myComment = page.getContent().stream()
+                .filter(c -> c.commentId().equals(child11.getId()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(myComment.postId()).isEqualTo(post.getId());
+        assertThat(myComment.postTitle()).isEqualTo("게시글 제목");
+        assertThat(myComment.parentId()).isEqualTo(parent1.getId());
+        assertThat(myComment.parentContent()).contains("부모1");
+    }
+
+    @Test
+    @DisplayName("댓글이 없는 사용자는 빈 페이지 반환")
+    void findCommentsByUserId_empty() {
+        // given
+        User newUser = User.createUser("user2", "user2@example.com", "encodedPwd");
+        newUser.setUserProfile(new UserProfile(newUser, "신규", null, null, null, 0));
+        newUser.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(newUser);
+        PageRequest pageable = PageRequest.of(0, 5);
+
+        // when
+        var page = commentRepository.findCommentsByUserId(newUser.getId(), pageable);
+
+        // then
+        assertThat(page.getTotalElements()).isZero();
+        assertThat(page.getContent()).isEmpty();
     }
 }
