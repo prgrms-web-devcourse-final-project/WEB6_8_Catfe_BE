@@ -1,8 +1,10 @@
 package com.back.global.websocket.controller;
 
+import com.back.domain.studyroom.service.AvatarService;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.back.global.security.user.CustomUserDetails;
+import com.back.global.websocket.service.RoomParticipantService;
 import com.back.global.websocket.service.WebSocketSessionManager;
 import com.back.global.websocket.util.WebSocketErrorHelper;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +35,12 @@ class WebSocketMessageControllerTest {
 
     @Mock
     private WebSocketErrorHelper errorHelper;
+
+    @Mock
+    private RoomParticipantService roomParticipantService;
+
+    @Mock
+    private AvatarService avatarService;
 
     @InjectMocks
     private WebSocketMessageController controller;
@@ -67,15 +75,24 @@ class WebSocketMessageControllerTest {
         void t1() {
             // given
             Long roomId = 1L;
+            Long avatarId = 5L;
             Map<String, Object> payload = new HashMap<>();
             Principal mockPrincipal = createMockPrincipal(userId);
+            
+            // Redis에 등록되지 않은 상태 (초대 코드 입장 등)
+            when(roomParticipantService.getCurrentRoomId(userId)).thenReturn(null);
+            when(avatarService.loadOrCreateAvatar(roomId, userId)).thenReturn(avatarId);
             doNothing().when(sessionManager).updateLastActivity(userId);
+            doNothing().when(roomParticipantService).enterRoom(userId, roomId, avatarId);
 
             // when
             controller.handleWebSocketJoinRoom(roomId, payload, mockPrincipal);
 
             // then
             verify(sessionManager).updateLastActivity(userId);
+            verify(roomParticipantService).getCurrentRoomId(userId);
+            verify(avatarService).loadOrCreateAvatar(roomId, userId);
+            verify(roomParticipantService).enterRoom(userId, roomId, avatarId);
         }
 
         @Test
@@ -91,24 +108,29 @@ class WebSocketMessageControllerTest {
 
             // then
             verify(sessionManager, never()).updateLastActivity(any(Long.class));
+            verify(roomParticipantService, never()).getCurrentRoomId(any());
         }
 
         @Test
-        @DisplayName("실패 - CustomException 발생 시 예외를 그대로 던짐")
+        @DisplayName("성공 - 이미 Redis에 등록된 사용자는 중복 등록 안 함")
         void t3() {
             // given
             Long roomId = 1L;
             Map<String, Object> payload = new HashMap<>();
             Principal mockPrincipal = createMockPrincipal(userId);
-            CustomException expectedException = new CustomException(ErrorCode.BAD_REQUEST);
-            doThrow(expectedException).when(sessionManager).updateLastActivity(userId);
+            
+            // Redis에 이미 등록된 상태
+            when(roomParticipantService.getCurrentRoomId(userId)).thenReturn(roomId);
+            doNothing().when(sessionManager).updateLastActivity(userId);
 
-            // when & then
-            assertThrows(CustomException.class, () -> {
-                controller.handleWebSocketJoinRoom(roomId, payload, mockPrincipal);
-            });
+            // when
+            controller.handleWebSocketJoinRoom(roomId, payload, mockPrincipal);
 
+            // then
             verify(sessionManager).updateLastActivity(userId);
+            verify(roomParticipantService).getCurrentRoomId(userId);
+            verify(avatarService, never()).loadOrCreateAvatar(any(), any());
+            verify(roomParticipantService, never()).enterRoom(any(), any(), any());
         }
     }
 

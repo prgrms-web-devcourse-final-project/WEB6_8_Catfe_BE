@@ -100,7 +100,7 @@ public class RoomService {
     }
 
     /**
-     * 방 입장 메서드
+     * 방 입장 메서드 (WebSocket 연결과 함께 사용)
      * 
      * 입장 검증 과정:
      * 1. 방 존재 확인 (비관적 락으로 동시성 제어)
@@ -117,17 +117,33 @@ public class RoomService {
      */
     @Transactional
     public RoomMember joinRoom(Long roomId, String password, Long userId) {
+        return joinRoom(roomId, password, userId, true);
+    }
+
+    /**
+     * 방 입장 메서드 (오버로드 - WebSocket 등록 여부 선택 가능)
+     * 
+     * @param roomId 방 ID
+     * @param password 비밀번호 (비공개 방인 경우)
+     * @param userId 사용자 ID
+     * @param registerOnline WebSocket 세션 등록 여부 (true: Redis 등록, false: 권한 체크만)
+     * @return RoomMember (메모리상 또는 DB 저장된 객체)
+     */
+    @Transactional
+    public RoomMember joinRoom(Long roomId, String password, Long userId, boolean registerOnline) {
         
         // 1. 비관적 락으로 방 조회 - 동시 입장 시 정원 초과 방지
         Room room = roomRepository.findByIdWithLock(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        // 2. Redis에서 현재 온라인 사용자 수 조회
-        long currentOnlineCount = roomParticipantService.getParticipantCount(roomId);
+        // 2. Redis에서 현재 온라인 사용자 수 조회 (WebSocket 등록하는 경우만)
+        if (registerOnline) {
+            long currentOnlineCount = roomParticipantService.getParticipantCount(roomId);
 
-        // 3. 정원 확인 (Redis 기반)
-        if (currentOnlineCount >= room.getMaxParticipants()) {
-            throw new CustomException(ErrorCode.ROOM_FULL);
+            // 3. 정원 확인 (Redis 기반)
+            if (currentOnlineCount >= room.getMaxParticipants()) {
+                throw new CustomException(ErrorCode.ROOM_FULL);
+            }
         }
 
         // 4. 방 입장 가능 여부 확인 (활성화 + 입장 가능한 상태)
@@ -140,8 +156,8 @@ public class RoomService {
             throw new CustomException(ErrorCode.ROOM_NOT_JOINABLE);
         }
 
-        // 5. 비밀번호 확인
-        if (room.needsPassword() && !room.getPassword().equals(password)) {
+        // 5. 비밀번호 확인 (초대 코드 입장 시에는 password가 null일 수 있음)
+        if (room.needsPassword() && password != null && !room.getPassword().equals(password)) {
             throw new CustomException(ErrorCode.ROOM_PASSWORD_INCORRECT);
         }
 
@@ -156,11 +172,15 @@ public class RoomService {
             // 기존 멤버 재입장: DB에 있는 역할 그대로 사용
             RoomMember member = existingMember.get();
             
-            // Redis에 온라인 등록 (아바타 포함)
-            roomParticipantService.enterRoom(userId, roomId, avatarId);
-            
-            log.info("기존 멤버 재입장 - RoomId: {}, UserId: {}, Role: {}, AvatarId: {}", 
-                    roomId, userId, member.getRole(), avatarId);
+            // WebSocket 연결과 함께 입장하는 경우에만 Redis 등록
+            if (registerOnline) {
+                roomParticipantService.enterRoom(userId, roomId, avatarId);
+                log.info("기존 멤버 재입장 (Redis 등록) - RoomId: {}, UserId: {}, Role: {}, AvatarId: {}", 
+                        roomId, userId, member.getRole(), avatarId);
+            } else {
+                log.info("기존 멤버 권한 확인 (Redis 등록 건너뜀) - RoomId: {}, UserId: {}, Role: {}", 
+                        roomId, userId, member.getRole());
+            }
             
             return member;
         }
@@ -168,11 +188,15 @@ public class RoomService {
         // 신규 입장자: VISITOR로 입장 (DB 저장 안함!)
         RoomMember visitorMember = RoomMember.createVisitor(room, user);
         
-        // Redis에만 온라인 등록 (아바타 포함)
-        roomParticipantService.enterRoom(userId, roomId, avatarId);
-        
-        log.info("신규 입장 (VISITOR) - RoomId: {}, UserId: {}, DB 저장 안함, AvatarId: {}", 
-                roomId, userId, avatarId);
+        // WebSocket 연결과 함께 입장하는 경우에만 Redis 등록
+        if (registerOnline) {
+            roomParticipantService.enterRoom(userId, roomId, avatarId);
+            log.info("신규 입장 (VISITOR, Redis 등록) - RoomId: {}, UserId: {}, AvatarId: {}", 
+                    roomId, userId, avatarId);
+        } else {
+            log.info("신규 입장 권한 확인 (Redis 등록 건너뜀) - RoomId: {}, UserId: {}", 
+                    roomId, userId);
+        }
         
         // 메모리상 객체 반환 (DB에 저장되지 않음)
         return visitorMember;
@@ -358,6 +382,35 @@ public class RoomService {
         room.updatePassword(null);
         
         log.info("방 비밀번호 제거 완료 - RoomId: {}, UserId: {}", roomId, userId);
+    }
+
+    /**
+     * 방 비밀번호 설정 (비밀번호가 없는 방에 비밀번호 추가)
+     * - 방장만 설정 가능
+     * - 기존 비밀번호가 없는 경우에만 사용
+     * @param roomId 방 ID
+     * @param newPassword 새 비밀번호
+     * @param userId 요청자 ID (방장)
+     */
+    @Transactional
+    public void setRoomPassword(Long roomId, String newPassword, Long userId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        
+        // 방장 권한 확인
+        if (!room.isOwner(userId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_HOST);
+        }
+        
+        // 이미 비밀번호가 있는 경우 에러
+        if (room.getPassword() != null && !room.getPassword().isEmpty()) {
+            throw new CustomException(ErrorCode.ROOM_PASSWORD_ALREADY_EXISTS);
+        }
+        
+        // 새 비밀번호 설정
+        room.updatePassword(newPassword);
+        
+        log.info("방 비밀번호 설정 완료 - RoomId: {}, UserId: {}", roomId, userId);
     }
 
     @Transactional
