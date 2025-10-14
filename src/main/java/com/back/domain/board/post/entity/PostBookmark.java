@@ -29,4 +29,11 @@ public class PostBookmark extends BaseEntity {
         post.addBookmark(this);
         user.addPostBookmark(this);
     }
+
+    // -------------------- 헬퍼 메서드 --------------------
+    /** 게시글 북마크 삭제 시 연관관계 정리 */
+    public void remove() {
+        this.post.removeBookmark(this);
+        this.user.removePostBookmark(this);
+    }
 }

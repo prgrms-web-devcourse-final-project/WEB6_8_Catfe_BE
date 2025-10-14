@@ -23,13 +23,12 @@ public class PostCategoryService {
 
     /**
      * 카테고리 생성 서비스
-     * 1. User 조회
-     * 2. 이미 존재하는 경우 예외
-     * 3. PostCategory 생성
-     * 4. PostCategory 저장 및 CategoryResponse 반환
+     *
+     * @param request 카테고리 생성 요청 본문
+     * @param userId  사용자 ID
+     * @return 생성된 카테고리 응답 DTO
      */
     public CategoryResponse createCategory(CategoryRequest request, Long userId) {
-
         // User 조회
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -41,16 +40,15 @@ public class PostCategoryService {
 
         // PostCategory 생성
         PostCategory category = new PostCategory(request.name(), request.type());
-
-        // PostCategory 저장 및 응답 반환
         PostCategory saved = postCategoryRepository.save(category);
+
         return CategoryResponse.from(saved);
     }
 
     /**
      * 카테고리 전체 조회 서비스
-     * 1. PostCategory 전체 조회
-     * 2. List<CategoryResponse> 반환
+     *
+     * @return 카테고리 응답 DTO 리스트
      */
     @Transactional(readOnly = true)
     public List<CategoryResponse> getAllCategories() {

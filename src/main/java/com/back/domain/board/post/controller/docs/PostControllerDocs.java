@@ -409,10 +409,18 @@ public interface PostControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "존재하지 않는 게시글 또는 카테고리",
+                    description = "존재하지 않는 사용자/게시글/카테고리",
                     content = @Content(
                             mediaType = "application/json",
                             examples = {
+                                    @ExampleObject(name = "존재하지 않는 사용자", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_001",
+                                              "message": "존재하지 않는 사용자입니다.",
+                                              "data": null
+                                            }
+                                            """),
                                     @ExampleObject(name = "존재하지 않는 게시글", value = """
                                             {
                                               "success": false,
@@ -539,17 +547,27 @@ public interface PostControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "존재하지 않는 게시글",
+                    description = "존재하지 않는 사용자 또는 게시글",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "success": false,
-                                      "code": "POST_001",
-                                      "message": "존재하지 않는 게시글입니다.",
-                                      "data": null
-                                    }
-                                    """)
+                            examples = {
+                                    @ExampleObject(name = "존재하지 않는 사용자", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_001",
+                                              "message": "존재하지 않는 사용자입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "존재하지 않는 게시글", value = """
+                                            {
+                                              "success": false,
+                                              "code": "POST_001",
+                                              "message": "존재하지 않는 게시글입니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }
                     )
             ),
             @ApiResponse(
