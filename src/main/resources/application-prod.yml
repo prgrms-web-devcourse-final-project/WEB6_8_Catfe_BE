@@ -73,7 +73,6 @@ spring:
             token-uri: https://github.com/login/oauth/access_token
             user-info-uri: https://api.github.com/user
             user-name-attribute: id
-
   servlet:
     multipart:
       max-file-size: 10MB # 업로드할 수 있는 개별 파일의 최대 크기

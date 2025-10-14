@@ -94,7 +94,7 @@ class RoomControllerTest {
         CreateRoomRequest request = new CreateRoomRequest(
                 "테스트 방",
                 "테스트 설명",
-                null,  // thumbnailUrl
+                null,  // thumbnailAttachmentId
                 false,
                 null,
                 10,
@@ -109,7 +109,7 @@ class RoomControllerTest {
                 anyInt(),
                 eq(1L),
                 anyBoolean(),  // useWebRTC
-                any()          // thumbnailUrl
+                any()          // thumbnailAttachmentId
         )).willReturn(testRoom);
         
         RoomResponse roomResponse = RoomResponse.from(testRoom, 1);
@@ -133,7 +133,7 @@ class RoomControllerTest {
                 anyInt(),
                 eq(1L),
                 anyBoolean(),  // useWebRTC
-                any()          // thumbnailUrl
+                any()          // thumbnailAttachmentId
         );
         verify(roomService, times(1)).toRoomResponse(any(Room.class));
     }
@@ -282,7 +282,7 @@ class RoomControllerTest {
                 "변경된 제목",
                 "변경된 설명",
                 15,
-                "https://example.com/new-thumbnail.jpg"  // thumbnailUrl
+                456L  // thumbnailAttachmentId
         );
 
         // when
@@ -299,7 +299,7 @@ class RoomControllerTest {
                 anyString(),
                 anyString(),
                 anyInt(),
-                anyString(),  // thumbnailUrl
+                anyLong(),  // thumbnailAttachmentId
                 eq(1L)
         );
     }
@@ -386,7 +386,7 @@ class RoomControllerTest {
         CreateRoomRequest request = new CreateRoomRequest(
                 "WebRTC 방",
                 "화상 채팅 가능",
-                "https://example.com/webrtc.jpg",  // thumbnailUrl
+                123L,  // thumbnailAttachmentId
                 false,
                 null,
                 10,
@@ -402,7 +402,7 @@ class RoomControllerTest {
                 testUser,
                 null,
                 true,  // useWebRTC
-                "https://example.com/webrtc.jpg"  // thumbnailUrl
+                "https://example.com/webrtc.jpg"  // thumbnailUrl (서비스에서 변환됨)
         );
 
         given(roomService.createRoom(
@@ -413,7 +413,7 @@ class RoomControllerTest {
                 anyInt(),
                 eq(1L),
                 eq(true),  // WebRTC true 검증
-                anyString() // thumbnailUrl
+                anyLong() // thumbnailAttachmentId
         )).willReturn(webRTCRoom);
         
         RoomResponse roomResponse = RoomResponse.from(webRTCRoom, 1);
@@ -437,7 +437,7 @@ class RoomControllerTest {
                 anyInt(),
                 eq(1L),
                 eq(true),    // WebRTC
-                anyString()  // thumbnailUrl
+                anyLong()  // thumbnailAttachmentId
         );
     }
 
@@ -450,7 +450,7 @@ class RoomControllerTest {
         CreateRoomRequest request = new CreateRoomRequest(
                 "채팅 전용 방",
                 "텍스트만 가능",
-                null,  // thumbnailUrl 없음
+                null,  // thumbnailAttachmentId 없음
                 false,
                 null,
                 50,
@@ -477,7 +477,7 @@ class RoomControllerTest {
                 anyInt(),
                 eq(1L),
                 eq(false),  // WebRTC false 검증
-                any()       // thumbnailUrl
+                any()       // thumbnailAttachmentId
         )).willReturn(chatOnlyRoom);
         
         RoomResponse roomResponse = RoomResponse.from(chatOnlyRoom, 1);
@@ -501,7 +501,7 @@ class RoomControllerTest {
                 anyInt(),
                 eq(1L),
                 eq(false),  // WebRTC
-                any()       // thumbnailUrl
+                any()       // thumbnailAttachmentId
         );
     }
 }

@@ -61,6 +61,9 @@ class RoomServiceTest {
     
     @Mock
     private AvatarService avatarService;
+    
+    @Mock
+    private RoomThumbnailService roomThumbnailService;
 
     @InjectMocks
     private RoomService roomService;
@@ -120,7 +123,7 @@ class RoomServiceTest {
                 10,
                 1L,
                 true,  // useWebRTC
-                null   // thumbnailUrl
+                null   // thumbnailAttachmentId
         );
 
         // then
@@ -129,6 +132,7 @@ class RoomServiceTest {
         assertThat(createdRoom.getDescription()).isEqualTo("테스트 설명");
         verify(roomRepository, times(1)).save(any(Room.class));
         verify(roomMemberRepository, times(1)).save(any(RoomMember.class));
+        verify(roomThumbnailService, never()).createThumbnailMapping(any(), any());
     }
 
     @Test
@@ -146,7 +150,7 @@ class RoomServiceTest {
                 10,
                 999L,
                 true,  // useWebRTC
-                null   // thumbnailUrl
+                null   // thumbnailAttachmentId
         ))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
@@ -298,7 +302,7 @@ class RoomServiceTest {
                 "변경된 제목",
                 "변경된 설명",
                 15,
-                "https://example.com/new-thumbnail.jpg",  // thumbnailUrl
+                null,  // thumbnailAttachmentId (null이면 변경 없음)
                 1L
         );
 
@@ -306,7 +310,7 @@ class RoomServiceTest {
         assertThat(testRoom.getTitle()).isEqualTo("변경된 제목");
         assertThat(testRoom.getDescription()).isEqualTo("변경된 설명");
         assertThat(testRoom.getMaxParticipants()).isEqualTo(15);
-        assertThat(testRoom.getThumbnailUrl()).isEqualTo("https://example.com/new-thumbnail.jpg");
+        verify(roomThumbnailService, never()).updateThumbnailMapping(any(), any());
     }
 
     @Test
@@ -341,6 +345,7 @@ class RoomServiceTest {
         // then
         assertThat(testRoom.getStatus()).isEqualTo(RoomStatus.TERMINATED);
         assertThat(testRoom.isActive()).isFalse();
+        verify(roomThumbnailService, times(1)).deleteThumbnailMapping(1L);
     }
 
     @Test
@@ -424,6 +429,8 @@ class RoomServiceTest {
         given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
         given(roomRepository.save(any(Room.class))).willAnswer(invocation -> invocation.getArgument(0));
         given(roomMemberRepository.save(any(RoomMember.class))).willReturn(testMember);
+        given(roomThumbnailService.createThumbnailMapping(any(), eq(123L)))
+                .willReturn("https://s3.amazonaws.com/bucket/thumbnail.jpg");
 
         // when
         Room createdRoom = roomService.createRoom(
@@ -434,7 +441,7 @@ class RoomServiceTest {
                 10,
                 1L,
                 true,  // WebRTC 사용
-                "https://example.com/webrtc-room.jpg"  // thumbnailUrl
+                123L   // thumbnailAttachmentId
         );
 
         // then
@@ -442,7 +449,8 @@ class RoomServiceTest {
         assertThat(createdRoom.isAllowCamera()).isTrue();
         assertThat(createdRoom.isAllowAudio()).isTrue();
         assertThat(createdRoom.isAllowScreenShare()).isTrue();
-        assertThat(createdRoom.getThumbnailUrl()).isEqualTo("https://example.com/webrtc-room.jpg");
+        assertThat(createdRoom.getThumbnailUrl()).isEqualTo("https://s3.amazonaws.com/bucket/thumbnail.jpg");
+        verify(roomThumbnailService, times(1)).createThumbnailMapping(any(), eq(123L));
     }
 
     @Test
@@ -462,7 +470,7 @@ class RoomServiceTest {
                 50,  // WebRTC 없으면 더 많은 인원 가능
                 1L,
                 false,  // WebRTC 미사용
-                null    // thumbnailUrl 없음
+                null    // thumbnailAttachmentId 없음
         );
 
         // then
@@ -474,5 +482,59 @@ class RoomServiceTest {
         assertThat(createdRoom.getThumbnailUrl()).isEqualTo("/images/default-room-thumbnail.png");
         // 원본 값(DB 저장값)은 null이어야 함
         assertThat(createdRoom.getRawThumbnailUrl()).isNull();
+        verify(roomThumbnailService, never()).createThumbnailMapping(any(), any());
+    }
+    
+    @Test
+    @DisplayName("방 생성 - 썸네일 포함")
+    void createRoom_WithThumbnail() {
+        // given
+        given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+        given(roomRepository.save(any(Room.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(roomMemberRepository.save(any(RoomMember.class))).willReturn(testMember);
+        given(roomThumbnailService.createThumbnailMapping(any(), eq(456L)))
+                .willReturn("https://s3.amazonaws.com/bucket/custom-thumbnail.jpg");
+
+        // when
+        Room createdRoom = roomService.createRoom(
+                "커스텀 썸네일 방",
+                "예쁜 썸네일",
+                false,
+                null,
+                10,
+                1L,
+                true,
+                456L  // thumbnailAttachmentId
+        );
+
+        // then
+        assertThat(createdRoom).isNotNull();
+        assertThat(createdRoom.getThumbnailUrl()).isEqualTo("https://s3.amazonaws.com/bucket/custom-thumbnail.jpg");
+        verify(roomThumbnailService, times(1)).createThumbnailMapping(any(), eq(456L));
+    }
+    
+    @Test
+    @DisplayName("방 설정 변경 - 썸네일 변경")
+    void updateRoomSettings_WithThumbnailChange() {
+        // given
+        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
+        given(roomParticipantService.getParticipantCount(1L)).willReturn(0L);
+        given(roomThumbnailService.updateThumbnailMapping(eq(1L), eq(789L)))
+                .willReturn("https://s3.amazonaws.com/bucket/new-thumbnail.jpg");
+
+        // when
+        roomService.updateRoomSettings(
+                1L,
+                "변경된 제목",
+                "변경된 설명",
+                15,
+                789L,  // 새 thumbnailAttachmentId
+                1L
+        );
+
+        // then
+        assertThat(testRoom.getTitle()).isEqualTo("변경된 제목");
+        assertThat(testRoom.getThumbnailUrl()).isEqualTo("https://s3.amazonaws.com/bucket/new-thumbnail.jpg");
+        verify(roomThumbnailService, times(1)).updateThumbnailMapping(eq(1L), eq(789L));
     }
 }

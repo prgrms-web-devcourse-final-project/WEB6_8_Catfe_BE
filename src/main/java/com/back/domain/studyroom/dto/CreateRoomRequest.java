@@ -16,9 +16,12 @@ public class CreateRoomRequest {
     @Size(max = 500, message = "방 설명은 500자를 초과할 수 없습니다")
     private String description;
     
-    // 방 썸네일 이미지 URL (선택)
-    @Size(max = 500, message = "썸네일 URL은 500자를 초과할 수 없습니다")
-    private String thumbnailUrl;
+    // 방 썸네일 FileAttachment ID (선택)
+    // 사용 방법:
+    // 1. POST /api/files/upload로 파일 업로드
+    // 2. 받은 fileId를 여기에 설정
+    // 3. 방 생성 시 AttachmentMapping 자동 생성
+    private Long thumbnailAttachmentId;
     
     private Boolean isPrivate = false;
     
