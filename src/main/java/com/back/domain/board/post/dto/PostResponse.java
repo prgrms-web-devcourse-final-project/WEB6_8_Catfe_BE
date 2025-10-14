@@ -2,6 +2,8 @@ package com.back.domain.board.post.dto;
 
 import com.back.domain.board.common.dto.AuthorResponse;
 import com.back.domain.board.post.entity.Post;
+import com.back.domain.file.entity.FileAttachment;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,6 +16,7 @@ import java.util.List;
  * @param content    게시글 내용
  * @param thumbnailUrl  썸네일 URL
  * @param categories   게시글 카테고리 목록
+ * @param images         첨부된 이미지 목록
  * @param createdAt  게시글 생성 일시
  * @param updatedAt  게시글 수정 일시
  */
@@ -24,10 +27,11 @@ public record PostResponse(
         String content,
         String thumbnailUrl,
         List<CategoryResponse> categories,
+        List<ImageResponse> images,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
-    public static PostResponse from(Post post) {
+    public static PostResponse from(Post post, List<FileAttachment> attachments) {
         return new PostResponse(
                 post.getId(),
                 AuthorResponse.from(post.getUser()),
@@ -36,6 +40,9 @@ public record PostResponse(
                 post.getThumbnailUrl(),
                 post.getCategories().stream()
                         .map(CategoryResponse::from)
+                        .toList(),
+                attachments.stream()
+                        .map(ImageResponse::from)
                         .toList(),
                 post.getCreatedAt(),
                 post.getUpdatedAt()
