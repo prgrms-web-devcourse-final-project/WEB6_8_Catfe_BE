@@ -29,8 +29,9 @@ public class FileAttachment extends BaseEntity {
     @JoinColumn(name = "uploaded_by")
     private User user;
 
-    @OneToMany(mappedBy = "fileAttachment", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<AttachmentMapping> attachmentMappings = new ArrayList<>();
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attachmentMapping_id")
+    private AttachmentMapping attachmentMapping;
 
     public FileAttachment(
             String storedName,

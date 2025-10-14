@@ -6,6 +6,8 @@ import com.back.domain.board.post.entity.PostCategory;
 import com.back.domain.board.post.enums.CategoryType;
 import com.back.domain.board.post.repository.PostCategoryRepository;
 import com.back.domain.board.post.repository.PostRepository;
+import com.back.domain.file.entity.FileAttachment;
+import com.back.domain.file.repository.FileAttachmentRepository;
 import com.back.domain.user.common.entity.User;
 import com.back.domain.user.common.entity.UserProfile;
 import com.back.domain.user.common.enums.UserStatus;
@@ -18,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -48,6 +51,9 @@ class PostControllerTest {
 
     @Autowired
     private PostCategoryRepository postCategoryRepository;
+
+    @Autowired
+    private FileAttachmentRepository fileAttachmentRepository;
 
     @Autowired
     private TestJwtTokenProvider testJwtTokenProvider;
@@ -82,7 +88,19 @@ class PostControllerTest {
         PostCategory c2 = new PostCategory("자유게시판", CategoryType.SUBJECT);
         postCategoryRepository.save(c2);
 
-        PostRequest request = new PostRequest("첫 번째 게시글", "안녕하세요, 첫 글입니다!", null, List.of(c1.getId(), c2.getId()));
+        // 이미지 등록
+        MockMultipartFile file = new MockMultipartFile("file", "thumb.png", "image/png", "dummy".getBytes());
+        FileAttachment attachment = new FileAttachment("stored_thumb.png", file, user, "https://cdn.example.com/thumb.png");
+        fileAttachmentRepository.save(attachment);
+
+        // 요청 구성
+        PostRequest request = new PostRequest(
+                "첫 번째 게시글",
+                "안녕하세요, 첫 글입니다!",
+                null,
+                List.of(c1.getId(), c2.getId()),
+                List.of(attachment.getId())
+        );
 
         // when
         ResultActions resultActions = mvc.perform(
@@ -99,7 +117,9 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.code").value("SUCCESS_200"))
                 .andExpect(jsonPath("$.data.title").value("첫 번째 게시글"))
                 .andExpect(jsonPath("$.data.author.nickname").value("홍길동"))
-                .andExpect(jsonPath("$.data.categories.length()").value(2));
+                .andExpect(jsonPath("$.data.categories.length()").value(2))
+                .andExpect(jsonPath("$.data.images.length()").value(1))
+                .andExpect(jsonPath("$.data.images[0].url").value("https://cdn.example.com/thumb.png"));
     }
 
     @Test
@@ -108,7 +128,7 @@ class PostControllerTest {
         // given: 토큰만 발급(실제 DB엔 없음)
         String fakeToken = testJwtTokenProvider.createAccessToken(999L, "ghost", "USER");
 
-        PostRequest request = new PostRequest("제목", "내용", null, null);
+        PostRequest request = new PostRequest("제목", "내용", null, List.of(), List.of());
 
         // when & then
         mvc.perform(post("/api/posts")
@@ -133,7 +153,7 @@ class PostControllerTest {
         String accessToken = generateAccessToken(user);
 
         // 존재하지 않는 카테고리 ID
-        PostRequest request = new PostRequest("제목", "내용", null, List.of(999L));
+        PostRequest request = new PostRequest("제목", "내용", null, List.of(999L), List.of());
 
         // when & then
         mvc.perform(post("/api/posts")
@@ -144,6 +164,35 @@ class PostControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("POST_003"))
                 .andExpect(jsonPath("$.message").value("존재하지 않는 카테고리입니다."));
+    }
+
+    @Test
+    @DisplayName("게시글 생성 실패 - 존재하지 않는 이미지 → 404 Not Found")
+    void createPost_fail_imageNotFound() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        PostCategory category = new PostCategory("공지사항", CategoryType.SUBJECT);
+        postCategoryRepository.save(category);
+
+        // 존재하지 않는 이미지 ID
+        PostRequest request = new PostRequest("이미지 테스트", "없는 이미지입니다", null,
+                List.of(category.getId()), List.of(999L));
+
+        // when & then
+        mvc.perform(post("/api/posts")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FILE_004"))
+                .andExpect(jsonPath("$.message").value("파일 정보를 찾을 수 없습니다."));
     }
 
     @Test
@@ -179,7 +228,7 @@ class PostControllerTest {
     @DisplayName("게시글 생성 실패 - 토큰 없음 → 401 Unauthorized")
     void createPost_noToken() throws Exception {
         // given
-        PostRequest request = new PostRequest("제목", "내용", null, null);
+        PostRequest request = new PostRequest("제목", "내용", null, List.of(), List.of());
 
         // when & then
         mvc.perform(post("/api/posts")
@@ -292,7 +341,17 @@ class PostControllerTest {
         PostCategory c2 = new PostCategory("자유게시판", CategoryType.SUBJECT);
         postCategoryRepository.save(c2);
 
-        PostRequest request = new PostRequest("수정된 게시글", "안녕하세요, 수정했습니다!", null, List.of(c1.getId(), c2.getId()));
+        MockMultipartFile file = new MockMultipartFile("file", "thumb.png", "image/png", "dummy".getBytes());
+        FileAttachment attachment = new FileAttachment("stored_thumb.png", file, user, "https://cdn.example.com/thumb.png");
+        fileAttachmentRepository.save(attachment);
+
+        PostRequest request = new PostRequest(
+                "수정된 게시글",
+                "안녕하세요, 수정했습니다!",
+                null,
+                List.of(c1.getId(), c2.getId()),
+                List.of(attachment.getId())
+        );
 
         // when & then
         mvc.perform(put("/api/posts/{postId}", post.getId())
@@ -304,7 +363,9 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.code").value("SUCCESS_200"))
                 .andExpect(jsonPath("$.data.title").value("수정된 게시글"))
-                .andExpect(jsonPath("$.data.categories.length()").value(2));
+                .andExpect(jsonPath("$.data.categories.length()").value(2))
+                .andExpect(jsonPath("$.data.images.length()").value(1))
+                .andExpect(jsonPath("$.data.images[0].url").value("https://cdn.example.com/thumb.png"));
     }
 
     @Test
@@ -318,7 +379,7 @@ class PostControllerTest {
 
         String accessToken = generateAccessToken(user);
 
-        PostRequest request = new PostRequest("수정된 제목", "내용", null, List.of());
+        PostRequest request = new PostRequest("수정된 제목", "내용", null, List.of(), List.of());
 
         // when & then
         mvc.perform(put("/api/posts/{postId}", 999L)
@@ -354,7 +415,7 @@ class PostControllerTest {
 
         String accessToken = generateAccessToken(another);
 
-        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", null, List.of(c1.getId()));
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", null, List.of(c1.getId()), List.of());
 
         // when & then
         mvc.perform(put("/api/posts/{postId}", post.getId())
@@ -386,7 +447,7 @@ class PostControllerTest {
         String accessToken = generateAccessToken(user);
 
         // 존재하지 않는 카테고리 ID
-        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", null, List.of(999L));
+        PostRequest request = new PostRequest("수정된 제목", "수정된 내용", null, List.of(999L), List.of());
 
         // when & then
         mvc.perform(put("/api/posts/{postId}", post.getId())
@@ -397,6 +458,49 @@ class PostControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("POST_003"))
                 .andExpect(jsonPath("$.message").value("존재하지 않는 카테고리입니다."));
+    }
+
+    @Test
+    @DisplayName("게시글 수정 실패 - 존재하지 않는 이미지 → 404 Not Found")
+    void updatePost_fail_imageNotFound() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, null, null, 0));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+
+        // 카테고리 등록
+        PostCategory c1 = new PostCategory("공지사항", CategoryType.SUBJECT);
+        postCategoryRepository.save(c1);
+
+        // 게시글 생성
+        Post post = new Post(user, "수정 테스트 제목", "수정 테스트 내용", null);
+        postRepository.save(post);
+
+        // 존재하지 않는 이미지 ID
+        Long invalidImageId = 999L;
+
+        // 수정 요청
+        PostRequest request = new PostRequest(
+                "수정된 제목",
+                "수정된 내용",
+                null,
+                List.of(c1.getId()),
+                List.of(invalidImageId)
+        );
+
+        // when & then
+        mvc.perform(put("/api/posts/{postId}", post.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("FILE_004"))
+                .andExpect(jsonPath("$.message").value("파일 정보를 찾을 수 없습니다."));
     }
 
     @Test
@@ -431,7 +535,7 @@ class PostControllerTest {
     @DisplayName("게시글 수정 실패 - 인증 없음 → 401 Unauthorized")
     void updatePost_fail_unauthorized() throws Exception {
         // given
-        PostRequest request = new PostRequest("제목", "내용", null, List.of());
+        PostRequest request = new PostRequest("제목", "내용", null, List.of(), List.of());
 
         // when & then
         mvc.perform(put("/api/posts/{postId}", 1L)
