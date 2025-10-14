@@ -7,10 +7,10 @@ import com.back.domain.study.plan.entity.StudyPlan;
 import com.back.domain.study.plan.repository.StudyPlanRepository;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.repository.RoomRepository;
-import com.back.domain.user.entity.Role;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.entity.UserStatus;
-import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.common.enums.Role;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.enums.UserStatus;
+import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.security.jwt.JwtTokenProvider;
 import com.back.global.security.user.CustomUserDetails;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,11 +27,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;

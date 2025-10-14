@@ -1,10 +1,10 @@
 package com.back.domain.studyroom.repository;
 
 import com.back.domain.studyroom.entity.*;
-import com.back.domain.user.entity.Role;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.entity.UserProfile;
-import com.back.domain.user.entity.UserStatus;
+import com.back.domain.user.common.enums.Role;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.entity.UserProfile;
+import com.back.domain.user.common.enums.UserStatus;
 import com.back.global.config.QueryDslTestConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

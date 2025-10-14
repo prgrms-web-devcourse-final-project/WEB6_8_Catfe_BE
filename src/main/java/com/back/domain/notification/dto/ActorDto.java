@@ -1,6 +1,6 @@
 package com.back.domain.notification.dto;
 
-import com.back.domain.user.entity.User;
+import com.back.domain.user.common.entity.User;
 
 public record ActorDto(
         Long userId,

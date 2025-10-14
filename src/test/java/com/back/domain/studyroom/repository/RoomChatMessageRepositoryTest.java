@@ -2,7 +2,7 @@ package com.back.domain.studyroom.repository;
 
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomChatMessage;
-import com.back.domain.user.entity.User;
+import com.back.domain.user.common.entity.User;
 import com.back.global.config.DataSourceProxyTestConfig;
 import com.back.global.config.QueryDslTestConfig;
 import com.back.global.util.QueryCounter;

@@ -3,7 +3,7 @@ package com.back.global.websocket.webrtc.service;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomMember;
 import com.back.domain.studyroom.repository.RoomMemberRepository;
-import com.back.domain.user.entity.User;
+import com.back.domain.user.common.entity.User;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;

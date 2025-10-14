@@ -1,6 +1,6 @@
 package com.back.global.security.user;
 
-import com.back.domain.user.entity.Role;
+import com.back.domain.user.common.enums.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

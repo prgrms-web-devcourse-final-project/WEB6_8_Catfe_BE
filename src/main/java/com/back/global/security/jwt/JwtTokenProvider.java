@@ -1,6 +1,6 @@
 package com.back.global.security.jwt;
 
-import com.back.domain.user.entity.Role;
+import com.back.domain.user.common.enums.Role;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.back.global.security.user.CustomUserDetails;

@@ -3,7 +3,7 @@ package com.back.domain.studyroom.repository;
 import com.back.domain.studyroom.entity.QRoomMember;
 import com.back.domain.studyroom.entity.RoomMember;
 import com.back.domain.studyroom.entity.RoomRole;
-import com.back.domain.user.entity.QUser;
+import com.back.domain.user.common.entity.QUser;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
