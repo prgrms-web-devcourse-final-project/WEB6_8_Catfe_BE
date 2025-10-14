@@ -3,15 +3,12 @@ package com.back.global.websocket.webrtc.controller;
 import com.back.global.exception.ErrorCode;
 import com.back.global.exception.CustomException;
 import com.back.global.security.user.CustomUserDetails;
-import com.back.global.websocket.dto.WebSocketSessionInfo;
-import com.back.global.websocket.service.WebSocketSessionManager;
 import com.back.global.websocket.util.WebSocketAuthHelper;
 import com.back.global.websocket.webrtc.dto.WebRTCErrorResponse;
 import com.back.global.websocket.webrtc.dto.media.WebRTCMediaStateResponse;
 import com.back.global.websocket.webrtc.dto.media.WebRTCMediaToggleRequest;
 import com.back.global.websocket.webrtc.dto.signal.*;
 import com.back.global.websocket.webrtc.service.WebRTCSignalValidator;
-import com.back.global.websocket.util.WebSocketErrorHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
@@ -29,9 +26,7 @@ import java.security.Principal;
 public class WebRTCSignalingController {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final WebSocketErrorHelper errorHelper;
     private final WebRTCSignalValidator validator;
-    private final WebSocketSessionManager sessionManager;
 
     // WebRTC Offer 메시지 처리
     @MessageMapping("/webrtc/offer")
@@ -44,21 +39,28 @@ public class WebRTCSignalingController {
         Long fromUserId = userDetails.getUserId();
         Long targetUserId = request.targetUserId();
 
-        log.info("WebRTC Offer 처리 시작 - Room: {}, From: {}, To: {}", request.roomId(), fromUserId, targetUserId);
+        log.info("[WebRTC] Offer 처리 - Room: {}, From: {}, To: {}", request.roomId(), fromUserId, targetUserId);
 
+        // 같은 방에 있는지, 자기 자신에게 보내는 건 아닌지 검증
         validator.validateSignal(request.roomId(), fromUserId, targetUserId);
 
-        WebSocketSessionInfo targetSessionInfo = sessionManager.getSessionInfo(targetUserId);
-        if (targetSessionInfo == null) {
-            log.warn("WebRTC Offer 전송 실패 - 대상이 오프라인 상태입니다. User ID: {}", targetUserId);
-            throw new CustomException(ErrorCode.WS_TARGET_OFFLINE);
-        }
-
+        // Offer 응답 생성
         WebRTCSignalResponse response = WebRTCSignalResponse.offerOrAnswer(
-                WebRTCSignalType.OFFER, fromUserId, targetUserId, request.roomId(), request.sdp(), request.mediaType()
+                WebRTCSignalType.OFFER,
+                fromUserId,
+                targetUserId,
+                request.roomId(),
+                request.sdp(),
+                request.mediaType()
         );
 
-        messagingTemplate.convertAndSendToUser(targetSessionInfo.username(), "/queue/webrtc", response);
+        // 방 토픽으로 브로드캐스트
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + request.roomId() + "/webrtc",
+                response
+        );
+
+        log.debug("[WebRTC] Offer 전송 완료 - Room: {}, From: {}, To: {}", request.roomId(), fromUserId, targetUserId);
     }
 
     // WebRTC Answer 메시지 처리
@@ -72,21 +74,28 @@ public class WebRTCSignalingController {
         Long fromUserId = userDetails.getUserId();
         Long targetUserId = request.targetUserId();
 
-        log.info("WebRTC Answer 처리 시작 - Room: {}, From: {}, To: {}", request.roomId(), fromUserId, targetUserId);
+        log.info("[WebRTC] Answer 처리 - Room: {}, From: {}, To: {}", request.roomId(), fromUserId, targetUserId);
 
+        // 같은 방에 있는지, 자기 자신에게 보내는 건 아닌지 검증
         validator.validateSignal(request.roomId(), fromUserId, targetUserId);
 
-        WebSocketSessionInfo targetSessionInfo = sessionManager.getSessionInfo(targetUserId);
-        if (targetSessionInfo == null) {
-            log.warn("WebRTC Answer 전송 실패 - 대상이 오프라인 상태입니다. User ID: {}", targetUserId);
-            throw new CustomException(ErrorCode.WS_TARGET_OFFLINE);
-        }
-
+        // Answer 응답 생성 (targetUserId 포함)
         WebRTCSignalResponse response = WebRTCSignalResponse.offerOrAnswer(
-                WebRTCSignalType.ANSWER, fromUserId, targetUserId, request.roomId(), request.sdp(), request.mediaType()
+                WebRTCSignalType.ANSWER,
+                fromUserId,
+                targetUserId,
+                request.roomId(),
+                request.sdp(),
+                request.mediaType()
         );
 
-        messagingTemplate.convertAndSendToUser(targetSessionInfo.username(), "/queue/webrtc", response);
+        // 방 토픽으로 브로드캐스트
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + request.roomId() + "/webrtc",
+                response
+        );
+
+        log.debug("[WebRTC] Answer 전송 완료 - Room: {}, From: {}, To: {}", request.roomId(), fromUserId, targetUserId);
     }
 
     // ICE Candidate 메시지 처리
@@ -100,23 +109,32 @@ public class WebRTCSignalingController {
         Long fromUserId = userDetails.getUserId();
         Long targetUserId = request.targetUserId();
 
-        log.debug("WebRTC ICE Candidate 처리 시작 - Room: {}, From: {}, To: {}", request.roomId(), fromUserId, targetUserId);
+        log.debug("[WebRTC] ICE Candidate 처리 - Room: {}, From: {}, To: {}", request.roomId(), fromUserId, targetUserId);
 
+        // 같은 방에 있는지, 자기 자신에게 보내는 건 아닌지 검증
         validator.validateSignal(request.roomId(), fromUserId, targetUserId);
 
-        WebSocketSessionInfo targetSessionInfo = sessionManager.getSessionInfo(targetUserId);
-        if (targetSessionInfo == null) {
-            return; // ICE Candidate는 실패해도 에러를 보내지 않고 조용히 무시
-        }
-
+        // ICE Candidate 응답 생성
         WebRTCSignalResponse response = WebRTCSignalResponse.iceCandidate(
-                fromUserId, targetUserId, request.roomId(), request.candidate(), request.sdpMid(), request.sdpMLineIndex()
+                fromUserId,
+                targetUserId,
+                request.roomId(),
+                request.candidate(),
+                request.sdpMid(),
+                request.sdpMLineIndex()
         );
 
-        messagingTemplate.convertAndSendToUser(targetSessionInfo.username(), "/queue/webrtc", response);
+        // 방 토픽으로 브로드캐스트
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + request.roomId() + "/webrtc",
+                response
+        );
     }
 
-    // 미디어 상태 토글 처리 (방 전체에 상태 공유)
+    /**
+     * 미디어 상태 토글 처리
+     * 방 전체에 미디어 상태 변경 브로드캐스트
+     */
     @MessageMapping("/webrtc/media/toggle")
     public void handleMediaToggle(@Validated @Payload WebRTCMediaToggleRequest request, Principal principal) {
         CustomUserDetails userDetails = WebSocketAuthHelper.extractUserDetails(principal);
@@ -125,53 +143,71 @@ public class WebRTCSignalingController {
         }
 
         Long userId = userDetails.getUserId();
-        log.info("미디어 상태 변경 처리 시작 - Room: {}, User: {}", request.roomId(), userId);
 
+        log.info("[WebRTC] 미디어 상태 변경 - Room: {}, User: {}, Type: {}, Enabled: {}",
+                request.roomId(), userId, request.mediaType(), request.enabled());
+
+        // 방 멤버인지 검증
         validator.validateMediaStateChange(request.roomId(), userId);
 
+        // 미디어 상태 응답 생성
         WebRTCMediaStateResponse response = WebRTCMediaStateResponse.of(
-                userId, userDetails.getUsername(), request.mediaType(), request.enabled()
+                userId,
+                userDetails.getUsername(),
+                request.mediaType(),
+                request.enabled()
         );
 
-        messagingTemplate.convertAndSend("/topic/room/" + request.roomId() + "/media-status", response);
+        // 방 전체에 미디어 상태 브로드캐스트
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + request.roomId() + "/media-status",
+                response
+        );
     }
 
     // WebRTC 시그널링 처리 중 발생하는 CustomException 처리
     @MessageExceptionHandler(CustomException.class)
     public void handleCustomException(CustomException e, Principal principal) {
         if (principal == null) {
-            log.warn("인증 정보 없는 사용자의 WebRTC 오류: {}", e.getMessage());
+            log.warn("[WebRTC] 인증 정보 없는 사용자의 오류: {}", e.getMessage());
             return;
         }
 
-        log.warn("WebRTC 시그널링 오류 발생 (to {}): {}", principal.getName(), e.getMessage());
+        CustomUserDetails userDetails = WebSocketAuthHelper.extractUserDetails(principal);
+        if (userDetails == null) {
+            log.warn("[WebRTC] Principal에서 사용자 정보 추출 실패");
+            return;
+        }
 
+        log.warn("[WebRTC] 시그널링 오류 - User: {} (ID: {}), Error: {}",
+                principal.getName(), userDetails.getUserId(), e.getMessage());
+
+        // 에러는 개인 큐로 전송 (방 전체에 보낼 필요 없음)
         WebRTCErrorResponse errorResponse = WebRTCErrorResponse.from(e);
 
         messagingTemplate.convertAndSendToUser(
-                principal.getName(), // 에러를 발생시킨 사람의 username
-                "/queue/webrtc",
+                principal.getName(),
+                "/queue/errors",  // 에러 전용 큐
                 errorResponse
         );
     }
 
     // 예상치 못한 모든 Exception 처리
     @MessageExceptionHandler(Exception.class)
-    public void handleGeneralException(Exception e, Principal principal) { // headerAccessor -> Principal
+    public void handleGeneralException(Exception e, Principal principal) {
         if (principal == null) {
-            log.error("WebRTC 처리 중 인증 정보 없는 사용자의 예외 발생", e);
+            log.error("[WebRTC] 인증 정보 없는 사용자의 예외 발생", e);
             return;
         }
 
-        log.error("WebRTC 시그널링 처리 중 예상치 못한 오류 발생 (to {})", principal.getName(), e);
+        log.error("[WebRTC] 예상치 못한 오류 발생 - User: {}", principal.getName(), e);
 
-        // CustomException으로 감싸서 일관된 형식의 에러 DTO를 생성
         CustomException customException = new CustomException(ErrorCode.WS_INTERNAL_ERROR);
         WebRTCErrorResponse errorResponse = WebRTCErrorResponse.from(customException);
 
         messagingTemplate.convertAndSendToUser(
                 principal.getName(),
-                "/queue/webrtc",
+                "/queue/errors",
                 errorResponse
         );
     }

@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
-import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -17,8 +16,6 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
-import org.springframework.scheduling.TaskScheduler;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -87,30 +84,45 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
      */
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        // JWT 인증 인터셉터 등록
         registration.interceptors(new ChannelInterceptor() {
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
                 if (accessor != null) {
-                    log.debug("WebSocket 메시지 처리 - Command: {}, Destination: {}, SessionId: {}",
-                            accessor.getCommand(), accessor.getDestination(), accessor.getSessionId());
 
-                    // CONNECT 시점에서 JWT 토큰 인증
-                    if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-                        authenticateUser(accessor);
+                    log.info("🔥 [INTERCEPT] Command: {}, Dest: {}, SessionId: {}",
+                            accessor.getCommand(),
+                            accessor.getDestination(),
+                            accessor.getSessionId());
+
+                    try {
+                        // CONNECT 시점에서 JWT 토큰 인증
+                        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+                            authenticateUser(accessor);
+                        }
+
+                        // SEND 시점에서 인증 확인 및 활동 시간 업데이트
+                        else if (StompCommand.SEND.equals(accessor.getCommand())) {
+                            log.info("🔥 [SEND] Dest: {}, User: {}",
+                                    accessor.getDestination(),
+                                    accessor.getUser() != null ? accessor.getUser().getName() : "null");
+
+                            validateAuthenticationAndUpdateActivity(accessor);
+                        }
+                    } catch (Exception e) {
+
+                        log.error("🔥 [INTERCEPT ERROR] Command: {}, Dest: {}, Error: {}",
+                                accessor.getCommand(),
+                                accessor.getDestination(),
+                                e.getMessage(), e);
+
+                        // 예외를 다시 던져서 메시지 차단
+                        throw e;
                     }
-
-                    // SEND 시점에서 인증 확인 및 활동 시간 업데이트
-                    else if (StompCommand.SEND.equals(accessor.getCommand())) {
-                        validateAuthenticationAndUpdateActivity(accessor);
-                    }
-
-                    // SUBSCRIBE/UNSUBSCRIBE는 단순히 채팅 구독일 뿐
-                    // 실제 방 입장/퇴장은 RoomController에서 비즈니스 로직으로 처리
                 }
 
+                log.info("🔥 [INTERCEPT] Message passing through");
                 return message;
             }
         });
