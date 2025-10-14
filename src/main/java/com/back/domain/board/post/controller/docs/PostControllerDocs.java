@@ -55,6 +55,10 @@ public interface PostControllerDocs {
                                           { "id": 1, "name": "공지사항" },
                                           { "id": 2, "name": "자유게시판" }
                                         ],
+                                        "images": [
+                                          { "id": 11, "url": "https://example.com/image1.png" },
+                                          { "id": 12, "url": "https://example.com/image2.png" }
+                                        ],
                                         "createdAt": "2025-09-22T10:30:00",
                                         "updatedAt": "2025-09-22T10:30:00"
                                       }
@@ -112,7 +116,7 @@ public interface PostControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "존재하지 않는 사용자 또는 카테고리",
+                    description = "존재하지 않는 리소스 (사용자, 카테고리, 파일)",
                     content = @Content(
                             mediaType = "application/json",
                             examples = {
@@ -129,6 +133,14 @@ public interface PostControllerDocs {
                                               "success": false,
                                               "code": "POST_003",
                                               "message": "존재하지 않는 카테고리입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "존재하지 않는 파일(이미지)", value = """
+                                            {
+                                              "success": false,
+                                              "code": "FILE_004",
+                                              "message": "파일 정보를 찾을 수 없습니다.",
                                               "data": null
                                             }
                                             """)
@@ -252,13 +264,21 @@ public interface PostControllerDocs {
                                       "message": "게시글이 조회되었습니다.",
                                       "data": {
                                         "postId": 101,
-                                        "author": { "id": 5, "nickname": "홍길동", "profileImageUrl": null },
+                                        "author": {
+                                          "id": 5,
+                                          "nickname": "홍길동",
+                                          "profileImageUrl": null
+                                        },
                                         "title": "첫 번째 게시글",
                                         "content": "안녕하세요, 첫 글입니다!",
                                         "thumbnailUrl": null,
                                         "categories": [
                                           { "id": 1, "name": "공지사항" },
                                           { "id": 2, "name": "자유게시판" }
+                                        ],
+                                        "images": [
+                                          { "id": 11, "url": "https://example.com/image1.png" },
+                                          { "id": 12, "url": "https://example.com/image2.png" }
                                         ],
                                         "likeCount": 10,
                                         "bookmarkCount": 2,
@@ -337,8 +357,12 @@ public interface PostControllerDocs {
                                           { "id": 1, "name": "공지사항" },
                                           { "id": 2, "name": "자유게시판" }
                                         ],
+                                        "images": [
+                                          { "id": 11, "url": "https://example.com/image1.png" },
+                                          { "id": 12, "url": "https://example.com/image2.png" }
+                                        ],
                                         "createdAt": "2025-09-22T10:30:00",
-                                        "updatedAt": "2025-09-22T10:30:00"
+                                        "updatedAt": "2025-09-22T10:45:00"
                                       }
                                     }
                                     """)
@@ -409,7 +433,7 @@ public interface PostControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "존재하지 않는 사용자/게시글/카테고리",
+                    description = "존재하지 않는 리소스 (사용자, 게시글, 카테고리, 파일)",
                     content = @Content(
                             mediaType = "application/json",
                             examples = {
@@ -434,6 +458,14 @@ public interface PostControllerDocs {
                                               "success": false,
                                               "code": "POST_003",
                                               "message": "존재하지 않는 카테고리입니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "존재하지 않는 파일(이미지)", value = """
+                                            {
+                                              "success": false,
+                                              "code": "FILE_004",
+                                              "message": "파일 정보를 찾을 수 없습니다.",
                                               "data": null
                                             }
                                             """)
