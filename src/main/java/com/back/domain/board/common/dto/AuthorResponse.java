@@ -1,6 +1,6 @@
 package com.back.domain.board.common.dto;
 
-import com.back.domain.user.entity.User;
+import com.back.domain.user.common.entity.User;
 import com.querydsl.core.annotations.QueryProjection;
 
 /**

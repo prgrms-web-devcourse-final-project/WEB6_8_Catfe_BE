@@ -1,8 +1,8 @@
 package com.back.global.security.oauth;
 
-import com.back.domain.user.entity.User;
-import com.back.domain.user.entity.UserProfile;
-import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.entity.UserProfile;
+import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.back.global.security.user.CustomUserDetails;

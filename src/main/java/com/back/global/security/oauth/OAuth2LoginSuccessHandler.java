@@ -1,16 +1,14 @@
 package com.back.global.security.oauth;
 
-import com.back.domain.user.dto.LoginResponse;
-import com.back.domain.user.dto.UserResponse;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.entity.UserToken;
-import com.back.domain.user.repository.UserRepository;
-import com.back.domain.user.repository.UserTokenRepository;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.entity.UserToken;
+import com.back.domain.user.common.repository.UserRepository;
+import com.back.domain.user.common.repository.UserTokenRepository;
 import com.back.global.common.dto.RsData;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.back.global.security.jwt.JwtTokenProvider;
-import com.back.global.util.CookieUtil;
+import com.back.domain.user.common.util.CookieUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,7 +17,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
