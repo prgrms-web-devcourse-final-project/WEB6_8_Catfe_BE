@@ -65,7 +65,7 @@ public class RoomController {
                 request.getMaxParticipants() != null ? request.getMaxParticipants() : 10,
                 currentUserId,
                 request.getUseWebRTC() != null ? request.getUseWebRTC() : true,  // 디폴트: true
-                request.getThumbnailUrl()  // 썸네일 URL
+                request.getThumbnailAttachmentId()  // 썸네일 Attachment ID
         );
         
         RoomResponse response = roomService.toRoomResponse(room);
@@ -336,7 +336,7 @@ public class RoomController {
     @PutMapping("/{roomId}")
     @Operation(
         summary = "방 설정 수정", 
-        description = "방의 제목, 설명, 정원, 썸네일을 수정합니다. 방장만 수정 가능합니다. WebRTC 설정은 현재 수정 불가합니다."
+        description = "방의 제목, 설명, 정원, 썸네일을 수정합니다.thumbnailAttachmentId가 null이면 썸네일 변경 없이 기존 유지됩니다. 방장만 수정 가능합니다. WebRTC 설정은 현재 수정 불가합니다."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "수정 성공"),
@@ -356,7 +356,7 @@ public class RoomController {
                 request.getTitle(),
                 request.getDescription(),
                 request.getMaxParticipants(),
-                request.getThumbnailUrl(),
+                request.getThumbnailAttachmentId(),  // 썸네일 Attachment ID
                 currentUserId
         );
 
