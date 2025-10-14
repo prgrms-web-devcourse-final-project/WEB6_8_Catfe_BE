@@ -159,4 +159,9 @@ public class Post extends BaseEntity {
                 .map(PostCategoryMapping::getCategory)
                 .toList();
     }
+
+    /** 게시글 삭제 시 연관관계 정리 */
+    public void remove() {
+        this.user.removePost(this);
+    }
 }

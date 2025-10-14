@@ -35,29 +35,23 @@ public class PostService {
 
     /**
      * 게시글 생성 서비스
-     * 1. User 조회
-     * 2. Post 생성
-     * 3. Category 매핑
-     * 4. Post 저장 및 PostResponse 반환
+     *
+     * @param request 게시글 작성 요청 본문
+     * @param userId  사용자 ID
+     * @return 생성된 게시글 응답 DTO
      */
     public PostResponse createPost(PostRequest request, Long userId) {
-
         // User 조회
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // Post 생성
         Post post = new Post(user, request.title(), request.content(), request.thumbnailUrl());
-
-        // Post 저장
         Post saved = postRepository.save(post);
 
         // Category 매핑
         if (request.categoryIds() != null) {
-            List<PostCategory> categories = postCategoryRepository.findAllById(request.categoryIds());
-            if (categories.size() != request.categoryIds().size()) {
-                throw new CustomException(ErrorCode.CATEGORY_NOT_FOUND);
-            }
+            List<PostCategory> categories = validateAndFindCategories(request.categoryIds());
             saved.updateCategories(categories);
         }
 
@@ -66,8 +60,12 @@ public class PostService {
 
     /**
      * 게시글 다건 조회 서비스
-     * 1. Post 검색 (키워드, 검색타입, 카테고리, 페이징)
-     * 2. PageResponse 반환
+     *
+     * @param keyword     검색어
+     * @param searchType  검색 타입
+     * @param categoryIds 카테고리 ID 목록
+     * @param pageable    페이징 정보
+     * @return 게시글 목록 페이지 응답 DTO
      */
     @Transactional(readOnly = true)
     public PageResponse<PostListResponse> getPosts(String keyword, String searchType, List<Long> categoryIds, Pageable pageable) {
@@ -77,39 +75,41 @@ public class PostService {
 
     /**
      * 게시글 단건 조회 서비스
-     * 1. Post 조회
-     * 2. PostResponse 반환
+     *
+     * @param postId 게시글 ID
+     * @param userId 사용자 ID
+     * @return 게시글 상세 응답 DTO
      */
     @Transactional(readOnly = true)
-    public PostDetailResponse getPost(Long postId) {
+    public PostDetailResponse getPost(Long postId, Long userId) {
         // Post 조회
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
-        // 응답 반환
+        // 로그인 사용자 추가 데이터 설정 (좋아요, 북마크 여부)
+        if (userId != null) {
+            boolean likedByMe = postLikeRepository.existsByUserIdAndPostId(userId, post.getId());
+            boolean bookmarkedByMe = postBookmarkRepository.existsByUserIdAndPostId(userId, post.getId());
+            return PostDetailResponse.from(post, likedByMe, bookmarkedByMe);
+        }
+
+        // 비로그인 사용자는 기본 응답 반환
         return PostDetailResponse.from(post);
-    }
-
-    // TODO: 로그인 회원용 게시글 단건 조회 서비스, 추후 리팩토링 필요
-    @Transactional(readOnly = true)
-    public PostDetailResponse getPostWithUser(Long postId, Long userId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
-
-        boolean likedByMe = postLikeRepository.existsByUserIdAndPostId(userId, postId);
-        boolean bookmarkedByMe = postBookmarkRepository.existsByUserIdAndPostId(userId, postId);
-
-        return PostDetailResponse.from(post, likedByMe, bookmarkedByMe);
     }
 
     /**
      * 게시글 수정 서비스
-     * 1. Post 조회
-     * 2. 작성자 검증
-     * 3. Post 업데이트 (제목, 내용, 카테고리)
-     * 4. PostResponse 반환
+     *
+     * @param postId  게시글 ID
+     * @param request 게시글 수정 요청 본문
+     * @param userId  사용자 ID
+     * @return 수정된 게시글 응답 DTO
      */
     public PostResponse updatePost(Long postId, PostRequest request, Long userId) {
+        // User 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
         // Post 조회
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
@@ -123,21 +123,17 @@ public class PostService {
         post.update(request.title(), request.content());
 
         // Category 매핑 업데이트
-        List<PostCategory> categories = postCategoryRepository.findAllById(request.categoryIds());
-        if (categories.size() != request.categoryIds().size()) {
-            throw new CustomException(ErrorCode.CATEGORY_NOT_FOUND);
-        }
+        List<PostCategory> categories = validateAndFindCategories(request.categoryIds());
         post.updateCategories(categories);
 
-        // 응답 반환
         return PostResponse.from(post);
     }
 
     /**
      * 게시글 삭제 서비스
-     * 1. Post 조회
-     * 2. 작성자 검증
-     * 3. Post 삭제
+     *
+     * @param postId 게시글 ID
+     * @param userId 사용자 ID
      */
     public void deletePost(Long postId, Long userId) {
         // User 조회
@@ -153,10 +149,20 @@ public class PostService {
             throw new CustomException(ErrorCode.POST_NO_PERMISSION);
         }
 
-        // 연관관계 제거
-        user.removePost(post);
-
         // Post 삭제
+        post.remove();
         postRepository.delete(post);
+    }
+
+    /**
+     * 카테고리 ID 유효성 검증 및 조회
+     */
+    private List<PostCategory> validateAndFindCategories(List<Long> categoryIds) {
+        List<PostCategory> categories = postCategoryRepository.findAllById(categoryIds);
+
+        if (categories.size() != categoryIds.size()) {
+            throw new CustomException(ErrorCode.CATEGORY_NOT_FOUND);
+        }
+        return categories;
     }
 }
