@@ -58,7 +58,7 @@ public class SecurityConfig {
 
                                 // WebSocket
                                 .requestMatchers(
-                                        "api/ws/**",
+                                        "/api/ws/**",
                                         "/ws/**"
                                 ).permitAll()
 
