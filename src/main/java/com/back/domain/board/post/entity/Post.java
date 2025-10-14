@@ -62,6 +62,10 @@ public class Post extends BaseEntity {
         this.postCategoryMappings.add(mapping);
     }
 
+    public void removePostCategoryMapping(PostCategoryMapping mapping) {
+        this.postCategoryMappings.remove(mapping);
+    }
+
     public void addLike(PostLike like) {
         this.postLikes.add(like);
     }
@@ -93,11 +97,23 @@ public class Post extends BaseEntity {
         this.content = content;
     }
 
-    // TODO: 진짜로 바뀐 카테고리만 추가/삭제하도록 개선
     /** 카테고리 일괄 업데이트 */
-    public void updateCategories(List<PostCategory> categories) {
-        this.postCategoryMappings.clear();
-        categories.forEach(category -> new PostCategoryMapping(this, category));
+    public void updateCategories(List<PostCategory> newCategories) {
+        List<PostCategory> currentCategories = this.getCategories();
+
+        // 제거 대상
+        List<PostCategoryMapping> toRemove = this.getPostCategoryMappings().stream()
+                .filter(mapping -> !newCategories.contains(mapping.getCategory()))
+                .toList();
+
+        // 추가 대상
+        List<PostCategory> toAdd = newCategories.stream()
+                .filter(category -> !currentCategories.contains(category))
+                .toList();
+
+        // 실행
+        toRemove.forEach(this::removePostCategoryMapping);
+        toAdd.forEach(category -> new PostCategoryMapping(this, category));
     }
 
     /** 좋아요 수 증가 */

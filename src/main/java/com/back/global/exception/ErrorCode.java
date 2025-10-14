@@ -40,6 +40,12 @@ public enum ErrorCode {
     ROOM_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "ROOM_017", "현재 비밀번호가 일치하지 않습니다."),
     NOT_ROOM_HOST(HttpStatus.FORBIDDEN, "ROOM_018", "방장 권한이 필요합니다."),
 
+    // ======================== 초대 코드 관련 ========================
+    INVALID_INVITE_CODE(HttpStatus.NOT_FOUND, "INVITE_001", "유효하지 않은 초대 코드입니다."),
+    INVITE_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "INVITE_002", "만료된 초대 코드입니다."),
+    INVITE_CODE_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "INVITE_003", "초대 코드 생성에 실패했습니다."),
+    INVITE_CODE_ALREADY_ACTIVE(HttpStatus.CONFLICT, "INVITE_004", "이미 활성화된 초대 코드가 있습니다. 만료 후 재생성 가능합니다."),
+
     // ======================== 아바타 관련 ========================
     AVATAR_NOT_FOUND(HttpStatus.NOT_FOUND, "AVATAR_001", "존재하지 않는 아바타입니다."),
 

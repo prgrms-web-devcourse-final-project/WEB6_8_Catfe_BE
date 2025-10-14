@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -40,6 +41,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final UserTokenRepository userTokenRepository;
     private final ObjectMapper objectMapper;
 
+    @Value("${frontend.base-url}")
+    private String FRONTEND_BASE_URL;
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
@@ -73,7 +76,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             );
 
             // 프론트엔드 리다이렉트
-            response.sendRedirect("http://localhost:3000/login/oauth2");
+            response.sendRedirect(FRONTEND_BASE_URL + "/login/oauth2");
         } catch (CustomException e) {
             handleException(response, e);
         } catch (Exception e) {
