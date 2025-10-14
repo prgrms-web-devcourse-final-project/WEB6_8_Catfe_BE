@@ -39,6 +39,7 @@ public enum ErrorCode {
     CHAT_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ROOM_016", "채팅 삭제 중 오류가 발생했습니다."),
     ROOM_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "ROOM_017", "현재 비밀번호가 일치하지 않습니다."),
     NOT_ROOM_HOST(HttpStatus.FORBIDDEN, "ROOM_018", "방장 권한이 필요합니다."),
+    ROOM_PASSWORD_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "ROOM_019", "이미 비밀번호가 설정되어 있습니다. 비밀번호 변경 API를 사용하세요."),
 
     // ======================== 초대 코드 관련 ========================
     INVALID_INVITE_CODE(HttpStatus.NOT_FOUND, "INVITE_001", "유효하지 않은 초대 코드입니다."),

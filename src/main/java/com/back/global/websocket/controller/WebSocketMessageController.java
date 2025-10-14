@@ -1,7 +1,9 @@
 package com.back.global.websocket.controller;
 
+import com.back.domain.studyroom.service.AvatarService;
 import com.back.global.exception.CustomException;
 import com.back.global.security.user.CustomUserDetails;
+import com.back.global.websocket.service.RoomParticipantService;
 import com.back.global.websocket.service.WebSocketSessionManager;
 import com.back.global.websocket.util.WebSocketAuthHelper;
 import com.back.global.websocket.util.WebSocketErrorHelper;
@@ -25,9 +27,12 @@ public class WebSocketMessageController {
 
     private final WebSocketSessionManager sessionManager;
     private final WebSocketErrorHelper errorHelper;
+    private final RoomParticipantService roomParticipantService;
+    private final AvatarService avatarService;
 
     // WebSocket 방 입장 확인 메시지
-    // 클라이언트가 REST API로 입장 후 WebSocket 세션 동기화 대기를 위해 전송
+    // 클라이언트가 REST API로 입장 후 WebSocket 세션 동기화를 위해 전송
+    // 초대 코드로 입장한 경우 Redis 등록이 안 되어 있으므로 여기서 처리
     @MessageMapping("/rooms/{roomId}/join")
     public void handleWebSocketJoinRoom(@DestinationVariable Long roomId,
                                         @Payload Map<String, Object> payload,
@@ -44,8 +49,23 @@ public class WebSocketMessageController {
         // 활동 시간 업데이트
         sessionManager.updateLastActivity(userId);
 
-        // 실제 방 입장 로직은 REST API에서 이미 처리했으므로
-        // 여기서는 단순히 WebSocket 세션이 준비되었음을 확인하는 용도
+        // Redis에 이미 등록되어 있는지 확인
+        Long currentRoomId = roomParticipantService.getCurrentRoomId(userId);
+        
+        if (currentRoomId == null || !currentRoomId.equals(roomId)) {
+            // Redis에 등록되지 않은 경우 (초대 코드 입장 등)
+            // 아바타 로드/생성
+            Long avatarId = avatarService.loadOrCreateAvatar(roomId, userId);
+            
+            // Redis에 온라인 등록
+            roomParticipantService.enterRoom(userId, roomId, avatarId);
+            
+            log.info("📥 [WebSocket] Redis 등록 완료 - roomId: {}, userId: {}, avatarId: {}", 
+                    roomId, userId, avatarId);
+        } else {
+            log.info("📥 [WebSocket] 이미 Redis에 등록된 사용자 - roomId: {}, userId: {}", 
+                    roomId, userId);
+        }
     }
 
     // Heartbeat 처리

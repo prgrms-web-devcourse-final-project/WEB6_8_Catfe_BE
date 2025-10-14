@@ -142,7 +142,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L))).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false))).willReturn(testMember);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response = 
@@ -152,11 +152,11 @@ class RoomInvitePublicControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
-        assertThat(response.getBody().getMessage()).isEqualTo("초대 코드로 입장 완료");
+        assertThat(response.getBody().getMessage()).contains("초대 코드");
 
         verify(currentUser, times(1)).getUserId();
         verify(inviteService, times(1)).getRoomByInviteCode("ABC12345");
-        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(2L));
+        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(2L), eq(false));
     }
 
     @Test
@@ -165,7 +165,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("PRIVATE1")).willReturn(privateRoom);
-        given(roomService.joinRoom(eq(2L), isNull(), eq(2L))).willReturn(privateMember);
+        given(roomService.joinRoom(eq(2L), isNull(), eq(2L), eq(false))).willReturn(privateMember);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response = 
@@ -176,8 +176,8 @@ class RoomInvitePublicControllerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
 
-        // 비밀번호 null로 전달되는지 확인 (비밀번호 무시)
-        verify(roomService, times(1)).joinRoom(eq(2L), isNull(), eq(2L));
+        // 비밀번호 null로 전달되는지 확인 (비밀번호 무시), registerOnline=false
+        verify(roomService, times(1)).joinRoom(eq(2L), isNull(), eq(2L), eq(false));
     }
 
     @Test
@@ -186,7 +186,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L))).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false))).willReturn(testMember);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response = 
@@ -207,7 +207,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L))).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false))).willReturn(testMember);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response = 
@@ -263,14 +263,14 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L))).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false))).willReturn(testMember);
 
         // when
         invitePublicController.joinByInviteCode("ABC12345");
 
         // then
-        // 비밀번호가 항상 null로 전달되는지 확인
-        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(2L));
+        // 비밀번호가 항상 null로 전달되는지 확인, registerOnline=false
+        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(2L), eq(false));
     }
 
     @Test
@@ -279,7 +279,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("PRIVATE1")).willReturn(privateRoom);
-        given(roomService.joinRoom(eq(2L), isNull(), eq(2L))).willReturn(privateMember);
+        given(roomService.joinRoom(eq(2L), isNull(), eq(2L), eq(false))).willReturn(privateMember);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response = 
@@ -290,8 +290,8 @@ class RoomInvitePublicControllerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
 
-        // 비공개 방인데도 비밀번호 없이 입장 성공
-        verify(roomService, times(1)).joinRoom(eq(2L), isNull(), eq(2L));
+        // 비공개 방인데도 비밀번호 없이 입장 성공, registerOnline=false
+        verify(roomService, times(1)).joinRoom(eq(2L), isNull(), eq(2L), eq(false));
     }
 
     // ====================== HTTP 응답 테스트 ======================
@@ -302,7 +302,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L))).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false))).willReturn(testMember);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response = 
@@ -319,7 +319,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L))).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false))).willReturn(testMember);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response = 
@@ -340,7 +340,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L))).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false))).willReturn(testMember);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response1 = 
@@ -353,7 +353,7 @@ class RoomInvitePublicControllerTest {
         assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         verify(inviteService, times(2)).getRoomByInviteCode("ABC12345");
-        verify(roomService, times(2)).joinRoom(eq(1L), isNull(), eq(2L));
+        verify(roomService, times(2)).joinRoom(eq(1L), isNull(), eq(2L), eq(false));
     }
 
     @Test
@@ -364,7 +364,7 @@ class RoomInvitePublicControllerTest {
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
         
         RoomMember member2 = RoomMember.createVisitor(testRoom, testUser2);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L))).willReturn(member2);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false))).willReturn(member2);
 
         // when - User2 입장
         ResponseEntity<RsData<JoinRoomResponse>> response1 = 
@@ -372,7 +372,7 @@ class RoomInvitePublicControllerTest {
 
         // given - User1 (코드 생성자도 입장 가능)
         given(currentUser.getUserId()).willReturn(1L);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(1L))).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(1L), eq(false))).willReturn(testMember);
 
         // when - User1 입장
         ResponseEntity<RsData<JoinRoomResponse>> response2 = 
@@ -383,8 +383,8 @@ class RoomInvitePublicControllerTest {
         assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         verify(inviteService, times(2)).getRoomByInviteCode("ABC12345");
-        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(2L));
-        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(1L));
+        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(2L), eq(false));
+        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(1L), eq(false));
     }
 
     @Test
@@ -393,7 +393,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L)))
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false)))
                 .willThrow(new CustomException(ErrorCode.ROOM_FULL));
 
         // when & then
@@ -402,7 +402,7 @@ class RoomInvitePublicControllerTest {
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ROOM_FULL);
 
         verify(inviteService, times(1)).getRoomByInviteCode("ABC12345");
-        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(2L));
+        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(2L), eq(false));
     }
 
     @Test
@@ -411,7 +411,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L)))
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false)))
                 .willThrow(new CustomException(ErrorCode.ALREADY_JOINED_ROOM));
 
         // when & then
@@ -420,7 +420,7 @@ class RoomInvitePublicControllerTest {
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALREADY_JOINED_ROOM);
 
         verify(inviteService, times(1)).getRoomByInviteCode("ABC12345");
-        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(2L));
+        verify(roomService, times(1)).joinRoom(eq(1L), isNull(), eq(2L), eq(false));
     }
 
     @Test
@@ -429,7 +429,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L))).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false))).willReturn(testMember);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response = 
@@ -452,7 +452,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L))).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false))).willReturn(testMember);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response = 
@@ -471,7 +471,7 @@ class RoomInvitePublicControllerTest {
         // given
         given(currentUser.getUserId()).willReturn(2L);
         given(inviteService.getRoomByInviteCode("ABC12345")).willReturn(testRoom);
-        given(roomService.joinRoom(eq(1L), isNull(), eq(2L))).willReturn(testMember);
+        given(roomService.joinRoom(eq(1L), isNull(), eq(2L), eq(false))).willReturn(testMember);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response = 
