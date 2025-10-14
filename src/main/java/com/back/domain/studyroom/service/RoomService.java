@@ -52,6 +52,7 @@ public class RoomService {
     private final SimpMessagingTemplate messagingTemplate;
     private final ApplicationEventPublisher eventPublisher;
     private final AvatarService avatarService;
+    private final RoomThumbnailService roomThumbnailService;
 
     /**
      * 방 생성 메서드
@@ -68,21 +69,32 @@ public class RoomService {
      */
     @Transactional
     public Room createRoom(String title, String description, boolean isPrivate, 
-                          String password, int maxParticipants, Long creatorId, boolean useWebRTC, String thumbnailUrl) {
+                          String password, int maxParticipants, Long creatorId, boolean useWebRTC, Long thumbnailAttachmentId) {
         
         User creator = userRepository.findById(creatorId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        Room room = Room.create(title, description, isPrivate, password, maxParticipants, creator, null, useWebRTC, thumbnailUrl);
+        // 방 생성 (썸네일 URL은 null로 시작)
+        Room room = Room.create(title, description, isPrivate, password, 
+                maxParticipants, creator, null, useWebRTC, null);
         Room savedRoom = roomRepository.save(room);
 
+        // 썸네일 매핑 생성 및 URL 업데이트
+        if (thumbnailAttachmentId != null) {
+            String thumbnailUrl = roomThumbnailService.createThumbnailMapping(
+                    savedRoom.getId(), thumbnailAttachmentId);
+            savedRoom.updateSettings(title, description, maxParticipants, thumbnailUrl);
+        }
+
+        // 방장 등록
         RoomMember hostMember = RoomMember.createHost(savedRoom, creator);
         roomMemberRepository.save(hostMember);
 
         // savedRoom.incrementParticipant();  // Redis로 이관 - DB 업데이트 제거
         
-        log.info("방 생성 완료 - RoomId: {}, Title: {}, CreatorId: {}, WebRTC: {}, Thumbnail: {}", 
-                savedRoom.getId(), title, creatorId, useWebRTC, thumbnailUrl != null ? "설정됨" : "없음");
+        log.info("방 생성 완료 - RoomId: {}, Title: {}, CreatorId: {}, WebRTC: {}, ThumbnailId: {}", 
+                savedRoom.getId(), title, creatorId, useWebRTC, 
+                thumbnailAttachmentId != null ? thumbnailAttachmentId : "없음");
         
         return savedRoom;
     }
@@ -257,9 +269,6 @@ public class RoomService {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        // ⭐ 비공개 방 접근 제한 제거 - 모든 사용자가 조회 가능
-        // (프론트엔드에서 입장 시 로그인 체크)
-
         return room;
     }
 
@@ -269,7 +278,7 @@ public class RoomService {
 
     @Transactional
     public void updateRoomSettings(Long roomId, String title, String description, 
-                                  int maxParticipants, String thumbnailUrl, Long userId) {
+                                  int maxParticipants, Long thumbnailAttachmentId, Long userId) {
         
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
@@ -285,10 +294,18 @@ public class RoomService {
             throw new CustomException(ErrorCode.BAD_REQUEST);
         }
 
+        // 썸네일 변경 처리
+        String thumbnailUrl = room.getRawThumbnailUrl();  // 기존 URL 유지
+        if (thumbnailAttachmentId != null) {
+            // 기존 매핑 삭제 + 새 매핑 생성
+            thumbnailUrl = roomThumbnailService.updateThumbnailMapping(
+                    roomId, thumbnailAttachmentId);
+        }
+
         room.updateSettings(title, description, maxParticipants, thumbnailUrl);
         
-        log.info("방 설정 변경 완료 - RoomId: {}, UserId: {}, Thumbnail: {}", 
-                roomId, userId, thumbnailUrl != null ? "변경됨" : "없음");
+        log.info("방 설정 변경 완료 - RoomId: {}, UserId: {}, ThumbnailId: {}", 
+                roomId, userId, thumbnailAttachmentId != null ? thumbnailAttachmentId : "변경 없음");
     }
 
     /**
@@ -352,6 +369,9 @@ public class RoomService {
         if (!room.isOwner(userId)) {
             throw new CustomException(ErrorCode.NOT_ROOM_MANAGER);
         }
+
+        // 썸네일 매핑 삭제
+        roomThumbnailService.deleteThumbnailMapping(roomId);
 
         room.terminate();
         
@@ -529,8 +549,6 @@ public class RoomService {
         
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-
-        // ⭐ 비공개 방 접근 제한 제거 - 모든 사용자가 조회 가능
 
         // 1. Redis에서 온라인 사용자 ID 조회
         Set<Long> onlineUserIds = roomParticipantService.getParticipants(roomId);

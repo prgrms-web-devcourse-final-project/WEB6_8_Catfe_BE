@@ -20,9 +20,13 @@ public class UpdateRoomSettingsRequest {
     @Max(value = 100, message = "최대 100명까지 가능합니다")
     private Integer maxParticipants;
     
-    // 방 썸네일 이미지 URL (선택)
-    @Size(max = 500, message = "썸네일 URL은 500자를 초과할 수 없습니다")
-    private String thumbnailUrl;
+    // 방 썸네일 FileAttachment ID (선택)
+    // 사용 방법:
+    // 1. POST /api/files/upload로 새 파일 업로드
+    // 2. 받은 fileId를 여기에 설정
+    // 3. 방 수정 시 기존 매핑 삭제 + 새 매핑 생성
+    // null인 경우: 썸네일 변경 없음 (기존 유지)
+    private Long thumbnailAttachmentId;
     
     // ===== WebRTC 설정 (추후 팀원 구현 시 주석 해제) =====
     // WebRTC 기능은 방 생성 이후 별도 API로 관리 예정
