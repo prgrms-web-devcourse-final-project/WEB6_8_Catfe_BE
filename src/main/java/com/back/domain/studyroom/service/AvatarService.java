@@ -4,12 +4,10 @@ import com.back.domain.studyroom.dto.AvatarResponse;
 import com.back.domain.studyroom.entity.Avatar;
 import com.back.domain.studyroom.entity.RoomMember;
 import com.back.domain.studyroom.entity.RoomMemberAvatar;
-import com.back.domain.studyroom.entity.RoomRole;
 import com.back.domain.studyroom.repository.AvatarRepository;
 import com.back.domain.studyroom.repository.RoomMemberAvatarRepository;
 import com.back.domain.studyroom.repository.RoomMemberRepository;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 

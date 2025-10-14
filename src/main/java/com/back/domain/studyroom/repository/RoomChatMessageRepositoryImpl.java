@@ -3,7 +3,7 @@ package com.back.domain.studyroom.repository;
 import com.back.domain.studyroom.entity.QRoom;
 import com.back.domain.studyroom.entity.QRoomChatMessage;
 import com.back.domain.studyroom.entity.RoomChatMessage;
-import com.back.domain.user.entity.QUser;
+import com.back.domain.user.common.entity.QUser;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;

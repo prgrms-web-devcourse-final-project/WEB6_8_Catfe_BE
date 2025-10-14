@@ -2,8 +2,8 @@ package com.back.domain.notification.repository;
 
 import com.back.domain.notification.entity.NotificationSetting;
 import com.back.domain.notification.entity.NotificationSettingType;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.config.QueryDslTestConfig;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;

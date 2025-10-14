@@ -2,13 +2,6 @@ package com.back.domain.notification.event.studyroom;
 
 import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.service.NotificationService;
-import com.back.domain.studyroom.entity.Room;
-import com.back.domain.studyroom.repository.RoomMemberRepository;
-import com.back.domain.studyroom.repository.RoomRepository;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.repository.UserRepository;
-import com.back.global.exception.CustomException;
-import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

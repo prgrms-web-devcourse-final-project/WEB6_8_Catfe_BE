@@ -6,8 +6,7 @@ import static org.mockito.Mockito.verify;
 
 import com.back.domain.notification.dto.NotificationWebSocketDto;
 import com.back.domain.notification.entity.Notification;
-import com.back.domain.notification.entity.NotificationType;
-import com.back.domain.user.entity.User;
+import com.back.domain.user.common.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

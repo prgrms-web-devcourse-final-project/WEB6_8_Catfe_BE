@@ -6,14 +6,11 @@ import com.back.domain.board.post.enums.CategoryType;
 import com.back.domain.board.post.repository.PostBookmarkRepository;
 import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.board.post.repository.PostCategoryRepository;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.entity.UserProfile;
-import com.back.domain.user.entity.UserStatus;
-import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.entity.UserProfile;
+import com.back.domain.user.common.enums.UserStatus;
+import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.config.QueryDslConfig;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +22,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;

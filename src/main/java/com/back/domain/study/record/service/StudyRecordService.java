@@ -13,8 +13,8 @@ import com.back.domain.study.record.entity.StudyRecord;
 import com.back.domain.study.record.repository.StudyRecordRepository;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.repository.RoomRepository;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 

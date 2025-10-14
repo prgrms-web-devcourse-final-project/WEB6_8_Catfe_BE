@@ -1,7 +1,7 @@
 package com.back.domain.notification.entity;
 
 import com.back.domain.studyroom.entity.Room;
-import com.back.domain.user.entity.User;
+import com.back.domain.user.common.entity.User;
 import com.back.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;

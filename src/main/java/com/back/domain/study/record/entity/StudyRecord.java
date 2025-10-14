@@ -2,10 +2,8 @@ package com.back.domain.study.record.entity;
 
 import com.back.domain.study.plan.entity.StudyPlan;
 import com.back.domain.studyroom.entity.Room;
-import com.back.domain.user.entity.User;
+import com.back.domain.user.common.entity.User;
 import com.back.global.entity.BaseEntity;
-import com.back.global.exception.CustomException;
-import com.back.global.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

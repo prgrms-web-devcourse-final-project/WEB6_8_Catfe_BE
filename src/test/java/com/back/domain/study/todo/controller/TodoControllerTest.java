@@ -2,10 +2,10 @@ package com.back.domain.study.todo.controller;
 
 import com.back.domain.study.todo.entity.Todo;
 import com.back.domain.study.todo.repository.TodoRepository;
-import com.back.domain.user.entity.Role;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.entity.UserStatus;
-import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.common.enums.Role;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.enums.UserStatus;
+import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.security.jwt.JwtTokenProvider;
 import com.back.global.security.user.CustomUserDetails;
 import org.junit.jupiter.api.BeforeEach;

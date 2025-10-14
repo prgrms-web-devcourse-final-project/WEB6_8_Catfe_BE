@@ -5,7 +5,7 @@ import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomMember;
 import com.back.domain.studyroom.entity.RoomRole;
 import com.back.domain.studyroom.service.RoomService;
-import com.back.domain.user.entity.User;
+import com.back.domain.user.common.entity.User;
 import com.back.global.common.dto.RsData;
 import com.back.global.security.user.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 스터디 룸 관련 API 컨트롤러
