@@ -122,6 +122,10 @@ webrtc:
     - urls: stun:stun.l.google.com:19302
     - urls: stun:stun1.l.google.com:19302
     - urls: stun:stun2.l.google.com:19302
+  turn:
+    shared-secret: "${WEBRTC_TURN_SHARED_SECRET}"
+    server-ip: "${WEBRTC_TURN_SERVER_IP}"
+    ttl-seconds: 3600
 
 # 스터디룸 설정
 studyroom:

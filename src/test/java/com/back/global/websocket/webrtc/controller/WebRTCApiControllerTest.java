@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -20,6 +21,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @WithMockUser
+@TestPropertySource(properties = {
+        "webrtc.turn.shared-secret=test-secret-key-for-junit-12345",
+        "webrtc.turn.server-ip=127.0.0.1"
+        // ttl-seconds는 application.yml의 기본값 사용
+})
 @DisplayName("WebRTC API 컨트롤러")
 class WebRTCApiControllerTest {
 
@@ -34,7 +40,7 @@ class WebRTCApiControllerTest {
     class GetIceServersTest {
 
         @Test
-        @DisplayName("기본 조회")
+        @DisplayName("STUN 서버와 동적으로 생성된 TURN 서버 정보를 모두 포함하여 반환")
         void t1() throws Exception {
             // when & then
             MvcResult result = mockMvc.perform(get("/api/webrtc/ice-servers")
@@ -47,12 +53,16 @@ class WebRTCApiControllerTest {
                     .andExpect(jsonPath("$.data").exists())
                     .andExpect(jsonPath("$.data.iceServers").isArray())
                     .andExpect(jsonPath("$.data.iceServers").isNotEmpty())
+                    .andExpect(jsonPath("$.data.iceServers[?(@.urls contains 'turn:')].urls").exists())
+                    .andExpect(jsonPath("$.data.iceServers[?(@.urls contains 'turn:')].username").exists())
+                    .andExpect(jsonPath("$.data.iceServers[?(@.urls contains 'turn:')].credential").exists())
                     .andReturn();
 
-            // 응답 본문 검증
             String content = result.getResponse().getContentAsString();
             assertThat(content).contains("stun:");
+            assertThat(content).contains("turn:");
         }
+
 
         @Test
         @DisplayName("userId, roomId 파라미터")
