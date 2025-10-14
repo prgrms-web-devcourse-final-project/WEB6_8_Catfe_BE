@@ -3,7 +3,7 @@ package com.back.domain.notification.controller;
 import com.back.domain.notification.dto.NotificationSettingDto.*;
 import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.service.NotificationSettingService;
-import com.back.domain.user.entity.Role;
+import com.back.domain.user.common.enums.Role;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import com.back.global.security.jwt.JwtTokenProvider;
@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -26,7 +25,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;

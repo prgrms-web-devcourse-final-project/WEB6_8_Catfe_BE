@@ -7,12 +7,18 @@ import com.back.domain.board.post.dto.PostDetailResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.dto.PostRequest;
 import com.back.domain.board.post.dto.PostResponse;
+import com.back.domain.board.post.entity.PostCategoryMapping;
 import com.back.domain.board.post.repository.PostBookmarkRepository;
 import com.back.domain.board.post.repository.PostCategoryRepository;
 import com.back.domain.board.post.repository.PostLikeRepository;
 import com.back.domain.board.post.repository.PostRepository;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.repository.UserRepository;
+import com.back.domain.file.entity.AttachmentMapping;
+import com.back.domain.file.entity.EntityType;
+import com.back.domain.file.entity.FileAttachment;
+import com.back.domain.file.repository.AttachmentMappingRepository;
+import com.back.domain.file.repository.FileAttachmentRepository;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +38,8 @@ public class PostService {
     private final PostBookmarkRepository postBookmarkRepository;
     private final UserRepository userRepository;
     private final PostCategoryRepository postCategoryRepository;
+    private final FileAttachmentRepository fileAttachmentRepository;
+    private final AttachmentMappingRepository attachmentMappingRepository;
 
     /**
      * 게시글 생성 서비스
@@ -47,15 +55,24 @@ public class PostService {
 
         // Post 생성
         Post post = new Post(user, request.title(), request.content(), request.thumbnailUrl());
-        Post saved = postRepository.save(post);
+        postRepository.save(post);
 
         // Category 매핑
         if (request.categoryIds() != null) {
             List<PostCategory> categories = validateAndFindCategories(request.categoryIds());
-            saved.updateCategories(categories);
+            categories.forEach(category -> new PostCategoryMapping(post, category));
         }
 
-        return PostResponse.from(saved);
+        // AttachmentMapping 매핑
+        List<FileAttachment> attachments = List.of();
+        if (request.imageIds() != null && !request.imageIds().isEmpty()) {
+            attachments = validateAndFindAttachments(request.imageIds());
+            for (FileAttachment attachment : attachments) {
+                attachmentMappingRepository.save(new AttachmentMapping(attachment, EntityType.POST, post.getId()));
+            }
+        }
+
+        return PostResponse.from(post, attachments);
     }
 
     /**
@@ -86,15 +103,22 @@ public class PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
+        // 첨부파일 조회
+        List<FileAttachment> attachments = attachmentMappingRepository
+                .findAllByEntityTypeAndEntityId(EntityType.POST, post.getId())
+                .stream()
+                .map(AttachmentMapping::getFileAttachment)
+                .toList();
+
         // 로그인 사용자 추가 데이터 설정 (좋아요, 북마크 여부)
         if (userId != null) {
             boolean likedByMe = postLikeRepository.existsByUserIdAndPostId(userId, post.getId());
             boolean bookmarkedByMe = postBookmarkRepository.existsByUserIdAndPostId(userId, post.getId());
-            return PostDetailResponse.from(post, likedByMe, bookmarkedByMe);
+            return PostDetailResponse.from(post, attachments, likedByMe, bookmarkedByMe);
         }
 
         // 비로그인 사용자는 기본 응답 반환
-        return PostDetailResponse.from(post);
+        return PostDetailResponse.from(post, attachments);
     }
 
     /**
@@ -126,7 +150,17 @@ public class PostService {
         List<PostCategory> categories = validateAndFindCategories(request.categoryIds());
         post.updateCategories(categories);
 
-        return PostResponse.from(post);
+        // AttachmentMapping 매핑
+        attachmentMappingRepository.deleteAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
+        List<FileAttachment> attachments = List.of();
+        if (request.imageIds() != null && !request.imageIds().isEmpty()) {
+            attachments = validateAndFindAttachments(request.imageIds());
+            attachments.forEach(attachment ->
+                    attachmentMappingRepository.save(new AttachmentMapping(attachment, EntityType.POST, post.getId()))
+            );
+        }
+
+        return PostResponse.from(post, attachments);
     }
 
     /**
@@ -149,6 +183,9 @@ public class PostService {
             throw new CustomException(ErrorCode.POST_NO_PERMISSION);
         }
 
+        // AttachmentMapping 매핑 제거
+        attachmentMappingRepository.deleteAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
+
         // Post 삭제
         post.remove();
         postRepository.delete(post);
@@ -158,11 +195,19 @@ public class PostService {
      * 카테고리 ID 유효성 검증 및 조회
      */
     private List<PostCategory> validateAndFindCategories(List<Long> categoryIds) {
-        List<PostCategory> categories = postCategoryRepository.findAllById(categoryIds);
+        return categoryIds.stream()
+                .map(id -> postCategoryRepository.findById(id)
+                        .orElseThrow(() -> new CustomException(ErrorCode.CATEGORY_NOT_FOUND)))
+                .toList();
+    }
 
-        if (categories.size() != categoryIds.size()) {
-            throw new CustomException(ErrorCode.CATEGORY_NOT_FOUND);
-        }
-        return categories;
+    /**
+     * 첨부 파일 ID 유효성 검증 및 조회
+     */
+    private List<FileAttachment> validateAndFindAttachments(List<Long> imageIds) {
+        return imageIds.stream()
+                .map(id -> fileAttachmentRepository.findById(id)
+                        .orElseThrow(() -> new CustomException(ErrorCode.FILE_NOT_FOUND)))
+                .toList();
     }
 }

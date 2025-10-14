@@ -1,15 +1,14 @@
 package com.back.domain.studyroom.integration;
 
-import com.back.domain.studyroom.dto.CreateRoomRequest;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.repository.RoomMemberRepository;
 import com.back.domain.studyroom.repository.RoomRepository;
 import com.back.domain.studyroom.service.RoomService;
-import com.back.domain.user.entity.Role;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.entity.UserProfile;
-import com.back.domain.user.entity.UserStatus;
-import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.common.enums.Role;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.entity.UserProfile;
+import com.back.domain.user.common.enums.UserStatus;
+import com.back.domain.user.common.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -2,10 +2,6 @@ package com.back.domain.notification.event.study;
 
 import com.back.domain.notification.entity.NotificationSettingType;
 import com.back.domain.notification.service.NotificationService;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.repository.UserRepository;
-import com.back.global.exception.CustomException;
-import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

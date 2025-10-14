@@ -4,7 +4,7 @@ import com.back.domain.studyroom.entity.QRoom;
 import com.back.domain.studyroom.entity.QRoomMember;
 import com.back.domain.studyroom.entity.Room;
 import com.back.domain.studyroom.entity.RoomStatus;
-import com.back.domain.user.entity.QUser;
+import com.back.domain.user.common.entity.QUser;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;

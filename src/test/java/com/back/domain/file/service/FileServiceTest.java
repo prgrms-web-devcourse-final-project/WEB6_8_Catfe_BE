@@ -1,20 +1,15 @@
 package com.back.domain.file.service;
 
-import com.back.domain.board.post.entity.Post;
-import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.file.config.S3MockConfig;
 import com.back.domain.file.dto.FileReadResponseDto;
 import com.back.domain.file.dto.FileUploadResponseDto;
-import com.back.domain.file.entity.EntityType;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.entity.UserProfile;
-import com.back.domain.user.entity.UserStatus;
-import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.entity.UserProfile;
+import com.back.domain.user.common.enums.UserStatus;
+import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import io.findify.s3mock.S3Mock;
-import jakarta.persistence.EntityManager;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,12 +20,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.FileNotFoundException;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
 
 @Import(S3MockConfig.class)
 @SpringBootTest

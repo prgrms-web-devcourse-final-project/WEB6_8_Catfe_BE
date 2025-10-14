@@ -1,8 +1,8 @@
 package com.back.global.security.user;
 
-import com.back.domain.user.entity.Role;
-import com.back.domain.user.entity.User;
-import com.back.domain.user.repository.UserRepository;
+import com.back.domain.user.common.enums.Role;
+import com.back.domain.user.common.entity.User;
+import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
