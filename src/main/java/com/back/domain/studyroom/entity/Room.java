@@ -224,9 +224,12 @@ public class Room extends BaseEntity {
     /**
      * 방 비밀번호 변경 메서드
      방장이 방의 비밀번호를 변경할 때
-     별도 메서드로 분리한 이유: 비밀번호는 보안상 별도로 관리되어야 하기 때문 (ai의 추천)
+     별도 메서드로 분리한 이유: 비밀번호는 보안상 별도로 관리되어야 하기 때문
      */
     public void updatePassword(String newPassword) {
         this.password = newPassword;
+        
+        // 비밀번호 유무에 따라 isPrivate 자동 설정
+        this.isPrivate = (newPassword != null && !newPassword.trim().isEmpty());
     }
 }

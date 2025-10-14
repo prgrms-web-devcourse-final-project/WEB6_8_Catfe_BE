@@ -15,6 +15,7 @@ public class RoomDetailResponse {
     private String title;
     private String description;
     private boolean isPrivate;
+    private String thumbnailUrl;  // 썸네일 이미지 URL
     private int maxParticipants;
     private int currentParticipants;
     private RoomStatus status;
@@ -31,6 +32,7 @@ public class RoomDetailResponse {
                 .title(room.getTitle())
                 .description(room.getDescription() != null ? room.getDescription() : "")
                 .isPrivate(room.isPrivate())
+                .thumbnailUrl(room.getThumbnailUrl())  // 썸네일 URL
                 .maxParticipants(room.getMaxParticipants())
                 .currentParticipants((int) currentParticipants)  // Redis에서 조회한 실시간 값
                 .status(room.getStatus())
