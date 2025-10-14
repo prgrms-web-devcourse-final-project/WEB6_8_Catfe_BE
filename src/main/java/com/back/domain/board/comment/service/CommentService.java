@@ -25,7 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -37,15 +39,13 @@ public class CommentService {
     private final PostRepository postRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    // TODO: 연관관계 고려, 메서드 명, 중복 코드 제거, 주석 통일
-    // TODO: comment 끝나면 post도 해야 함.. entity > DTO > Repo > Service > Controller > Docs 순으로..
     /**
      * 댓글 생성 서비스
-     * 1. User 조회
-     * 2. Post 조회
-     * 3. Comment 생성 및 저장
-     * 4. 댓글 작성 이벤트 발행
-     * 5. CommentResponse 반환
+     *
+     * @param postId  대상 게시글 ID
+     * @param request 댓글 작성 요청 본문
+     * @param userId  사용자 ID
+     * @return 생성된 댓글 응답 DTO
      */
     public CommentResponse createComment(Long postId, CommentRequest request, Long userId) {
         // User 조회
@@ -56,10 +56,8 @@ public class CommentService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
-        // CommentCount 증가
+        // Comment 생성 및 댓글 수 증가 처리
         post.increaseCommentCount();
-
-        // Comment 생성 및 저장
         Comment comment = Comment.createRoot(post, user, request.content());
         commentRepository.save(comment);
 
@@ -78,67 +76,72 @@ public class CommentService {
     }
 
     /**
-     * 댓글 다건 조회 서비스
-     * 1. Post 조회
-     * 2. 해당 Post의 댓글 전체 조회 (대댓글 포함, 페이징)
-     * 3. PageResponse 반환
+     * 댓글 목록 조회 서비스
+     *
+     * @param postId   게시글 ID
+     * @param userId   사용자 ID (선택)
+     * @param pageable 페이징 정보
+     * @return 댓글 목록 페이지 응답 DTO
      */
     @Transactional(readOnly = true)
-    public PageResponse<CommentListResponse> getComments(Long postId, Pageable pageable) {
-        // Post 조회
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+    public PageResponse<CommentListResponse> getComments(Long postId, Pageable pageable, Long userId) {
+        // Post 검증
+        if (!postRepository.existsById(postId)) {
+            throw new CustomException(ErrorCode.POST_NOT_FOUND);
+        }
 
-        // 댓글 목록 조회
+        // 댓글 목록 페이지 조회 (대댓글 포함)
         Page<CommentListResponse> comments = commentRepository.findCommentsByPostId(postId, pageable);
+
+        // 로그인 사용자 추가 데이터 설정 (좋아요 여부)
+        if (userId != null && !comments.isEmpty()) {
+            applyLikedByUser(comments.getContent(), userId);
+        }
 
         return PageResponse.from(comments);
     }
 
-    // TODO: 추후 메서드 통합 및 리팩토링
-    @Transactional(readOnly = true)
-    public PageResponse<CommentListResponse> getComments(Long postId, Long userId, Pageable pageable) {
-        // 기본 댓글 목록
-        PageResponse<CommentListResponse> response = getComments(postId, pageable);
+    /**
+     * 댓글 좋아요 여부(likedByMe) 설정
+     */
+    private void applyLikedByUser(List<CommentListResponse> comments, Long userId) {
+        // 모든 댓글 ID 수집
+        List<Long> commentIds = comments.stream()
+                .flatMap(parent -> {
+                    Stream<Long> childIds = Optional.ofNullable(parent.getChildren())
+                            .orElse(List.of())
+                            .stream()
+                            .map(CommentListResponse::getCommentId);
+                    return Stream.concat(Stream.of(parent.getCommentId()), childIds);
+                })
+                .toList();
 
-        // 로그인 사용자용 로직
-        if (userId != null) {
-            // 댓글 ID 수집
-            List<Long> commentIds = response.items().stream()
-                    .map(CommentListResponse::getCommentId)
-                    .toList();
+        // 사용자가 좋아요한 댓글 ID 조회 (단일 쿼리)
+        Set<Long> likedSet = new HashSet<>(commentLikeRepository.findLikedCommentIdsIn(userId, commentIds));
 
-            if (commentIds.isEmpty()) return response;
-
-            // QueryDSL 기반 좋아요 ID 조회 (단일 쿼리)
-            List<Long> likedIds = commentLikeRepository.findLikedCommentIdsIn(userId, commentIds);
-            Set<Long> likedSet = new HashSet<>(likedIds);
-
-            // likedByMe 세팅
-            response.items().forEach(c -> c.setLikedByMe(likedSet.contains(c.getCommentId())));
-
-            // 자식 댓글에도 동일 적용
-            response.items().forEach(parent -> {
-                if (parent.getChildren() != null) {
-                    parent.getChildren().forEach(child ->
-                            child.setLikedByMe(likedSet.contains(child.getCommentId()))
-                    );
-                }
-            });
-        }
-
-        return response;
+        // likedByMe 플래그 설정
+        comments.forEach(parent -> {
+            parent.setLikedByMe(likedSet.contains(parent.getCommentId()));
+            Optional.ofNullable(parent.getChildren())
+                    .ifPresent(children -> children.forEach(child ->
+                            child.setLikedByMe(likedSet.contains(child.getCommentId()))));
+        });
     }
 
     /**
      * 댓글 수정 서비스
-     * 1. Post 조회
-     * 2. Comment 조회
-     * 3. 작성자 검증
-     * 4. Comment 업데이트 (내용)
-     * 5. CommentResponse 반환
+     *
+     * @param postId    게시글 ID
+     * @param commentId 댓글 ID
+     * @param request   댓글 수정 요청 본문
+     * @param userId    사용자 ID
+     * @return 수정된 댓글 응답 DTO
      */
     public CommentResponse updateComment(Long postId, Long commentId, CommentRequest request, Long userId) {
+        // User 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
         // Post 조회
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
@@ -154,17 +157,16 @@ public class CommentService {
 
         // Comment 업데이트
         comment.update(request.content());
-        
-        // 응답 반환
+
         return CommentResponse.from(comment);
     }
 
     /**
      * 댓글 삭제 서비스
-     * 1. Post 조회
-     * 2. Comment 조회
-     * 3. 작성자 검증
-     * 4. Comment 삭제
+     *
+     * @param postId    게시글 ID
+     * @param commentId 댓글 ID
+     * @param userId    사용자 ID
      */
     public void deleteComment(Long postId, Long commentId, Long userId) {
         // User 조회
@@ -184,22 +186,20 @@ public class CommentService {
             throw new CustomException(ErrorCode.COMMENT_NO_PERMISSION);
         }
 
-        // 연관관계 제거
-        post.removeComment(comment);
-        user.removeComment(comment);
-
-        // Comment 삭제
+        // Comment 삭제 및 댓글 수 감소 처리
+        comment.remove();
         commentRepository.delete(comment);
+        post.decreaseCommentCount();
     }
 
     /**
      * 대댓글 생성 서비스
-     * 1. User 조회
-     * 2. Post 조회
-     * 3. 부모 Comment 조회
-     * 4. 부모 및 depth 검증
-     * 5. 자식 Comment 생성
-     * 6. Comment 저장 및 ReplyResponse 반환
+     *
+     * @param postId          게시글 ID
+     * @param parentCommentId 부모 댓글 ID
+     * @param request         대댓글 작성 요청 본문
+     * @param userId          사용자 ID
+     * @return 생성된 대댓글 응답 DTO
      */
     public ReplyResponse createReply(Long postId, Long parentCommentId, CommentRequest request, Long userId) {
         // User 조회
@@ -226,8 +226,6 @@ public class CommentService {
 
         // 자식 Comment 생성
         Comment reply = new Comment(post, user, request.content(), parent);
-
-        // 저장 및 응답 반환
         commentRepository.save(reply);
 
         // 대댓글 작성 이벤트 발행

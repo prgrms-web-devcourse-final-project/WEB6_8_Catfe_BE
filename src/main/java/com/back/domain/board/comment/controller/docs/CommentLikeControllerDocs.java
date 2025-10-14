@@ -29,7 +29,7 @@ public interface CommentLikeControllerDocs {
                             examples = @ExampleObject(value = """
                                     {
                                       "success": true,
-                                      "code": "SUCCESS_201",
+                                      "code": "SUCCESS_200",
                                       "message": "댓글 좋아요가 등록되었습니다.",
                                       "data": {
                                         "commentId": 25,
