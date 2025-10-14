@@ -52,6 +52,7 @@ public class RoomService {
     private final SimpMessagingTemplate messagingTemplate;
     private final ApplicationEventPublisher eventPublisher;
     private final AvatarService avatarService;
+    private final com.back.domain.file.service.FileService fileService;
 
     /**
      * 방 생성 메서드
@@ -78,8 +79,6 @@ public class RoomService {
 
         RoomMember hostMember = RoomMember.createHost(savedRoom, creator);
         roomMemberRepository.save(hostMember);
-
-        // savedRoom.incrementParticipant();  // Redis로 이관 - DB 업데이트 제거
         
         log.info("방 생성 완료 - RoomId: {}, Title: {}, CreatorId: {}, WebRTC: {}, Thumbnail: {}", 
                 savedRoom.getId(), title, creatorId, useWebRTC, thumbnailUrl != null ? "설정됨" : "없음");
@@ -196,7 +195,6 @@ public class RoomService {
 
     /**
      * 모든 방 조회 (공개 + 비공개 전체)
-     * 비공개 방은 정보 마스킹
      */
     public Page<Room> getAllRooms(Pageable pageable) {
         return roomRepository.findAllRooms(pageable);
@@ -228,7 +226,7 @@ public class RoomService {
     /**
      * 모든 방을 RoomResponse로 변환 (비공개 방 마스킹 포함)
      * @param rooms 방 목록
-     * @return 마스킹된 RoomResponse 리스트
+     * @return RoomResponse 리스트
      */
     public java.util.List<RoomResponse> toRoomResponseListWithMasking(java.util.List<Room> rooms) {
         java.util.List<Long> roomIds = rooms.stream()
@@ -257,8 +255,6 @@ public class RoomService {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        // ⭐ 비공개 방 접근 제한 제거 - 모든 사용자가 조회 가능
-        // (프론트엔드에서 입장 시 로그인 체크)
 
         return room;
     }
@@ -285,7 +281,17 @@ public class RoomService {
             throw new CustomException(ErrorCode.BAD_REQUEST);
         }
 
+        // 기존 썸네일 URL 저장
+        String oldThumbnailUrl = room.getRawThumbnailUrl();
+
+        // 방 설정 업데이트
         room.updateSettings(title, description, maxParticipants, thumbnailUrl);
+        
+        // 썸네일이 변경되었고, 기존 썸네일이 S3 파일인 경우 삭제
+        if (oldThumbnailUrl != null && !oldThumbnailUrl.equals(thumbnailUrl)) {
+            fileService.deleteS3FileByUrl(oldThumbnailUrl);
+            log.info("기존 썸네일 삭제 완료 - RoomId: {}, OldUrl: {}", roomId, oldThumbnailUrl);
+        }
         
         log.info("방 설정 변경 완료 - RoomId: {}, UserId: {}, Thumbnail: {}", 
                 roomId, userId, thumbnailUrl != null ? "변경됨" : "없음");
@@ -351,6 +357,13 @@ public class RoomService {
 
         if (!room.isOwner(userId)) {
             throw new CustomException(ErrorCode.NOT_ROOM_MANAGER);
+        }
+
+        // 썸네일이 S3 파일인 경우 삭제
+        String thumbnailUrl = room.getRawThumbnailUrl();
+        if (thumbnailUrl != null) {
+            fileService.deleteS3FileByUrl(thumbnailUrl);
+            log.info("방 종료 - 썸네일 삭제 완료 - RoomId: {}, ThumbnailUrl: {}", roomId, thumbnailUrl);
         }
 
         room.terminate();
@@ -530,7 +543,7 @@ public class RoomService {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        // ⭐ 비공개 방 접근 제한 제거 - 모든 사용자가 조회 가능
+        // 모든 사용자가 조회 가능
 
         // 1. Redis에서 온라인 사용자 ID 조회
         Set<Long> onlineUserIds = roomParticipantService.getParticipants(roomId);

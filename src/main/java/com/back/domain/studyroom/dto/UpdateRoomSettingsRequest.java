@@ -21,6 +21,9 @@ public class UpdateRoomSettingsRequest {
     private Integer maxParticipants;
     
     // 방 썸네일 이미지 URL (선택)
+    // 파일 업로드를 사용하는 경우: 먼저 /api/files/upload로 파일을 업로드하고 받은 URL을 여기에 설정
+    // 직접 URL을 입력하는 경우: 외부 이미지 URL을 직접 입력
+    // null인 경우: 기존 썸네일 유지
     @Size(max = 500, message = "썸네일 URL은 500자를 초과할 수 없습니다")
     private String thumbnailUrl;
     
