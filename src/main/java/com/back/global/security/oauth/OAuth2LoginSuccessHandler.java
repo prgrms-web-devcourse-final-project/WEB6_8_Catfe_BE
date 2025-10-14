@@ -43,6 +43,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     @Value("${frontend.base-url}")
     private String FRONTEND_BASE_URL;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
@@ -54,7 +55,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
             // 토큰 생성
-            String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
             String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
             // DB에 Refresh Token 저장

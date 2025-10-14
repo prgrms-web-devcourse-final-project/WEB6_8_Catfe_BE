@@ -65,9 +65,8 @@ public class PostController implements PostControllerDocs {
             @PathVariable Long postId,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
-        PostDetailResponse response = (user != null)
-                ? postService.getPostWithUser(postId, user.getUserId())
-                : postService.getPost(postId);
+        Long userId = (user != null) ? user.getUserId() : null;
+        PostDetailResponse response = postService.getPost(postId, userId);
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success(

@@ -41,7 +41,7 @@ public class CommentController implements CommentControllerDocs {
                 ));
     }
 
-    // 댓글 다건 조회
+    // 댓글 목록 조회
     @GetMapping
     public ResponseEntity<RsData<PageResponse<CommentListResponse>>> getComments(
             @PathVariable Long postId,
@@ -49,7 +49,7 @@ public class CommentController implements CommentControllerDocs {
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable
     ) {
         Long userId = (user != null) ? user.getUserId() : null;
-        PageResponse<CommentListResponse> response = commentService.getComments(postId, userId, pageable);
+        PageResponse<CommentListResponse> response = commentService.getComments(postId, pageable, userId);
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(RsData.success(

@@ -357,10 +357,18 @@ public interface CommentControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "존재하지 않는 게시글 또는 댓글",
+                    description = "존재하지 않는 사용자/게시글/댓글",
                     content = @Content(
                             mediaType = "application/json",
                             examples = {
+                                    @ExampleObject(name = "존재하지 않는 사용자", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_001",
+                                              "message": "존재하지 않는 사용자입니다.",
+                                              "data": null
+                                            }
+                                            """),
                                     @ExampleObject(name = "존재하지 않는 게시글", value = """
                                             {
                                               "success": false,
@@ -473,10 +481,18 @@ public interface CommentControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "존재하지 않는 게시글 또는 댓글",
+                    description = "존재하지 않는 사용자/게시글/댓글",
                     content = @Content(
                             mediaType = "application/json",
                             examples = {
+                                    @ExampleObject(name = "존재하지 않는 사용자", value = """
+                                            {
+                                              "success": false,
+                                              "code": "USER_001",
+                                              "message": "존재하지 않는 사용자입니다.",
+                                              "data": null
+                                            }
+                                            """),
                                     @ExampleObject(name = "존재하지 않는 게시글", value = """
                                             {
                                               "success": false,

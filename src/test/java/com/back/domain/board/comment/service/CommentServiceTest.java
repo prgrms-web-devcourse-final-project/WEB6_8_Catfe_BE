@@ -139,7 +139,7 @@ class CommentServiceTest {
         Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "createdAt"));
 
         // when
-        PageResponse<CommentListResponse> response = commentService.getComments(post.getId(), pageable);
+        PageResponse<CommentListResponse> response = commentService.getComments(post.getId(), pageable, null);
 
         // then
         assertThat(response.items()).hasSize(1); // 부모만 페이징 결과
@@ -155,7 +155,7 @@ class CommentServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
 
         assertThatThrownBy(() ->
-                commentService.getComments(999L, pageable)
+                commentService.getComments(999L, pageable, null)
         ).isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.POST_NOT_FOUND.getMessage());
     }

@@ -29,4 +29,11 @@ public class CommentLike extends BaseEntity {
         comment.addLike(this);
         user.addCommentLike(this);
     }
+
+    // -------------------- 헬퍼 메서드 --------------------
+    /** 댓글 좋아요 삭제 시 연관관계 정리 */
+    public void remove() {
+        this.comment.removeLike(this);
+        this.user.removeCommentLike(this);
+    }
 }
