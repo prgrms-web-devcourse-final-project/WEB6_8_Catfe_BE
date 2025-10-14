@@ -17,6 +17,8 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 import java.security.Principal;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
@@ -57,6 +59,60 @@ class WebSocketMessageControllerTest {
     }
 
     @Nested
+    @DisplayName("WebSocket 방 입장 처리")
+    class HandleWebSocketJoinRoomTest {
+
+        @Test
+        @DisplayName("성공 - 인증된 사용자의 방 입장 확인")
+        void t1() {
+            // given
+            Long roomId = 1L;
+            Map<String, Object> payload = new HashMap<>();
+            Principal mockPrincipal = createMockPrincipal(userId);
+            doNothing().when(sessionManager).updateLastActivity(userId);
+
+            // when
+            controller.handleWebSocketJoinRoom(roomId, payload, mockPrincipal);
+
+            // then
+            verify(sessionManager).updateLastActivity(userId);
+        }
+
+        @Test
+        @DisplayName("실패 - 인증 정보가 없는 경우 아무 동작도 하지 않음")
+        void t2() {
+            // given
+            Long roomId = 1L;
+            Map<String, Object> payload = new HashMap<>();
+            Principal principal = null;
+
+            // when
+            controller.handleWebSocketJoinRoom(roomId, payload, principal);
+
+            // then
+            verify(sessionManager, never()).updateLastActivity(any(Long.class));
+        }
+
+        @Test
+        @DisplayName("실패 - CustomException 발생 시 예외를 그대로 던짐")
+        void t3() {
+            // given
+            Long roomId = 1L;
+            Map<String, Object> payload = new HashMap<>();
+            Principal mockPrincipal = createMockPrincipal(userId);
+            CustomException expectedException = new CustomException(ErrorCode.BAD_REQUEST);
+            doThrow(expectedException).when(sessionManager).updateLastActivity(userId);
+
+            // when & then
+            assertThrows(CustomException.class, () -> {
+                controller.handleWebSocketJoinRoom(roomId, payload, mockPrincipal);
+            });
+
+            verify(sessionManager).updateLastActivity(userId);
+        }
+    }
+
+    @Nested
     @DisplayName("Heartbeat 처리")
     class HandleHeartbeatTest {
 
@@ -85,7 +141,7 @@ class WebSocketMessageControllerTest {
             controller.handleHeartbeat(principal, headerAccessor);
 
             // then
-            verify(sessionManager, never()).updateLastActivity(any());
+            verify(sessionManager, never()).updateLastActivity(any(Long.class));
             verify(errorHelper).sendUnauthorizedError(sessionId);
         }
 
@@ -189,6 +245,41 @@ class WebSocketMessageControllerTest {
 
             verify(sessionManager).updateLastActivity(userId);
             verifyNoInteractions(errorHelper);
+        }
+    }
+
+    @Nested
+    @DisplayName("예외 처리")
+    class ExceptionHandlerTest {
+
+        @Test
+        @DisplayName("CustomException 처리 - ErrorHelper를 통해 에러 전송")
+        void t1() {
+            // given
+            CustomException exception = new CustomException(ErrorCode.ROOM_NOT_FOUND);
+
+            // when
+            controller.handleCustomException(exception, headerAccessor);
+
+            // then
+            verify(errorHelper).sendCustomExceptionToUser(sessionId, exception);
+        }
+
+        @Test
+        @DisplayName("일반 Exception 처리 - ErrorHelper를 통해 일반 에러 전송")
+        void t2() {
+            // given
+            Exception exception = new RuntimeException("예상치 못한 오류");
+
+            // when
+            controller.handleGeneralException(exception, headerAccessor);
+
+            // then
+            verify(errorHelper).sendGenericErrorToUser(
+                    eq(sessionId),
+                    eq(exception),
+                    eq("요청 처리 중 서버 오류가 발생했습니다.")
+            );
         }
     }
 }

@@ -32,7 +32,7 @@ public interface PostCategoryControllerDocs {
                             examples = @ExampleObject(value = """
                                     {
                                       "success": true,
-                                      "code": "SUCCESS_201",
+                                      "code": "SUCCESS_200",
                                       "message": "카테고리가 생성되었습니다.",
                                       "data": {
                                         "id": 80,

@@ -60,7 +60,7 @@ public class EmailService {
     // 비밀번호 재설정 메일 전송
     public void sendPasswordResetEmail(String toEmail, String token) {
         String subject = "[Catfe] 비밀번호 재설정 안내";
-        String resetUrl = FRONTEND_BASE_URL + "/reset-password?token=" + token;
+        String resetUrl = FRONTEND_BASE_URL + "/find-pw?token=" + token;
 
         String htmlContent = """
             <p>안녕하세요, Catfe입니다.</p>

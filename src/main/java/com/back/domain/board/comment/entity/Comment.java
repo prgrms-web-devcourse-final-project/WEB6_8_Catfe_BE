@@ -58,7 +58,7 @@ public class Comment extends BaseEntity {
     /** 대댓글 생성 */
     public static Comment createChild(Post post, User user, String content, Comment parent) {
         Comment comment = new Comment(post, user, content, parent);
-        parent.getChildren().add(comment);
+        parent.addChildren(comment);
         return comment;
     }
 
@@ -69,6 +69,14 @@ public class Comment extends BaseEntity {
 
     public void removeLike(CommentLike like) {
         this.commentLikes.remove(like);
+    }
+
+    public void addChildren(Comment child) {
+        this.children.add(child);
+    }
+
+    public void removeChildren(Comment child) {
+        this.children.remove(child);
     }
 
     // -------------------- 비즈니스 메서드 --------------------
@@ -86,6 +94,16 @@ public class Comment extends BaseEntity {
     public void decreaseLikeCount() {
         if (this.likeCount > 0) {
             this.likeCount--;
+        }
+    }
+
+    // -------------------- 헬퍼 메서드 --------------------
+    /** 댓글 삭제 시 연관관계 정리 */
+    public void remove() {
+        this.post.removeComment(this);
+        this.user.removeComment(this);
+        if (this.parent != null) {
+            this.parent.removeChildren(this);
         }
     }
 }

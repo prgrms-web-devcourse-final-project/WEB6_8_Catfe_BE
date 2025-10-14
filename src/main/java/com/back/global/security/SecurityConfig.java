@@ -37,22 +37,49 @@ public class SecurityConfig {
                 // 인가 규칙 설정
                 .authorizeHttpRequests(
                         auth -> auth
-                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // CORS Preflight 요청 허용
-                                .requestMatchers("/api/auth/**", "/oauth2/**", "/login/oauth2/**").permitAll()
-                                .requestMatchers("api/ws/**", "/ws/**").permitAll()
+                                // CORS Preflight
+                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                                // 개발 및 모니터링용
+                                .requestMatchers(
+                                        "/",
+                                        "/swagger-ui/**",
+                                        "/v3/api-docs/**"
+                                ).permitAll()                                      // Swagger
+                                .requestMatchers("/h2-console/**").permitAll()   // H2 콘솔
+                                .requestMatchers("/actuator/health").permitAll() // Health check
+
+                                // 인증/인가
+                                .requestMatchers(
+                                        "/api/auth/**",
+                                        "/oauth2/**",
+                                        "/login/oauth2/**"
+                                ).permitAll()
+
+                                // WebSocket
+                                .requestMatchers(
+                                        "api/ws/**",
+                                        "/ws/**"
+                                ).permitAll()
+
+                                // 스터디룸 관련
+                                .requestMatchers("/api/rooms/*/messages/**").permitAll()  // 방 내 채팅 메시지
+                                .requestMatchers(HttpMethod.GET,
+                                        "/api/rooms",             // 전체 목록 조회
+                                        "/api/rooms/all",         // 전체 방 목록
+                                        "/api/rooms/public",      // 공개 방 목록
+                                        "/api/rooms/popular",     // 인기 방 목록
+                                        "/api/rooms/*"            // 방 상세 조회
+                                ).permitAll()
+                                //.requestMatchers("/api/rooms/RoomChatApiControllerTest").permitAll() // 테스트용
+
+                                // 커뮤니티 관련
                                 .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
-                                .requestMatchers("/api/rooms/*/messages/**").permitAll()  //스터디 룸 내에 잡혀있어 있는 채팅 관련 전체 허용
-                                // 방 목록 조회 API 비로그인 허용
-                                .requestMatchers(HttpMethod.GET, "/api/rooms").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/rooms/all").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/rooms/public").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/rooms/popular").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/rooms/*").permitAll() // 방 상세 조회
-                                //.requestMatchers("/api/rooms/RoomChatApiControllerTest").permitAll() // 테스트용 임시 허용
-                                .requestMatchers("/","/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger 허용
-                                .requestMatchers("/h2-console/**").permitAll() // H2 Console 허용
-                                .requestMatchers("/actuator/health").permitAll() // 헬스 체크 허용
-                                .requestMatchers("/file/**").permitAll() // 파일 관련 요청 모두 허용(테스트 완료 후, 요청제한 예정)
+
+                                // 파일 관련 (테스트용, 추후 요청 제한 예정)
+                                .requestMatchers("/file/**").permitAll()
+
+                                // 그 외 모든 요청은 인증 필요
                                 .anyRequest().authenticated()
                 )
 

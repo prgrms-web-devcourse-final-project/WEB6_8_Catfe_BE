@@ -156,7 +156,7 @@ class PostServiceTest {
         postRepository.save(post);
 
         // when
-        PostDetailResponse response = postService.getPost(post.getId());
+        PostDetailResponse response = postService.getPost(post.getId(), null);
 
         // then
         assertThat(response.postId()).isEqualTo(post.getId());
@@ -173,7 +173,7 @@ class PostServiceTest {
     @DisplayName("게시글 단건 조회 실패 - 존재하지 않는 게시글")
     void getPost_fail_postNotFound() {
         // when & then
-        assertThatThrownBy(() -> postService.getPost(999L))
+        assertThatThrownBy(() -> postService.getPost(999L, null))
                 .isInstanceOf(CustomException.class)
                 .hasMessage(ErrorCode.POST_NOT_FOUND.getMessage());
     }
