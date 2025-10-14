@@ -174,6 +174,58 @@ resource "aws_security_group" "sg_1" {
   }
 }
 
+# Coturn 서버 전용 보안 그룹 (Security Group)
+resource "aws_security_group" "coturn_sg" {
+  name        = "team5-coturn-server-sg"
+  description = "Allow WebRTC TURN server traffic"
+  vpc_id      = aws_vpc.vpc_1.id
+
+  ingress {
+    description = "SSH for maintenance"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "TURN Listening Port (TCP)"
+    from_port   = 3478
+    to_port     = 3478
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "TURN Listening Port (UDP)"
+    from_port   = 3478
+    to_port     = 3478
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "TURN Media Relay Ports (UDP)"
+    from_port   = 49152
+    to_port     = 65535
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Key   = "TEAM"
+    Value = "devcos-team05"
+    Name  = "team5-coturn-sg"
+  }
+}
+
 # EC2 역할 생성
 resource "aws_iam_role" "ec2_role_1" {
   tags = {
@@ -307,6 +359,55 @@ ${local.ec2_user_data_base}
 EOF
 }
 
+resource "aws_instance" "coturn_server" {
+  ami                         = "ami-02835aed2a5cb1d2a" # 서울 리전 Ubuntu 22.04 LTS
+  instance_type               = "t3.micro"
+  subnet_id                   = aws_subnet.subnet_1.id
+  vpc_security_group_ids      = [aws_security_group.coturn_sg.id]
+  associate_public_ip_address = true
+
+  tags = {
+    Key   = "TEAM"
+    Value = "devcos-team05"
+    Name  = "team5-coturn-server"
+  }
+
+  # EC2 부팅 시 Coturn 자동 설치 및 설정 스크립트
+  user_data = <<-EOF
+              #!/bin/bash
+              apt-get update
+              apt-get install -y coturn
+
+              PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+              PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+
+              cat <<EOT > /etc/turnserver.conf
+              listening-port=3478
+              external-ip=$PUBLIC_IP/$PRIVATE_IP
+
+              # 동적 인증을 위한 비밀키 설정
+              use-auth-secret
+              static-auth-secret=${var.turn_shared_secret}
+
+              lt-cred-mech
+              realm=${var.catfe_domain_1}
+              log-file=/var/log/turnserver.log
+              verbose
+              fingerprint
+              no-multicast-peers
+              EOT
+
+              systemctl restart coturn
+              systemctl enable coturn
+              EOF
+}
+
+# 3. 결과 출력 (Output - Turn 서버 IP 주소 출력)
+output "coturn_server_public_ip" {
+  description = "The public IP address of the Coturn server."
+  value       = aws_instance.coturn_server.public_ip
+}
+
 # RDS용 Security Group
 resource "aws_security_group" "rds_sg_1" {
   name        = "team5-rds-sg-1"
@@ -361,6 +462,8 @@ resource "aws_db_instance" "mysql" {
   db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name
   vpc_security_group_ids = [aws_security_group.rds_sg_1.id]
 
+  # RDS 퍼블릭 액세스 허용
+  publicly_accessible = true
 
   multi_az = false
 
