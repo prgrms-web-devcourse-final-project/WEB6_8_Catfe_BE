@@ -75,11 +75,18 @@ public class SecurityConfig {
 
                                 // 커뮤니티 관련
                                 .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
-
-                                // 파일 관련 (테스트용, 추후 요청 제한 예정)
-                                .requestMatchers("/file/**").permitAll()
-
-                                // 그 외 모든 요청은 인증 필요
+                                .requestMatchers("/api/rooms/*/messages/**").permitAll()  //스터디 룸 내에 잡혀있어 있는 채팅 관련 전체 허용
+                                // 방 목록 조회 API 비로그인 허용
+                                .requestMatchers(HttpMethod.GET, "/api/rooms").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/rooms/all").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/rooms/public").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/rooms/popular").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/rooms/*").permitAll() // 방 상세 조회
+                                //.requestMatchers("/api/rooms/RoomChatApiControllerTest").permitAll() // 테스트용 임시 허용
+                                .requestMatchers("/","/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger 허용
+//                                .requestMatchers("/h2-console/**").permitAll() // H2 Console 허용
+                                .requestMatchers("/actuator/health").permitAll() // 헬스 체크 허용
+                                .requestMatchers("/file/**").permitAll() // 파일 관련 요청 모두 허용(테스트 완료 후, 요청제한 예정)
                                 .anyRequest().authenticated()
                 )
 
