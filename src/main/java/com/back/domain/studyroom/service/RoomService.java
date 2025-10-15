@@ -719,22 +719,8 @@ public class RoomService {
 
         // 4. Redis에서 제거 (강제 퇴장) - VISITOR 포함 모든 사용자
         roomParticipantService.exitRoom(targetUserId, roomId);
-        
-        // 5. 추방당한 유저에게 개인 메시지 전송 (자동 퇴장 처리용)
-        java.util.Map<String, Object> kickNotification = new java.util.HashMap<>();
-        kickNotification.put("type", "MEMBER_KICKED");
-        kickNotification.put("roomId", roomId);
-        kickNotification.put("message", "방에서 추방되었습니다");
-        
-        messagingTemplate.convertAndSendToUser(
-                targetUserId.toString(),
-                "/queue/kick",
-                kickNotification
-        );
-        
-        log.info("추방 알림 전송 - RoomId: {}, TargetUserId: {}", roomId, targetUserId);
 
-        // 6. 멤버 추방 이벤트 발행 (알림용)
+        // 5. 멤버 추방 이벤트 발행
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
