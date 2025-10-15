@@ -1,5 +1,6 @@
 package com.back.domain.user.account.service;
 
+import com.amazonaws.services.s3.AmazonS3;
 import com.back.domain.board.comment.dto.MyCommentResponse;
 import com.back.domain.board.comment.entity.Comment;
 import com.back.domain.board.comment.repository.CommentRepository;
@@ -14,7 +15,7 @@ import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.entity.FileAttachment;
 import com.back.domain.file.repository.AttachmentMappingRepository;
 import com.back.domain.file.repository.FileAttachmentRepository;
-import com.back.domain.file.service.FileService;
+import com.back.domain.file.service.AttachmentMappingService;
 import com.back.domain.user.account.dto.ChangePasswordRequest;
 import com.back.domain.user.account.dto.UserProfileRequest;
 import com.back.domain.user.account.dto.UserDetailResponse;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -73,8 +75,11 @@ class AccountServiceTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @MockitoBean
-    private FileService fileService;
+    @Autowired
+    private AttachmentMappingService attachmentMappingService;
+
+    @MockBean
+    private AmazonS3 amazonS3; // S3 호출 차단용 mock
 
     private MultipartFile mockMultipartFile(String filename) {
         return new MockMultipartFile(filename, filename, "image/png", new byte[]{1, 2, 3});
@@ -152,7 +157,7 @@ class AccountServiceTest {
         // 기존 프로필 이미지 매핑 설정
         FileAttachment oldAttachment = new FileAttachment("old_uuid_img.png", mockMultipartFile("old.png"), user, "https://cdn.example.com/old.png");
         fileAttachmentRepository.save(oldAttachment);
-        attachmentMappingRepository.save(new AttachmentMapping(oldAttachment, EntityType.PROFILE, user.getId()));
+        attachmentMappingRepository.save(new AttachmentMapping(oldAttachment, EntityType.PROFILE, user.getUserProfile().getId()));
 
         // 새 프로필 이미지 업로드된 파일 가정
         FileAttachment newAttachment = new FileAttachment("new_uuid_img.png", mockMultipartFile("new.png"), user, "https://cdn.example.com/new.png");
@@ -169,7 +174,7 @@ class AccountServiceTest {
         assertThat(response.profile().nickname()).isEqualTo("새닉네임");
 
         // 새 매핑이 존재하고 기존 매핑은 삭제되었는지 검증
-        List<AttachmentMapping> mappings = attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.PROFILE, user.getId());
+        List<AttachmentMapping> mappings = attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.PROFILE, user.getUserProfile().getId());
         assertThat(mappings).hasSize(1);
         assertThat(mappings.get(0).getFileAttachment().getPublicURL()).isEqualTo(newAttachment.getPublicURL());
 
@@ -364,7 +369,7 @@ class AccountServiceTest {
         // 프로필 이미지 매핑 설정
         FileAttachment attachment = new FileAttachment("profile_uuid_img.png", mockMultipartFile("profile.png"), user, "https://cdn.example.com/profile.png");
         fileAttachmentRepository.save(attachment);
-        attachmentMappingRepository.save(new AttachmentMapping(attachment, EntityType.PROFILE, user.getId()));
+        attachmentMappingRepository.save(new AttachmentMapping(attachment, EntityType.PROFILE, user.getUserProfile().getId()));
 
         // when: 탈퇴 처리
         accountService.deleteUser(user.getId());
@@ -385,7 +390,7 @@ class AccountServiceTest {
         assertThat(profile.getBirthDate()).isNull();
 
         // 프로필 이미지 및 매핑 삭제 검증
-        assertThat(attachmentMappingRepository.findByEntityTypeAndEntityId(EntityType.PROFILE, user.getId())).isEmpty();
+        assertThat(attachmentMappingRepository.findByEntityTypeAndEntityId(EntityType.PROFILE, user.getUserProfile().getId())).isEmpty();
         assertThat(fileAttachmentRepository.findByPublicURL("https://cdn.example.com/profile.png")).isEmpty();
     }
 
