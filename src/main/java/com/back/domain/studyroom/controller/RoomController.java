@@ -417,6 +417,31 @@ public class RoomController {
                 .body(RsData.success("방 비밀번호 제거 완료", null));
     }
 
+    @PostMapping("/{roomId}/password")
+    @Operation(
+        summary = "방 비밀번호 설정",
+        description = "비밀번호가 없는 방에 비밀번호를 설정합니다. 이미 비밀번호가 있는 경우 비밀번호 변경 API(PUT)를 사용. 방장만 실행 가능합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "비밀번호 설정 성공"),
+        @ApiResponse(responseCode = "400", description = "이미 비밀번호가 설정되어 있음"),
+        @ApiResponse(responseCode = "403", description = "방장 권한 없음"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<Void>> setRoomPassword(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
+            @Valid @RequestBody SetRoomPasswordRequest request) {
+
+        Long currentUserId = currentUser.getUserId();
+
+        roomService.setRoomPassword(roomId, request.getNewPassword(), currentUserId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("방 비밀번호 설정 완료", null));
+    }
+
     @DeleteMapping("/{roomId}")
     @Operation(
         summary = "방 종료", 

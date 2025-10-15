@@ -89,7 +89,7 @@ public class RoomCreateIntegrationTest {
                 maxParticipants,
                 testUser.getId(),
                 useWebRTC,
-                null  // thumbnailUrl
+                null  // thumbnailAttachmentId
         );
 
         // then
@@ -139,7 +139,7 @@ public class RoomCreateIntegrationTest {
                 10,
                 testUser.getId(),
                 true,  // useWebRTC
-                null   // thumbnailUrl
+                null   // thumbnailAttachmentId
         );
 
         // then - 컬렉션 필드들이 null이 아니어야 함
