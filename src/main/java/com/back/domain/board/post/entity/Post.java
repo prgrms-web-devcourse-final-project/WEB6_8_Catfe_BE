@@ -92,9 +92,10 @@ public class Post extends BaseEntity {
 
     // -------------------- 비즈니스 메서드 --------------------
     /** 게시글 내용 수정 */
-    public void update(String title, String content) {
+    public void update(String title, String content, String thumbnailUrl) {
         this.title = title;
         this.content = content;
+        this.thumbnailUrl = thumbnailUrl;
     }
 
     /** 카테고리 일괄 업데이트 */
