@@ -90,6 +90,11 @@ public class Room extends BaseEntity {
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     public List<StudyRecord> studyRecords = new ArrayList<>();
 
+    // 방명록
+    @Builder.Default
+    @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RoomGuestbook> guestbooks = new ArrayList<>();
+
     
     /**
      * 방에 입장할 수 있는지 확인
@@ -195,6 +200,7 @@ public class Room extends BaseEntity {
         room.roomChatMessages = new ArrayList<>();
         room.roomParticipantHistories = new ArrayList<>();
         room.studyRecords = new ArrayList<>();
+        room.guestbooks = new ArrayList<>();
         
         return room;
     }
