@@ -313,7 +313,7 @@ class RoomServiceTest {
         assertThat(testRoom.getTitle()).isEqualTo("변경된 제목");
         assertThat(testRoom.getDescription()).isEqualTo("변경된 설명");
         assertThat(testRoom.getMaxParticipants()).isEqualTo(15);
-        verify(roomThumbnailService, never()).updateThumbnailMapping(any(), any());
+        verify(roomThumbnailService, never()).updateThumbnailMapping(any(), any(), any());  // userId 파라미터 추가
     }
 
     @Test
@@ -348,7 +348,7 @@ class RoomServiceTest {
         // then
         assertThat(testRoom.getStatus()).isEqualTo(RoomStatus.TERMINATED);
         assertThat(testRoom.isActive()).isFalse();
-        verify(roomThumbnailService, times(1)).deleteThumbnailMapping(1L);
+        verify(roomThumbnailService, times(1)).deleteThumbnailMapping(1L, 1L);  // userId 파라미터 추가
     }
 
     @Test
@@ -617,7 +617,7 @@ class RoomServiceTest {
         // given
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
         given(roomParticipantService.getParticipantCount(1L)).willReturn(0L);
-        given(roomThumbnailService.updateThumbnailMapping(eq(1L), eq(789L)))
+        given(roomThumbnailService.updateThumbnailMapping(eq(1L), eq(789L), eq(1L)))  // userId 파라미터 추가
                 .willReturn("https://s3.amazonaws.com/bucket/new-thumbnail.jpg");
 
         // when
@@ -633,6 +633,6 @@ class RoomServiceTest {
         // then
         assertThat(testRoom.getTitle()).isEqualTo("변경된 제목");
         assertThat(testRoom.getThumbnailUrl()).isEqualTo("https://s3.amazonaws.com/bucket/new-thumbnail.jpg");
-        verify(roomThumbnailService, times(1)).updateThumbnailMapping(eq(1L), eq(789L));
+        verify(roomThumbnailService, times(1)).updateThumbnailMapping(eq(1L), eq(789L), eq(1L));  // userId 파라미터 추가
     }
 }
