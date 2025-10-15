@@ -615,4 +615,29 @@ public class RoomController {
                 .status(HttpStatus.OK)
                 .body(RsData.success("역할 변경 완료", response));
     }
+
+    @DeleteMapping("/{roomId}/members/{userId}")
+    @Operation(
+        summary = "멤버 추방",
+        description = "방에서 특정 멤버를 강제로 퇴장시킵니다. 방장과 부방장만 실행 가능하며, 방장은 추방할 수 없습니다. 추방된 사용자는 Redis에서 즉시 제거되고 알림을 받습니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "추방 성공"),
+        @ApiResponse(responseCode = "400", description = "방장은 추방할 수 없음"),
+        @ApiResponse(responseCode = "403", description = "추방 권한 없음 (방장 또는 부방장만 가능)"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 방 또는 멤버"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public ResponseEntity<RsData<Void>> kickMember(
+            @Parameter(description = "방 ID", required = true) @PathVariable Long roomId,
+            @Parameter(description = "추방할 사용자 ID", required = true) @PathVariable Long userId) {
+
+        Long currentUserId = currentUser.getUserId();
+
+        roomService.kickMember(roomId, userId, currentUserId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(RsData.success("멤버 추방 완료", null));
+    }
 }
