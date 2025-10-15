@@ -1,5 +1,7 @@
 package com.back.domain.file.service;
 
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.DeleteObjectRequest;
 import com.back.domain.file.entity.AttachmentMapping;
 import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.entity.FileAttachment;
@@ -8,6 +10,7 @@ import com.back.domain.file.repository.FileAttachmentRepository;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,8 +19,10 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class AttachmentMappingService {
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucket;
+    private final AmazonS3 amazonS3;
     private final AttachmentMappingRepository attachmentMappingRepository;
-    private final FileService fileService;
     private final FileAttachmentRepository fileAttachmentRepository;
 
     /**
@@ -81,8 +86,8 @@ public class AttachmentMappingService {
 
     /**
      * 특정 EntityType과 entityId에 연결된 첨부 파일을 모두 삭제
-     * - 매핑 테이블(AttachmentMapping) 삭제
-     * - 실제 파일(FileAttachment + S3 객체) 삭제
+     * - S3 객체 삭제
+     * - 매핑 테이블 + 파일 정보 삭제
      */
     @Transactional
     public void deleteAttachments(EntityType entityType, Long entityId, Long userId) {
@@ -95,12 +100,17 @@ public class AttachmentMappingService {
             FileAttachment attachment = mapping.getFileAttachment();
 
             if(attachment != null) {
-                // fileAttachment 테이블 및 연관된 S3 오브젝트 삭제
-                fileService.deleteFile(attachment.getId(), userId);
+                // S3 오브젝트 삭제
+                s3Delete(attachment.getStoredName());
             }
         }
 
-        // 매핑 테이블 삭제
+        // 매핑 테이블 + 파일 정보 삭제
         attachmentMappingRepository.deleteAllByEntityTypeAndEntityId(entityType, entityId);
     }
+
+    private void s3Delete(String fileName) {
+        amazonS3.deleteObject(new DeleteObjectRequest(bucket, fileName));
+    }
 }
+
