@@ -70,6 +70,7 @@ public class AccountService {
             throw new CustomException(ErrorCode.NICKNAME_DUPLICATED);
         }
 
+
         // UserProfile 업데이트
         UserProfile profile = user.getUserProfile();
         profile.setNickname(request.nickname());
