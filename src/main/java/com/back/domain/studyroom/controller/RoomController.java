@@ -141,8 +141,9 @@ public class RoomController {
         Pageable pageable = PageRequest.of(page, size);
         Page<Room> rooms = roomService.getAllRooms(pageable);
 
-        // 모든 정보 공개
-        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
+        // 비로그인 사용자도 조회 가능 (userId = null이면 isFavorite = false)
+        Long userId = currentUser.getUserIdOrNull();
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent(), userId);
 
         Map<String, Object> response = new HashMap<>();
         response.put("rooms", roomList);
@@ -173,7 +174,9 @@ public class RoomController {
         Pageable pageable = PageRequest.of(page, size);
         Page<Room> rooms = roomService.getPublicRooms(includeInactive, pageable);
 
-        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
+        // 비로그인 사용자도 조회 가능
+        Long userId = currentUser.getUserIdOrNull();
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent(), userId);
 
         Map<String, Object> response = new HashMap<>();
         response.put("rooms", roomList);
@@ -207,7 +210,7 @@ public class RoomController {
         Pageable pageable = PageRequest.of(page, size);
         Page<Room> rooms = roomService.getMyPrivateRooms(currentUserId, includeInactive, pageable);
 
-        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent(), currentUserId);
 
         Map<String, Object> response = new HashMap<>();
         response.put("rooms", roomList);
@@ -240,7 +243,7 @@ public class RoomController {
         Pageable pageable = PageRequest.of(page, size);
         Page<Room> rooms = roomService.getMyHostingRooms(currentUserId, pageable);
 
-        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent(), currentUserId);
 
         Map<String, Object> response = new HashMap<>();
         response.put("rooms", roomList);
@@ -270,7 +273,9 @@ public class RoomController {
         Pageable pageable = PageRequest.of(page, size);
         Page<Room> rooms = roomService.getJoinableRooms(pageable);
 
-        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
+        // 비로그인 사용자도 조회 가능
+        Long userId = currentUser.getUserIdOrNull();
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent(), userId);
 
         Map<String, Object> response = new HashMap<>();
         response.put("rooms", roomList);
@@ -303,7 +308,7 @@ public class RoomController {
         Room room = roomService.getRoomDetail(roomId, currentUserId);
         List<RoomMember> members = roomService.getRoomMembers(roomId, currentUserId);
 
-        RoomDetailResponse response = roomService.toRoomDetailResponse(room, members);
+        RoomDetailResponse response = roomService.toRoomDetailResponse(room, members, currentUserId);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
@@ -554,7 +559,9 @@ public class RoomController {
         Pageable pageable = PageRequest.of(page, size);
         Page<Room> rooms = roomService.getPopularRooms(pageable);
 
-        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent());
+        // 비로그인 사용자도 조회 가능
+        Long userId = currentUser.getUserIdOrNull();
+        List<RoomResponse> roomList = roomService.toRoomResponseList(rooms.getContent(), userId);
 
         Map<String, Object> response = new HashMap<>();
         response.put("rooms", roomList);

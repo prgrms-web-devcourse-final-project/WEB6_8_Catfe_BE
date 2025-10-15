@@ -26,7 +26,14 @@ public class RoomResponse {
     private Boolean allowAudio;
     private Boolean allowScreenShare;
     
+    // 즐겨찾기 여부 (로그인 사용자만, 비로그인은 항상 false)
+    private Boolean isFavorite;
+    
     public static RoomResponse from(Room room, long currentParticipants) {
+        return from(room, currentParticipants, false);
+    }
+    
+    public static RoomResponse from(Room room, long currentParticipants, boolean isFavorite) {
         return RoomResponse.builder()
                 .roomId(room.getId())
                 .title(room.getTitle())
@@ -41,6 +48,7 @@ public class RoomResponse {
                 .allowCamera(room.isAllowCamera())
                 .allowAudio(room.isAllowAudio())
                 .allowScreenShare(room.isAllowScreenShare())
+                .isFavorite(isFavorite)  // 즐겨찾기 여부
                 .build();
     }
     
@@ -63,6 +71,7 @@ public class RoomResponse {
                 .allowCamera(false)      // RTC 정보 숨김
                 .allowAudio(false)
                 .allowScreenShare(false)
+                .isFavorite(false)
                 .build();
     }
 }

@@ -24,9 +24,10 @@ public class RoomDetailResponse {
     private boolean allowScreenShare;
     private String createdBy;
     private LocalDateTime createdAt;
+    private Boolean isFavorite;
     private List<RoomMemberResponse> members;
     
-    public static RoomDetailResponse of(Room room, long currentParticipants, List<RoomMemberResponse> members) {
+    public static RoomDetailResponse of(Room room, long currentParticipants, List<RoomMemberResponse> members, boolean isFavorite) {
         return RoomDetailResponse.builder()
                 .roomId(room.getId())
                 .title(room.getTitle())
@@ -41,6 +42,7 @@ public class RoomDetailResponse {
                 .allowScreenShare(room.isAllowScreenShare())
                 .createdBy(room.getCreatedBy().getNickname())
                 .createdAt(room.getCreatedAt())
+                .isFavorite(isFavorite)
                 .members(members)
                 .build();
     }
