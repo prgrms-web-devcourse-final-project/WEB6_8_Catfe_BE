@@ -95,6 +95,7 @@ spring:
 
 server:
   shutdown: graceful # graceful shutdown 활성화
+  forward-headers-strategy: framework
 
 springdoc:
   default-produces-media-type: application/json;charset=UTF-8
