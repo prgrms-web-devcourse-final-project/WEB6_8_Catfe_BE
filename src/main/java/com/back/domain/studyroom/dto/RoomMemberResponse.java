@@ -13,8 +13,7 @@ public class RoomMemberResponse {
     private Long userId;
     private String nickname;
     private String profileImageUrl;
-    private Long avatarId;
-    private String avatarImageUrl;
+    private Long avatarId;  // 아바타 ID (숫자만, 프론트에서 매핑)
     private RoomRole role;
     private LocalDateTime joinedAt;
     private LocalDateTime promotedAt;
@@ -36,15 +35,14 @@ public class RoomMemberResponse {
     }
     
     /**
-     * 아바타 정보를 포함된 내용으로 생성
+     * 아바타 ID 포함하여 생성
      */
-    public static RoomMemberResponse of(RoomMember member, Long avatarId, String avatarImageUrl) {
+    public static RoomMemberResponse of(RoomMember member, Long avatarId) {
         return RoomMemberResponse.builder()
                 .userId(member.getUser().getId())
                 .nickname(member.getUser().getNickname())
                 .profileImageUrl(member.getUser().getProfileImageUrl())
                 .avatarId(avatarId)
-                .avatarImageUrl(avatarImageUrl)
                 .role(member.getRole())
                 .joinedAt(member.getJoinedAt())
                 .promotedAt(member.getPromotedAt())

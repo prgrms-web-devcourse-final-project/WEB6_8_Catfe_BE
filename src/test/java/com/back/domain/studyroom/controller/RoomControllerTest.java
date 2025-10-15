@@ -139,13 +139,16 @@ class RoomControllerTest {
     }
 
     @Test
-    @DisplayName("방 입장 API 테스트 - JWT 인증")
+    @DisplayName("방 입장 API 테스트 - JWT 인증 + 아바타 ID 포함")
     void joinRoom() {
         // given
         given(currentUser.getUserId()).willReturn(1L);
         
         JoinRoomRequest request = new JoinRoomRequest(null);
-        given(roomService.joinRoom(eq(1L), any(), eq(1L))).willReturn(testMember);
+        
+        // joinRoomWithAvatar 메서드 Mock
+        JoinRoomWithAvatarResult result = new JoinRoomWithAvatarResult(testMember, 2L);  // 아바타 ID: 2
+        given(roomService.joinRoomWithAvatar(eq(1L), any(), eq(1L))).willReturn(result);
 
         // when
         ResponseEntity<RsData<JoinRoomResponse>> response = roomController.joinRoom(1L, request);
@@ -154,9 +157,10 @@ class RoomControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData().getAvatarId()).isEqualTo(2L);  // 아바타 ID 검증
 
         verify(currentUser, times(1)).getUserId();
-        verify(roomService, times(1)).joinRoom(eq(1L), any(), eq(1L));
+        verify(roomService, times(1)).joinRoomWithAvatar(eq(1L), any(), eq(1L));
     }
 
     @Test

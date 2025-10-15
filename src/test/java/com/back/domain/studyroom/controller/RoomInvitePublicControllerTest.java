@@ -27,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("RoomInvitePublicController 테스트")
@@ -40,6 +41,9 @@ class RoomInvitePublicControllerTest {
 
     @Mock
     private CurrentUser currentUser;
+    
+    @Mock
+    private com.back.domain.studyroom.service.AvatarService avatarService;
 
     @InjectMocks
     private RoomInvitePublicController invitePublicController;
@@ -122,6 +126,10 @@ class RoomInvitePublicControllerTest {
         // 테스트 멤버 생성
         testMember = RoomMember.createVisitor(testRoom, testUser);
         privateMember = RoomMember.createVisitor(privateRoom, testUser);
+        
+        // AvatarService Mock 기본 설정 - 랜덤 아바타 ID 반환
+        // Lenient: 일부 테스트에서만 사용되므로 불필요한 Stubbing 경고 무시
+        lenient().when(avatarService.assignRandomAvatar()).thenReturn(2L);
     }
 
     private void setRoomId(Room room, Long id) {
