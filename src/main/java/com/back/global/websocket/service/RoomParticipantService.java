@@ -45,21 +45,27 @@ public class RoomParticipantService {
 
     // 사용자 방 입장 (아바타 정보 포함)
     public void enterRoom(Long userId, Long roomId, Long avatarId) {
+        // WebSocket 세션 검증 제거 - REST API와 WebSocket 순서 무관하게 동작
         WebSocketSessionInfo sessionInfo = redisSessionStore.getUserSession(userId);
 
-        if (sessionInfo == null) {
-            log.warn("세션 정보가 없어 방 입장 실패 - 사용자: {}, 방: {}", userId, roomId);
-            throw new CustomException(ErrorCode.WS_SESSION_NOT_FOUND);
-        }
-
-        if (sessionInfo.currentRoomId() != null && !sessionInfo.currentRoomId().equals(roomId)) {
+        // 기존 방에서 퇴장 처리 (세션이 있고, 다른 방에 있는 경우만)
+        if (sessionInfo != null && sessionInfo.currentRoomId() != null 
+                && !sessionInfo.currentRoomId().equals(roomId)) {
             exitRoom(userId, sessionInfo.currentRoomId());
             log.debug("기존 방에서 퇴장 처리 완료 - 사용자: {}, 이전 방: {}",
                     userId, sessionInfo.currentRoomId());
         }
 
-        WebSocketSessionInfo updatedSession = sessionInfo.withRoomId(roomId);
-        redisSessionStore.saveUserSession(userId, updatedSession);
+        // 세션 정보 업데이트 (세션이 있는 경우만)
+        if (sessionInfo != null) {
+            WebSocketSessionInfo updatedSession = sessionInfo.withRoomId(roomId);
+            redisSessionStore.saveUserSession(userId, updatedSession);
+            log.debug("WebSocket 세션 업데이트 완료 - 사용자: {}, 방: {}", userId, roomId);
+        } else {
+            log.debug("WebSocket 세션 없이 Redis 등록 - 사용자: {}, 방: {} (REST API 우선 호출)", userId, roomId);
+        }
+        
+        // Redis에 방 참가자 등록 (세션 없이도 가능!)
         redisSessionStore.addUserToRoom(roomId, userId);
         
         // 아바타 정보 저장
