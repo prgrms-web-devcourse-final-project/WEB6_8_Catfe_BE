@@ -64,6 +64,9 @@ class RoomServiceTest {
     
     @Mock
     private RoomThumbnailService roomThumbnailService;
+    
+    @Mock
+    private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     @InjectMocks
     private RoomService roomService;
@@ -400,13 +403,15 @@ class RoomServiceTest {
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
         given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of(2L)); // 온라인 사용자 목록
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.empty()); // VISITOR는 DB에 없음
-        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
+        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom)); // Room 조회 추가
 
         // when
         roomService.kickMember(1L, 2L, 1L);
 
         // then
         verify(roomParticipantService, times(1)).exitRoom(2L, 1L); // Redis 퇴장 확인
+        verify(messagingTemplate, times(1)).convertAndSendToUser(eq("2"), eq("/queue/kick"), any()); // WebSocket 메시지 전송 확인
+        verify(eventPublisher, times(1)).publishEvent(any(com.back.domain.notification.event.studyroom.MemberKickedEvent.class)); // 이벤트 발행 확인
     }
 
     @Test
@@ -418,13 +423,15 @@ class RoomServiceTest {
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
         given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of(2L)); // VISITOR가 온라인 상태
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.empty()); // DB에 없음
-        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
+        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom)); // Room 조회 추가
 
         // when
         roomService.kickMember(1L, 2L, 1L);
 
         // then
         verify(roomParticipantService, times(1)).exitRoom(2L, 1L);
+        verify(messagingTemplate, times(1)).convertAndSendToUser(eq("2"), eq("/queue/kick"), any()); // WebSocket 메시지 전송 확인
+        verify(eventPublisher, times(1)).publishEvent(any(com.back.domain.notification.event.studyroom.MemberKickedEvent.class)); // 이벤트 발행 확인
     }
     
     @Test
@@ -448,13 +455,15 @@ class RoomServiceTest {
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
         given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of(2L)); // MEMBER가 온라인 상태
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.of(targetMember)); // DB에 있음
-        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
+        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom)); // Room 조회 추가
 
         // when
         roomService.kickMember(1L, 2L, 1L);
 
         // then
         verify(roomParticipantService, times(1)).exitRoom(2L, 1L);
+        verify(messagingTemplate, times(1)).convertAndSendToUser(eq("2"), eq("/queue/kick"), any()); // WebSocket 메시지 전송 확인
+        verify(eventPublisher, times(1)).publishEvent(any(com.back.domain.notification.event.studyroom.MemberKickedEvent.class)); // 이벤트 발행 확인
     }
     
     @Test
