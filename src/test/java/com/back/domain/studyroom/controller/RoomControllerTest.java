@@ -356,6 +356,8 @@ class RoomControllerTest {
     @DisplayName("인기 방 목록 조회 API 테스트")
     void getPopularRooms() {
         // given
+        given(currentUser.getUserIdOrNull()).willReturn(null);  // 비로그인 사용자
+        
         Page<Room> roomPage = new PageImpl<>(
                 Arrays.asList(testRoom),
                 PageRequest.of(0, 20),
@@ -377,7 +379,6 @@ class RoomControllerTest {
         
         verify(roomService, times(1)).getPopularRooms(any());
         verify(roomService, times(1)).toRoomResponseList(anyList(), isNull());
-
     }
 
     @Test
