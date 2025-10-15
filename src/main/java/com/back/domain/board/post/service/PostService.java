@@ -146,23 +146,68 @@ public class PostService {
         }
 
         // Post 업데이트
-        post.update(request.title(), request.content());
+        post.update(request.title(), request.content(), request.thumbnailUrl());
 
         // Category 매핑 업데이트
         List<PostCategory> categories = validateAndFindCategories(request.categoryIds());
         post.updateCategories(categories);
 
-        // AttachmentMapping 매핑
-        attachmentMappingRepository.deleteAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
-        List<FileAttachment> attachments = List.of();
-        if (request.imageIds() != null && !request.imageIds().isEmpty()) {
-            attachments = validateAndFindAttachments(request.imageIds());
-            attachments.forEach(attachment ->
-                    attachmentMappingRepository.save(new AttachmentMapping(attachment, EntityType.POST, post.getId()))
-            );
-        }
+        // TODO: 리팩토링 필요
+        // 첨부 이미지 갱신
+        List<FileAttachment> attachments = updatePostAttachments(post, request.imageIds(), userId);
 
         return PostResponse.from(post, attachments);
+    }
+
+    /**
+     * 첨부 이미지 매핑 갱신
+     * - 이미지 변경 없음 → 유지
+     * - 변경 있음 → 기존 파일 및 매핑 삭제 후 새로 저장
+     * - 새로 추가됨 → 새 매핑 생성
+     * - 제거됨 → 기존 매핑 삭제
+     */
+    private List<FileAttachment> updatePostAttachments(Post post, List<Long> newImageIds, Long userId) {
+        List<Long> newIds = (newImageIds != null) ? newImageIds : List.of();
+
+        List<AttachmentMapping> existingMappings =
+                attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
+        List<Long> existingIds = existingMappings.stream()
+                .map(m -> m.getFileAttachment().getId())
+                .toList();
+
+        // 변경 없음 → 유지
+        if (existingIds.equals(newIds)) {
+            return existingMappings.stream()
+                    .map(AttachmentMapping::getFileAttachment)
+                    .toList();
+        }
+
+        // 기존 첨부 삭제
+        deletePostAttachments(post, userId);
+
+        // 새 첨부 매핑 등록
+        if (newIds.isEmpty()) return List.of();
+
+        List<FileAttachment> attachments = validateAndFindAttachments(newIds);
+        attachments.forEach(attachment ->
+                attachmentMappingRepository.save(new AttachmentMapping(attachment, EntityType.POST, post.getId()))
+        );
+        return attachments;
+    }
+
+    /**
+     * 게시글 첨부파일 삭제 (S3 + 매핑)
+     */
+    private void deletePostAttachments(Post post, Long userId) {
+        List<AttachmentMapping> mappings =
+                attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
+        for (AttachmentMapping mapping : mappings) {
+            FileAttachment file = mapping.getFileAttachment();
+            if (file != null) {
+                fileService.deleteFile(file.getId(), userId);
+            }
+        }
+        attachmentMappingRepository.deleteAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
     }
 
     /**
@@ -205,6 +250,7 @@ public class PostService {
      * 카테고리 ID 유효성 검증 및 조회
      */
     private List<PostCategory> validateAndFindCategories(List<Long> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) return List.of();
         return categoryIds.stream()
                 .map(id -> postCategoryRepository.findById(id)
                         .orElseThrow(() -> new CustomException(ErrorCode.CATEGORY_NOT_FOUND)))
@@ -215,6 +261,7 @@ public class PostService {
      * 첨부 파일 ID 유효성 검증 및 조회
      */
     private List<FileAttachment> validateAndFindAttachments(List<Long> imageIds) {
+        if (imageIds == null || imageIds.isEmpty()) return List.of();
         return imageIds.stream()
                 .map(id -> fileAttachmentRepository.findById(id)
                         .orElseThrow(() -> new CustomException(ErrorCode.FILE_NOT_FOUND)))
