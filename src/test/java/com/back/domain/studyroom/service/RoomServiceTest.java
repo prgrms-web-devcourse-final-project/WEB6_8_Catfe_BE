@@ -398,7 +398,8 @@ class RoomServiceTest {
         RoomMember targetMember = RoomMember.createVisitor(testRoom, targetUser);
         
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
-        given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.of(targetMember));
+        given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of(2L)); // 온라인 사용자 목록
+        given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.empty()); // VISITOR는 DB에 없음
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
 
         // when
@@ -406,6 +407,94 @@ class RoomServiceTest {
 
         // then
         verify(roomParticipantService, times(1)).exitRoom(2L, 1L); // Redis 퇴장 확인
+    }
+
+    @Test
+    @DisplayName("멤버 추방 - VISITOR 추방 성공")
+    void kickMember_VisitorSuccess() {
+        // given
+        RoomMember hostMember = RoomMember.createHost(testRoom, testUser);
+        
+        given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
+        given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of(2L)); // VISITOR가 온라인 상태
+        given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.empty()); // DB에 없음
+        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
+
+        // when
+        roomService.kickMember(1L, 2L, 1L);
+
+        // then
+        verify(roomParticipantService, times(1)).exitRoom(2L, 1L);
+    }
+    
+    @Test
+    @DisplayName("멤버 추방 - MEMBER 추방 성공")
+    void kickMember_MemberSuccess() {
+        // given
+        RoomMember hostMember = RoomMember.createHost(testRoom, testUser);
+        
+        User targetUser = User.builder()
+                .id(2L)
+                .username("target")
+                .email("target@test.com")
+                .role(Role.USER)
+                .build();
+        UserProfile targetProfile = new UserProfile();
+        targetProfile.setNickname("대상유저");
+        targetUser.setUserProfile(targetProfile);
+        
+        RoomMember targetMember = RoomMember.create(testRoom, targetUser, RoomRole.MEMBER);
+        
+        given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
+        given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of(2L)); // MEMBER가 온라인 상태
+        given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.of(targetMember)); // DB에 있음
+        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
+
+        // when
+        roomService.kickMember(1L, 2L, 1L);
+
+        // then
+        verify(roomParticipantService, times(1)).exitRoom(2L, 1L);
+    }
+    
+    @Test
+    @DisplayName("멤버 추방 - 방장 추방 실패")
+    void kickMember_CannotKickHost() {
+        // given
+        RoomMember hostMember = RoomMember.createHost(testRoom, testUser);
+        
+        User anotherHost = User.builder()
+                .id(2L)
+                .username("host2")
+                .email("host2@test.com")
+                .role(Role.USER)
+                .build();
+        
+        RoomMember targetHostMember = RoomMember.createHost(testRoom, anotherHost);
+        
+        given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
+        given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of(2L));
+        given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.of(targetHostMember));
+
+        // when & then
+        assertThatThrownBy(() -> roomService.kickMember(1L, 2L, 1L))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_KICK_HOST);
+    }
+    
+    @Test
+    @DisplayName("멤버 추방 - 오프라인 사용자 추방 실패")
+    void kickMember_OfflineUser() {
+        // given
+        RoomMember hostMember = RoomMember.createHost(testRoom, testUser);
+        
+        given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
+        given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of()); // 온라인 사용자 없음
+
+        // when & then
+        assertThatThrownBy(() -> roomService.kickMember(1L, 2L, 1L))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_MEMBER);
     }
 
     @Test
