@@ -122,6 +122,20 @@ public class RoomService {
     public RoomMember joinRoom(Long roomId, String password, Long userId) {
         return joinRoom(roomId, password, userId, true);
     }
+    
+    /**
+     * 방 입장 + 아바타 ID 반환
+     * REST API 응답용 (avatarId 포함)
+     */
+    @Transactional
+    public com.back.domain.studyroom.dto.JoinRoomWithAvatarResult joinRoomWithAvatar(
+            Long roomId, String password, Long userId) {
+        
+        RoomMember member = joinRoom(roomId, password, userId, true);
+        Long avatarId = avatarService.loadOrCreateAvatar(roomId, userId);
+        
+        return new com.back.domain.studyroom.dto.JoinRoomWithAvatarResult(member, avatarId);
+    }
 
     /**
      * 방 입장 메서드 (오버로드 - WebSocket 등록 여부 선택 가능)
@@ -815,10 +829,10 @@ public class RoomService {
     }
     
     /**
-     * RoomMemberResponse 리스트 생성 (아바타 정보 포함, N+1 방지)
+     * RoomMemberResponse 리스트 생성 (아바타 ID만 포함, N+1 방지)
      * @param roomId 방 ID
      * @param members 멤버 목록
-     * @return 아바타 정보가 포함된 RoomMemberResponse 리스트
+     * @return 아바타 ID가 포함된 RoomMemberResponse 리스트
      */
     public java.util.List<com.back.domain.studyroom.dto.RoomMemberResponse> toRoomMemberResponseList(
             Long roomId,
@@ -836,27 +850,14 @@ public class RoomService {
         // 2. Redis에서 아바타 ID 일괄 조회
         java.util.Map<Long, Long> avatarMap = roomParticipantService.getUserAvatars(roomId, userIds);
         
-        // 3. 아바타 ID Set 생성
-        Set<Long> avatarIds = new java.util.HashSet<>(avatarMap.values());
-        
-        // 4. Avatar 엔티티 일괄 조회
-        java.util.Map<Long, com.back.domain.studyroom.entity.Avatar> avatarEntityMap = 
-                avatarService.getAvatarsByIds(avatarIds);
-        
-        // 5. RoomMemberResponse 생성
+        // 3. RoomMemberResponse 생성 (avatarId만 포함)
         return members.stream()
                 .map(member -> {
                     Long userId = member.getUser().getId();
                     Long avatarId = avatarMap.get(userId);
                     
-                    String avatarImageUrl = null;
-                    if (avatarId != null) {
-                        com.back.domain.studyroom.entity.Avatar avatar = avatarEntityMap.get(avatarId);
-                        avatarImageUrl = avatar != null ? avatar.getImageUrl() : null;
-                    }
-                    
                     return com.back.domain.studyroom.dto.RoomMemberResponse.of(
-                            member, avatarId, avatarImageUrl);
+                            member, avatarId);
                 })
                 .collect(java.util.stream.Collectors.toList());
     }

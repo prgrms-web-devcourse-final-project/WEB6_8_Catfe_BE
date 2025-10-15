@@ -77,7 +77,7 @@ public class RoomController {
     @PostMapping("/{roomId}/join")
     @Operation(
         summary = "방 입장", 
-        description = "특정 스터디 룸에 입장합니다. 공개방은 바로 입장 가능하며, 비공개방은 비밀번호가 필요합니다."
+        description = "특정 스터디 룸에 입장합니다. 공개방은 바로 입장 가능하며, 비공개방은 비밀번호가 필요합니다. 입장 시 랜덤 아바타(1~3)가 배정됩니다."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "방 입장 성공"),
@@ -96,8 +96,11 @@ public class RoomController {
             password = request.getPassword();
         }
 
-        RoomMember member = roomService.joinRoom(roomId, password, currentUserId);
-        JoinRoomResponse response = JoinRoomResponse.from(member);
+        // 방 입장 + 아바타 ID 반환
+        com.back.domain.studyroom.dto.JoinRoomWithAvatarResult result = 
+                roomService.joinRoomWithAvatar(roomId, password, currentUserId);
+        
+        JoinRoomResponse response = JoinRoomResponse.of(result.getMember(), result.getAvatarId());
 
         return ResponseEntity
                 .status(HttpStatus.OK)

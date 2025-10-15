@@ -31,6 +31,7 @@ public class RoomInvitePublicController {
     private final RoomInviteService inviteService;
     private final RoomService roomService;
     private final CurrentUser currentUser;
+    private final com.back.domain.studyroom.service.AvatarService avatarService;
 
     @PostMapping("/{inviteCode}")
     @SecurityRequirement(name = "Bearer Authentication")
@@ -59,7 +60,11 @@ public class RoomInvitePublicController {
 
         // 방 입장 권한 체크 (비밀번호 무시, Redis 등록 건너뜀)
         RoomMember member = roomService.joinRoom(room.getId(), null, userId, false);
-        JoinRoomResponse response = JoinRoomResponse.from(member);
+        
+        // 랜덤 아바타 ID 생성
+        Long avatarId = avatarService.assignRandomAvatar();
+        
+        JoinRoomResponse response = JoinRoomResponse.of(member, avatarId);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
