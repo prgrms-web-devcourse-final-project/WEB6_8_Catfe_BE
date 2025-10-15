@@ -346,9 +346,9 @@ public class RoomService {
         // 썸네일 변경 처리
         String thumbnailUrl = room.getRawThumbnailUrl();  // 기존 URL 유지
         if (thumbnailAttachmentId != null) {
-            // 기존 매핑 삭제 + 새 매핑 생성
+            // 기존 매핑 삭제 + 새 매핑 생성 (S3 파일도 삭제)
             thumbnailUrl = roomThumbnailService.updateThumbnailMapping(
-                    roomId, thumbnailAttachmentId);
+                    roomId, thumbnailAttachmentId, userId);
         }
 
         room.updateSettings(title, description, maxParticipants, thumbnailUrl);
@@ -448,8 +448,8 @@ public class RoomService {
             throw new CustomException(ErrorCode.NOT_ROOM_MANAGER);
         }
 
-        // 썸네일 매핑 삭제
-        roomThumbnailService.deleteThumbnailMapping(roomId);
+        // 썸네일 매핑 삭제 (S3 파일 + FileAttachment + Mapping)
+        roomThumbnailService.deleteThumbnailMapping(roomId, userId);
 
         room.terminate();
         

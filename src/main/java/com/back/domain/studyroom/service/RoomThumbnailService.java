@@ -5,6 +5,7 @@ import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.entity.FileAttachment;
 import com.back.domain.file.repository.AttachmentMappingRepository;
 import com.back.domain.file.repository.FileAttachmentRepository;
+import com.back.domain.file.service.FileService;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class RoomThumbnailService {
 
     private final FileAttachmentRepository fileAttachmentRepository;
     private final AttachmentMappingRepository attachmentMappingRepository;
+    private final FileService fileService;
 
     /**
      * 방 생성 시 썸네일 매핑 생성
@@ -60,42 +62,83 @@ public class RoomThumbnailService {
 
     /**
      * 방 수정 시 썸네일 변경
-     * 1. 기존 매핑 삭제
+     * 1. 기존 매핑 및 파일 삭제 (S3 + FileAttachment + Mapping)
      * 2. 새 매핑 생성
      * 
      * @param roomId 방 ID
      * @param newThumbnailAttachmentId 새 썸네일 파일 ID (null이면 변경 없음)
+     * @param userId 요청자 ID (파일 삭제 권한 검증용)
      * @return 새 썸네일 URL (null이면 변경 없음)
      */
     @Transactional
-    public String updateThumbnailMapping(Long roomId, Long newThumbnailAttachmentId) {
+    public String updateThumbnailMapping(Long roomId, Long newThumbnailAttachmentId, Long userId) {
         if (newThumbnailAttachmentId == null) {
             // null이면 썸네일 변경 없음
             return null;
         }
 
-        // 기존 매핑 모두 삭제
+        // 기존 매핑 및 파일 삭제 (S3 + FileAttachment 포함)
+        List<AttachmentMapping> mappings = attachmentMappingRepository
+                .findAllByEntityTypeAndEntityId(EntityType.STUDY_ROOM, roomId);
+        
+        for (AttachmentMapping mapping : mappings) {
+            FileAttachment oldAttachment = mapping.getFileAttachment();
+            if (oldAttachment != null) {
+                // FileService를 사용하여 S3 파일 + FileAttachment 삭제
+                try {
+                    fileService.deleteFile(oldAttachment.getId(), userId);
+                    log.info("기존 썸네일 파일 삭제 - RoomId: {}, AttachmentId: {}", 
+                            roomId, oldAttachment.getId());
+                } catch (Exception e) {
+                    log.error("썸네일 파일 삭제 실패 - RoomId: {}, AttachmentId: {}, Error: {}", 
+                            roomId, oldAttachment.getId(), e.getMessage());
+                }
+            }
+        }
+        
+        // 매핑 삭제
         attachmentMappingRepository.deleteAllByEntityTypeAndEntityId(
                 EntityType.STUDY_ROOM, roomId);
         
-        log.info("기존 썸네일 매핑 삭제 - RoomId: {}", roomId);
+        log.info("기존 썸네일 매핑 및 파일 삭제 완료 - RoomId: {}", roomId);
 
         // 새 매핑 생성
         return createThumbnailMapping(roomId, newThumbnailAttachmentId);
     }
 
     /**
-     * 방 삭제 시 썸네일 매핑 삭제
+     * 방 삭제 시 썸네일 매핑 및 파일 삭제
+     * S3 파일 + FileAttachment + AttachmentMapping 모두 삭제
      * 
      * @param roomId 방 ID
+     * @param userId 요청자 ID (파일 삭제 권한 검증용)
      */
     @Transactional
-    public void deleteThumbnailMapping(Long roomId) {
-        // 연결된 파일 매핑 모두 삭제
+    public void deleteThumbnailMapping(Long roomId, Long userId) {
+        // 매핑 조회
+        List<AttachmentMapping> mappings = attachmentMappingRepository
+                .findAllByEntityTypeAndEntityId(EntityType.STUDY_ROOM, roomId);
+        
+        // S3 파일 + FileAttachment 삭제
+        for (AttachmentMapping mapping : mappings) {
+            FileAttachment fileAttachment = mapping.getFileAttachment();
+            if (fileAttachment != null) {
+                try {
+                    fileService.deleteFile(fileAttachment.getId(), userId);
+                    log.info("썸네일 파일 삭제 완료 - RoomId: {}, AttachmentId: {}", 
+                            roomId, fileAttachment.getId());
+                } catch (Exception e) {
+                    log.error("썸네일 파일 삭제 실패 - RoomId: {}, AttachmentId: {}, Error: {}", 
+                            roomId, fileAttachment.getId(), e.getMessage());
+                }
+            }
+        }
+        
+        // AttachmentMapping 삭제
         attachmentMappingRepository.deleteAllByEntityTypeAndEntityId(
                 EntityType.STUDY_ROOM, roomId);
         
-        log.info("방 삭제 - 썸네일 매핑 삭제 완료 - RoomId: {}", roomId);
+        log.info("방 삭제 - 썸네일 매핑 및 파일 삭제 완료 - RoomId: {}", roomId);
     }
 
     /**
