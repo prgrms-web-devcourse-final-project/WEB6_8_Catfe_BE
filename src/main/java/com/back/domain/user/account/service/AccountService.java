@@ -29,6 +29,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -75,35 +76,40 @@ public class AccountService {
             throw new CustomException(ErrorCode.NICKNAME_DUPLICATED);
         }
 
+
         // UserProfile 업데이트
         UserProfile profile = user.getUserProfile();
         profile.setNickname(request.nickname());
-        profile.setProfileImageUrl(request.profileImageUrl());
         profile.setBio(request.bio());
         profile.setBirthDate(request.birthDate());
 
-        // 프로필 이미지 및 매핑 업데이트
-        updateProfileImage(userId, request.profileImageUrl());
+        // TODO: 프로필 이미지 및 매핑 업데이트 리팩토링 필요
+        // 프로필 이미지 변경이 있는 경우만 수행
+        String newUrl = request.profileImageUrl();
+        String oldUrl = profile.getProfileImageUrl();
+        if (!Objects.equals(newUrl, oldUrl)) {
+            // 외부 이미지(S3 외부 URL)는 매핑 로직 제외
+            if (isExternalImageUrl(newUrl)) {
+                // 기존 매핑만 제거 (소셜 이미지로 바뀌면 내부 매핑 필요 없음)
+                removeExistingMapping(userId);
+            } else {
+                updateProfileImage(userId, newUrl);
+            }
+            profile.setProfileImageUrl(newUrl);
+        }
 
         // UserDetailResponse로 변환하여 반환
         return UserDetailResponse.from(user);
     }
 
     /**
-     * 프로필 이미지 및 매핑 교체 로직
-     * - 기존 이미지(S3 + FileAttachment + Mapping) 삭제 후 새 매핑 생성
+     * 내부 저장소(S3) 이미지 교체 로직
+     * - 기존 매핑 및 파일 삭제 후 새 매핑 생성
      */
     private void updateProfileImage(Long userId, String newImageUrl) {
 
-        // 기존 매핑 및 파일 삭제
-        attachmentMappingRepository.findByEntityTypeAndEntityId(EntityType.PROFILE, userId)
-                .ifPresent(existingMapping -> {
-                    FileAttachment oldAttachment = existingMapping.getFileAttachment();
-                    if (oldAttachment != null) {
-                        fileService.deleteFile(oldAttachment.getId(), userId);
-                    }
-                    attachmentMappingRepository.delete(existingMapping);
-                });
+        // 기존 매핑 제거
+        removeExistingMapping(userId);
 
         // 새 이미지가 없는 경우
         if (newImageUrl == null || newImageUrl.isBlank()) {
@@ -122,6 +128,33 @@ public class AccountService {
         // 새 매핑 생성 및 저장
         AttachmentMapping newMapping = new AttachmentMapping(newAttachment, EntityType.PROFILE, userId);
         attachmentMappingRepository.save(newMapping);
+    }
+
+    /**
+     * 기존 프로필 이미지 매핑 및 파일 삭제
+     */
+    private void removeExistingMapping(Long userId) {
+        attachmentMappingRepository.findByEntityTypeAndEntityId(EntityType.PROFILE, userId)
+                .ifPresent(mapping -> {
+                    FileAttachment oldAttachment = mapping.getFileAttachment();
+                    if (oldAttachment != null) {
+                        fileService.deleteFile(oldAttachment.getId(), userId);
+                    }
+                    attachmentMappingRepository.delete(mapping);
+                });
+    }
+
+    /**
+     * 외부 이미지 URL 판별
+     * - 우리 S3 또는 CDN이 아니면 true
+     * - 필요 시 application.yml에서 환경변수로 관리
+     */
+    private boolean isExternalImageUrl(String url) {
+        if (url == null || url.isBlank()) return true;
+
+        // TODO: 하드 코딩 제거
+        return !(url.startsWith("https://team5-s3-1.s3.ap-northeast-2.amazonaws.com")
+                || url.contains("cdn.example.com"));
     }
 
     /**
@@ -164,7 +197,7 @@ public class AccountService {
         User user = getValidUser(userId);
 
         // 프로필 이미지 및 매핑 삭제
-        deleteProfileImage(userId);
+        removeExistingMapping(userId);
 
         // 상태 변경 (soft delete)
         user.setUserStatus(UserStatus.DELETED);
@@ -183,20 +216,6 @@ public class AccountService {
             profile.setBio(null);
             profile.setBirthDate(null);
         }
-    }
-
-    /**
-     * 프로필 이미지 및 매핑 삭제
-     */
-    private void deleteProfileImage(Long userId) {
-        attachmentMappingRepository.findByEntityTypeAndEntityId(EntityType.PROFILE, userId)
-                .ifPresent(mapping -> {
-                    FileAttachment attachment = mapping.getFileAttachment();
-                    if (attachment != null) {
-                        fileService.deleteFile(attachment.getId(), userId);
-                    }
-                    attachmentMappingRepository.delete(mapping);
-                });
     }
 
     /**
