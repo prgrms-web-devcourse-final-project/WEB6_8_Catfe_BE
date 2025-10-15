@@ -13,7 +13,7 @@ import java.time.LocalDate;
  * @param bio               사용자의 자기소개
  * @param birthDate         사용자의 생년월일
  */
-public record UpdateUserProfileRequest(
+public record UserProfileRequest(
         @NotBlank @Size(max = 20) String nickname,
         String profileImageUrl,
         @Size(max = 255) String bio,

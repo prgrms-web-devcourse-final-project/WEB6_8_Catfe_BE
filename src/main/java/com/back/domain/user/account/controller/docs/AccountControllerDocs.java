@@ -4,7 +4,7 @@ import com.back.domain.board.comment.dto.MyCommentResponse;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.user.account.dto.ChangePasswordRequest;
-import com.back.domain.user.account.dto.UpdateUserProfileRequest;
+import com.back.domain.user.account.dto.UserProfileRequest;
 import com.back.domain.user.account.dto.UserDetailResponse;
 import com.back.global.common.dto.RsData;
 import com.back.global.security.user.CustomUserDetails;
@@ -307,7 +307,7 @@ public interface AccountControllerDocs {
     })
     ResponseEntity<RsData<UserDetailResponse>> updateMyProfile(
             @AuthenticationPrincipal CustomUserDetails user,
-            @Valid @RequestBody UpdateUserProfileRequest request
+            @Valid @RequestBody UserProfileRequest request
     );
 
     @Operation(
