@@ -156,18 +156,24 @@ class RoomParticipantServiceTest {
     }
 
     @Test
-    @DisplayName("방 입장 - 세션 정보 없음 (예외 발생)")
-    void enterRoom_NoSession_ThrowsException() {
+    @DisplayName("방 입장 - 세션 정보 없음 (REST API 우선 호출, 정상 동작)")
+    void enterRoom_NoSession_SuccessWithoutSession() {
         // given
         given(redisSessionStore.getUserSession(userId)).willReturn(null);
+        given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
 
-        // when & then
-        assertThatThrownBy(() -> roomParticipantService.enterRoom(userId, roomId))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WS_SESSION_NOT_FOUND);
+        // when
+        roomParticipantService.enterRoom(userId, roomId);
 
-        verify(redisSessionStore, never()).addUserToRoom(anyLong(), anyLong());
-        verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
+        // then
+        // 세션 업데이트는 건너뛰지만, Redis 등록은 실행됨
+        verify(redisSessionStore, never()).saveUserSession(eq(userId), any(WebSocketSessionInfo.class));
+        verify(redisSessionStore).addUserToRoom(roomId, userId);
+        
+        // 브로드캐스트는 정상 실행
+        ArgumentCaptor<UserJoinedEvent> eventCaptor = ArgumentCaptor.forClass(UserJoinedEvent.class);
+        verify(messagingTemplate).convertAndSend(eq("/topic/room/" + roomId + "/events"), eventCaptor.capture());
+        assertThat(eventCaptor.getValue().getUserId()).isEqualTo(userId);
     }
 
     @Test
