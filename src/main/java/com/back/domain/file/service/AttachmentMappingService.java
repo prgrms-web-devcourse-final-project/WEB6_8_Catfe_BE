@@ -9,6 +9,7 @@ import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -28,12 +29,13 @@ public class AttachmentMappingService {
      * @param userId      파일 업로더 검증용
      * @param newAttachmentIds 새 파일 ID 리스트 (null 또는 빈 리스트면 삭제만 수행)
      */
+    @Transactional
     public void replaceAttachments(
             EntityType entityType,
             Long entityId,
             Long userId,
-            List<Long> newAttachmentIds)
-    {
+            List<Long> newAttachmentIds
+    ) {
         // 기존 매핑 및 파일 삭제
         deleteAttachments(entityType, entityId, userId);
 
@@ -55,6 +57,7 @@ public class AttachmentMappingService {
     }
 
     // URL로 갱신하는 경우
+    @Transactional
     public void replaceAttachmentByUrl(
             EntityType entityType,
             Long entityId,
@@ -76,6 +79,12 @@ public class AttachmentMappingService {
         attachmentMappingRepository.save(new AttachmentMapping(attachment, entityType, entityId));
     }
 
+    /**
+     * 특정 EntityType과 entityId에 연결된 첨부 파일을 모두 삭제
+     * - 매핑 테이블(AttachmentMapping) 삭제
+     * - 실제 파일(FileAttachment + S3 객체) 삭제
+     */
+    @Transactional
     public void deleteAttachments(EntityType entityType, Long entityId, Long userId) {
         List<AttachmentMapping> mappings = attachmentMappingRepository.findAllByEntityTypeAndEntityId(
           entityType,

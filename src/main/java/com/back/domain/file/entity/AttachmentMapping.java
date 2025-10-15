@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class AttachmentMapping extends BaseEntity {
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "attachment_id")
+    @JoinColumn(name = "attachment_id", nullable = false)
     private FileAttachment fileAttachment;
 
     @Enumerated(EnumType.STRING)
