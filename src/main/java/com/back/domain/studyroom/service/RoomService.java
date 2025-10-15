@@ -4,6 +4,8 @@ import com.back.domain.notification.event.studyroom.MemberKickedEvent;
 import com.back.domain.notification.event.studyroom.MemberRoleChangedEvent;
 import com.back.domain.notification.event.studyroom.OwnerTransferredEvent;
 import com.back.domain.studyroom.config.StudyRoomProperties;
+import com.back.domain.studyroom.dto.RoomDetailResponse;
+import com.back.domain.studyroom.dto.RoomMemberResponse;
 import com.back.domain.studyroom.dto.RoomResponse;
 import com.back.domain.studyroom.entity.*;
 import com.back.domain.studyroom.repository.*;
@@ -53,6 +55,7 @@ public class RoomService {
     private final ApplicationEventPublisher eventPublisher;
     private final AvatarService avatarService;
     private final RoomThumbnailService roomThumbnailService;
+    private final RoomFavoriteService roomFavoriteService;
 
     /**
      * 방 생성 메서드
@@ -264,15 +267,23 @@ public class RoomService {
     /**
      * 모든 방을 RoomResponse로 변환 (비공개 방 마스킹 포함)
      * @param rooms 방 목록
+     * @param userId 현재 사용자 ID (비로그인이면 null)
      * @return 마스킹된 RoomResponse 리스트
      */
-    public java.util.List<RoomResponse> toRoomResponseListWithMasking(java.util.List<Room> rooms) {
+    public java.util.List<RoomResponse> toRoomResponseListWithMasking(
+            java.util.List<Room> rooms, Long userId) {
+        
         java.util.List<Long> roomIds = rooms.stream()
                 .map(Room::getId)
                 .collect(java.util.stream.Collectors.toList());
 
         // Redis Pipeline으로 일괄 조회 (N+1 해결)
         java.util.Map<Long, Long> participantCounts = roomParticipantService.getParticipantCounts(roomIds);
+        
+        // 즐겨찾기 여부 일괄 조회 (로그인 사용자만)
+        java.util.Set<Long> favoriteRoomIds = userId != null 
+                ? roomFavoriteService.getFavoriteRoomIds(roomIds, userId)
+                : java.util.Set.of();
         
         return rooms.stream()
                 .map(room -> {
@@ -283,8 +294,8 @@ public class RoomService {
                         return RoomResponse.fromMasked(room);
                     }
                     
-                    // 공개 방은 일반 버전 반환
-                    return RoomResponse.from(room, count);
+                    // 공개 방은 일반 버전 반환 (즐겨찾기 포함)
+                    return RoomResponse.from(room, count, favoriteRoomIds.contains(room.getId()));
                 })
                 .collect(java.util.stream.Collectors.toList());
     }
@@ -710,41 +721,57 @@ public class RoomService {
      */
     public com.back.domain.studyroom.dto.RoomResponse toRoomResponse(Room room) {
         long onlineCount = roomParticipantService.getParticipantCount(room.getId());
-        return com.back.domain.studyroom.dto.RoomResponse.from(room, onlineCount);
+        return com.back.domain.studyroom.dto.RoomResponse.from(room, onlineCount, false);
+    }
+    
+    /**
+     * RoomResponse 생성 (즐겨찾기 여부 포함)
+     */
+    public com.back.domain.studyroom.dto.RoomResponse toRoomResponse(Room room, Long userId) {
+        long onlineCount = roomParticipantService.getParticipantCount(room.getId());
+        boolean isFavorite = userId != null && roomFavoriteService.isFavorite(room.getId(), userId);
+        return com.back.domain.studyroom.dto.RoomResponse.from(room, onlineCount, isFavorite);
     }
 
     /**
      * RoomResponse 리스트 생성 (일괄 조회로 N+1 방지)
+     * 비로그인 사용자는 userId = null, 모든 방의 isFavorite = false
      */
-    public java.util.List<com.back.domain.studyroom.dto.RoomResponse> toRoomResponseList(java.util.List<Room> rooms) {
+    public java.util.List<com.back.domain.studyroom.dto.RoomResponse> toRoomResponseList(
+            java.util.List<Room> rooms, Long userId) {
+        
         java.util.List<Long> roomIds = rooms.stream()
                 .map(Room::getId)
                 .collect(java.util.stream.Collectors.toList());
 
-        // Redis Pipeline으로 일괄 조회 (N+1 해결)
+        // Redis Pipeline으로 참가자 수 일괄 조회 (N+1 해결)
         java.util.Map<Long, Long> participantCounts = roomParticipantService.getParticipantCounts(roomIds);
+        
+        // 즐겨찾기 여부 일괄 조회 (로그인 사용자만)
+        java.util.Set<Long> favoriteRoomIds = userId != null 
+                ? roomFavoriteService.getFavoriteRoomIds(roomIds, userId)
+                : java.util.Set.of();
         
         return rooms.stream()
                 .map(room -> com.back.domain.studyroom.dto.RoomResponse.from(
                         room, 
-                        participantCounts.getOrDefault(room.getId(), 0L)
+                        participantCounts.getOrDefault(room.getId(), 0L),
+                        favoriteRoomIds.contains(room.getId())  // 즐겨찾기 여부
                 ))
                 .collect(java.util.stream.Collectors.toList());
     }
-
+    
     /**
-     * RoomDetailResponse 생성 (Redis에서 실시간 참가자 수 조회)
+     * RoomDetailResponse 생성 (즐겨찾기 여부 포함)
      */
-    public com.back.domain.studyroom.dto.RoomDetailResponse toRoomDetailResponse(
-            Room room, 
-            java.util.List<com.back.domain.studyroom.entity.RoomMember> members) {
+    public RoomDetailResponse toRoomDetailResponse(Room room, List<RoomMember> members, Long userId) {
         long onlineCount = roomParticipantService.getParticipantCount(room.getId());
+        boolean isFavorite = userId != null && roomFavoriteService.isFavorite(room.getId(), userId);
         
-        java.util.List<com.back.domain.studyroom.dto.RoomMemberResponse> memberResponses = members.stream()
-                .map(com.back.domain.studyroom.dto.RoomMemberResponse::from)
-                .collect(java.util.stream.Collectors.toList());
+        // RoomMember를 RoomMemberResponse로 변환
+        List<RoomMemberResponse> memberResponses = toRoomMemberResponseList(room.getId(), members);
         
-        return com.back.domain.studyroom.dto.RoomDetailResponse.of(room, onlineCount, memberResponses);
+        return RoomDetailResponse.of(room, onlineCount, memberResponses, isFavorite);
     }
 
     /**

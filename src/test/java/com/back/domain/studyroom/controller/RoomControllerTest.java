@@ -181,6 +181,8 @@ class RoomControllerTest {
     @DisplayName("공개 방 목록 조회 API 테스트")
     void getRooms() {
         // given
+        given(currentUser.getUserIdOrNull()).willReturn(null);  // 비로그인 사용자
+        
         Page<Room> roomPage = new PageImpl<>(
                 Arrays.asList(testRoom),
                 PageRequest.of(0, 20),
@@ -188,8 +190,8 @@ class RoomControllerTest {
         );
         given(roomService.getJoinableRooms(any())).willReturn(roomPage);
         
-        List<RoomResponse> roomResponses = Arrays.asList(RoomResponse.from(testRoom, 1));
-        given(roomService.toRoomResponseList(anyList())).willReturn(roomResponses);
+        List<RoomResponse> roomResponses = Arrays.asList(RoomResponse.from(testRoom, 1, false));
+        given(roomService.toRoomResponseList(anyList(), isNull())).willReturn(roomResponses);
 
         // when
         ResponseEntity<RsData<Map<String, Object>>> response = roomController.getRooms(0, 20);
@@ -201,7 +203,7 @@ class RoomControllerTest {
         assertThat(response.getBody().getData().get("rooms")).isNotNull();
         
         verify(roomService, times(1)).getJoinableRooms(any());
-        verify(roomService, times(1)).toRoomResponseList(anyList());
+        verify(roomService, times(1)).toRoomResponseList(anyList(), isNull());
     }
 
     @Test
@@ -216,9 +218,10 @@ class RoomControllerTest {
         RoomDetailResponse roomDetailResponse = RoomDetailResponse.of(
             testRoom, 
             1, 
-            Arrays.asList(RoomMemberResponse.from(testMember))
+            Arrays.asList(RoomMemberResponse.from(testMember)),
+            false  // isFavorite
         );
-        given(roomService.toRoomDetailResponse(any(Room.class), anyList())).willReturn(roomDetailResponse);
+        given(roomService.toRoomDetailResponse(any(Room.class), anyList(), eq(1L))).willReturn(roomDetailResponse);
 
         // when
         ResponseEntity<RsData<RoomDetailResponse>> response = roomController.getRoomDetail(1L);
@@ -232,7 +235,7 @@ class RoomControllerTest {
         verify(currentUser, times(1)).getUserIdOrNull();
         verify(roomService, times(1)).getRoomDetail(eq(1L), eq(1L));
         verify(roomService, times(1)).getRoomMembers(eq(1L), eq(1L));
-        verify(roomService, times(1)).toRoomDetailResponse(any(Room.class), anyList());
+        verify(roomService, times(1)).toRoomDetailResponse(any(Room.class), anyList(), eq(1L));
     }
 
     @Test
@@ -360,8 +363,8 @@ class RoomControllerTest {
         );
         given(roomService.getPopularRooms(any())).willReturn(roomPage);
         
-        List<RoomResponse> roomResponses = Arrays.asList(RoomResponse.from(testRoom, 1));
-        given(roomService.toRoomResponseList(anyList())).willReturn(roomResponses);
+        List<RoomResponse> roomResponses = Arrays.asList(RoomResponse.from(testRoom, 1, false));
+        given(roomService.toRoomResponseList(anyList(), isNull())).willReturn(roomResponses);
 
         // when
         ResponseEntity<RsData<Map<String, Object>>> response = roomController.getPopularRooms(0, 20);
@@ -373,7 +376,7 @@ class RoomControllerTest {
         assertThat(response.getBody().getData().get("rooms")).isNotNull();
         
         verify(roomService, times(1)).getPopularRooms(any());
-        verify(roomService, times(1)).toRoomResponseList(anyList());
+        verify(roomService, times(1)).toRoomResponseList(anyList(), isNull());
 
     }
 
