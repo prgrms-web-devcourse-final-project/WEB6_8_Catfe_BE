@@ -5,7 +5,7 @@ import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.user.account.controller.docs.AccountControllerDocs;
 import com.back.domain.user.account.dto.ChangePasswordRequest;
-import com.back.domain.user.account.dto.UpdateUserProfileRequest;
+import com.back.domain.user.account.dto.UserProfileRequest;
 import com.back.domain.user.account.dto.UserDetailResponse;
 import com.back.domain.user.account.service.AccountService;
 import com.back.global.common.dto.RsData;
@@ -42,7 +42,7 @@ public class AccountController implements AccountControllerDocs {
     @PatchMapping
     public ResponseEntity<RsData<UserDetailResponse>> updateMyProfile(
             @AuthenticationPrincipal CustomUserDetails user,
-            @Valid @RequestBody UpdateUserProfileRequest request
+            @Valid @RequestBody UserProfileRequest request
     ) {
         UserDetailResponse updated = accountService.updateUserProfile(user.getUserId(), request);
         return ResponseEntity

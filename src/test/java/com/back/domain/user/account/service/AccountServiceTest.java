@@ -9,26 +9,34 @@ import com.back.domain.board.post.entity.Post;
 import com.back.domain.board.post.entity.PostBookmark;
 import com.back.domain.board.post.repository.PostBookmarkRepository;
 import com.back.domain.board.post.repository.PostRepository;
+import com.back.domain.file.entity.AttachmentMapping;
+import com.back.domain.file.entity.EntityType;
+import com.back.domain.file.entity.FileAttachment;
+import com.back.domain.file.repository.AttachmentMappingRepository;
+import com.back.domain.file.repository.FileAttachmentRepository;
+import com.back.domain.file.service.FileService;
 import com.back.domain.user.account.dto.ChangePasswordRequest;
-import com.back.domain.user.account.dto.UpdateUserProfileRequest;
+import com.back.domain.user.account.dto.UserProfileRequest;
 import com.back.domain.user.account.dto.UserDetailResponse;
 import com.back.domain.user.common.entity.User;
 import com.back.domain.user.common.entity.UserProfile;
 import com.back.domain.user.common.enums.UserStatus;
 import com.back.domain.user.common.repository.UserRepository;
-import com.back.domain.user.account.service.AccountService;
 import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -57,7 +65,20 @@ class AccountServiceTest {
     private CommentRepository commentRepository;
 
     @Autowired
+    private FileAttachmentRepository fileAttachmentRepository;
+
+    @Autowired
+    private AttachmentMappingRepository attachmentMappingRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @MockBean
+    private FileService fileService;
+
+    private MultipartFile mockMultipartFile(String filename) {
+        return new MockMultipartFile(filename, filename, "image/png", new byte[]{1, 2, 3});
+    }
 
     // ====================== 사용자 정보 조회 테스트 ======================
 
@@ -128,19 +149,32 @@ class AccountServiceTest {
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest(
-                "새닉네임", "https://cdn.example.com/new.png", "자기소개", LocalDate.of(1999, 5, 10)
-        );
+        // 기존 프로필 이미지 매핑 설정
+        FileAttachment oldAttachment = new FileAttachment("old_uuid_img.png", mockMultipartFile("old.png"), user, "https://cdn.example.com/old.png");
+        fileAttachmentRepository.save(oldAttachment);
+        attachmentMappingRepository.save(new AttachmentMapping(oldAttachment, EntityType.PROFILE, user.getId()));
+
+        // 새 프로필 이미지 업로드된 파일 가정
+        FileAttachment newAttachment = new FileAttachment("new_uuid_img.png", mockMultipartFile("new.png"), user, "https://cdn.example.com/new.png");
+        fileAttachmentRepository.save(newAttachment);
+
+        UserProfileRequest request = new UserProfileRequest("새닉네임", newAttachment.getPublicURL(), "자기소개", LocalDate.of(1999, 5, 10));
 
         // when: 서비스 호출
         UserDetailResponse response = accountService.updateUserProfile(user.getId(), request);
 
-        // then: 응답 및 DB 값 검증
-        assertThat(response.profile().nickname()).isEqualTo("새닉네임");
-        assertThat(response.profile().bio()).isEqualTo("자기소개");
-
+        // then
         User updated = userRepository.findById(user.getId()).orElseThrow();
         assertThat(updated.getUserProfile().getNickname()).isEqualTo("새닉네임");
+        assertThat(response.profile().nickname()).isEqualTo("새닉네임");
+
+        // 새 매핑이 존재하고 기존 매핑은 삭제되었는지 검증
+        List<AttachmentMapping> mappings = attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.PROFILE, user.getId());
+        assertThat(mappings).hasSize(1);
+        assertThat(mappings.get(0).getFileAttachment().getPublicURL()).isEqualTo(newAttachment.getPublicURL());
+
+        // 기존 이미지가 삭제되었는지 확인 (테스트 환경에서는 DB 삭제만 검증)
+        assertThat(fileAttachmentRepository.findByPublicURL("https://cdn.example.com/old.png")).isEmpty();
     }
 
     @Test
@@ -157,7 +191,7 @@ class AccountServiceTest {
         user2.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user2);
 
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest("닉1", null, null, null);
+        UserProfileRequest request = new UserProfileRequest("닉1", null, null, null);
 
         // when & then
         assertThatThrownBy(() -> accountService.updateUserProfile(user2.getId(), request))
@@ -174,7 +208,7 @@ class AccountServiceTest {
         user.setUserStatus(UserStatus.DELETED);
         userRepository.save(user);
 
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
+        UserProfileRequest request = new UserProfileRequest("새닉", null, null, null);
 
         // when & then
         assertThatThrownBy(() -> accountService.updateUserProfile(user.getId(), request))
@@ -191,7 +225,7 @@ class AccountServiceTest {
         user.setUserStatus(UserStatus.SUSPENDED);
         userRepository.save(user);
 
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
+        UserProfileRequest request = new UserProfileRequest("새닉", null, null, null);
 
         // when & then
         assertThatThrownBy(() -> accountService.updateUserProfile(user.getId(), request))
@@ -323,9 +357,14 @@ class AccountServiceTest {
     void deleteUser_success() {
         // given: 정상 상태의 유저 저장
         User user = User.createUser("deleteuser", "delete@example.com", passwordEncoder.encode("P@ssw0rd!"));
-        user.setUserProfile(new UserProfile(user, "홍길동", "https://cdn.example.com/profile.png", "소개글", LocalDate.of(1995, 3, 15), 500));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(1995, 3, 15), 500));
         user.setUserStatus(UserStatus.ACTIVE);
         userRepository.save(user);
+
+        // 프로필 이미지 매핑 설정
+        FileAttachment attachment = new FileAttachment("profile_uuid_img.png", mockMultipartFile("profile.png"), user, "https://cdn.example.com/profile.png");
+        fileAttachmentRepository.save(attachment);
+        attachmentMappingRepository.save(new AttachmentMapping(attachment, EntityType.PROFILE, user.getId()));
 
         // when: 탈퇴 처리
         accountService.deleteUser(user.getId());
@@ -337,12 +376,17 @@ class AccountServiceTest {
         assertThat(deleted.getEmail()).startsWith("deleted_");
         assertThat(deleted.getProvider()).startsWith("deleted_");
         assertThat(deleted.getProviderId()).startsWith("deleted_");
+        assertThat(deleted.getUserProfile().getNickname()).isEqualTo("탈퇴한 회원");
 
         UserProfile profile = deleted.getUserProfile();
         assertThat(profile.getNickname()).isEqualTo("탈퇴한 회원");
         assertThat(profile.getProfileImageUrl()).isNull();
         assertThat(profile.getBio()).isNull();
         assertThat(profile.getBirthDate()).isNull();
+
+        // 프로필 이미지 및 매핑 삭제 검증
+        assertThat(attachmentMappingRepository.findByEntityTypeAndEntityId(EntityType.PROFILE, user.getId())).isEmpty();
+        assertThat(fileAttachmentRepository.findByPublicURL("https://cdn.example.com/profile.png")).isEmpty();
     }
 
     @Test

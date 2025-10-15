@@ -5,8 +5,14 @@ import com.back.domain.board.comment.repository.CommentRepository;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.repository.PostRepository;
+import com.back.domain.file.entity.AttachmentMapping;
+import com.back.domain.file.entity.EntityType;
+import com.back.domain.file.entity.FileAttachment;
+import com.back.domain.file.repository.AttachmentMappingRepository;
+import com.back.domain.file.repository.FileAttachmentRepository;
+import com.back.domain.file.service.FileService;
 import com.back.domain.user.account.dto.ChangePasswordRequest;
-import com.back.domain.user.account.dto.UpdateUserProfileRequest;
+import com.back.domain.user.account.dto.UserProfileRequest;
 import com.back.domain.user.account.dto.UserDetailResponse;
 import com.back.domain.user.common.entity.User;
 import com.back.domain.user.common.entity.UserProfile;
@@ -23,6 +29,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -31,6 +39,9 @@ public class AccountService {
     private final UserProfileRepository userProfileRepository;
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
+    private final FileAttachmentRepository fileAttachmentRepository;
+    private final AttachmentMappingRepository attachmentMappingRepository;
+    private final FileService fileService;
     private final PasswordEncoder passwordEncoder;
 
     /**
@@ -54,7 +65,7 @@ public class AccountService {
      * 3. UserProfile 업데이트
      * 4. UserDetailResponse 변환 및 반환
      */
-    public UserDetailResponse updateUserProfile(Long userId, UpdateUserProfileRequest request) {
+    public UserDetailResponse updateUserProfile(Long userId, UserProfileRequest request) {
 
         // 사용자 조회 및 상태 검증
         User user = getValidUser(userId);
@@ -71,8 +82,46 @@ public class AccountService {
         profile.setBio(request.bio());
         profile.setBirthDate(request.birthDate());
 
+        // 프로필 이미지 및 매핑 업데이트
+        updateProfileImage(userId, request.profileImageUrl());
+
         // UserDetailResponse로 변환하여 반환
         return UserDetailResponse.from(user);
+    }
+
+    /**
+     * 프로필 이미지 및 매핑 교체 로직
+     * - 기존 이미지(S3 + FileAttachment + Mapping) 삭제 후 새 매핑 생성
+     */
+    private void updateProfileImage(Long userId, String newImageUrl) {
+
+        // 기존 매핑 및 파일 삭제
+        attachmentMappingRepository.findByEntityTypeAndEntityId(EntityType.PROFILE, userId)
+                .ifPresent(existingMapping -> {
+                    FileAttachment oldAttachment = existingMapping.getFileAttachment();
+                    if (oldAttachment != null) {
+                        fileService.deleteFile(oldAttachment.getId(), userId);
+                    }
+                    attachmentMappingRepository.delete(existingMapping);
+                });
+
+        // 새 이미지가 없는 경우
+        if (newImageUrl == null || newImageUrl.isBlank()) {
+            return;
+        }
+
+        // 새 파일 조회 및 검증
+        FileAttachment newAttachment = fileAttachmentRepository
+                .findByPublicURL(newImageUrl)
+                .orElseThrow(() -> new CustomException(ErrorCode.FILE_NOT_FOUND));
+
+        if (!newAttachment.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.FILE_ACCESS_DENIED);
+        }
+
+        // 새 매핑 생성 및 저장
+        AttachmentMapping newMapping = new AttachmentMapping(newAttachment, EntityType.PROFILE, userId);
+        attachmentMappingRepository.save(newMapping);
     }
 
     /**
@@ -114,6 +163,9 @@ public class AccountService {
         // 사용자 조회 및 상태 검증
         User user = getValidUser(userId);
 
+        // 프로필 이미지 및 매핑 삭제
+        deleteProfileImage(userId);
+
         // 상태 변경 (soft delete)
         user.setUserStatus(UserStatus.DELETED);
 
@@ -131,6 +183,20 @@ public class AccountService {
             profile.setBio(null);
             profile.setBirthDate(null);
         }
+    }
+
+    /**
+     * 프로필 이미지 및 매핑 삭제
+     */
+    private void deleteProfileImage(Long userId) {
+        attachmentMappingRepository.findByEntityTypeAndEntityId(EntityType.PROFILE, userId)
+                .ifPresent(mapping -> {
+                    FileAttachment attachment = mapping.getFileAttachment();
+                    if (attachment != null) {
+                        fileService.deleteFile(attachment.getId(), userId);
+                    }
+                    attachmentMappingRepository.delete(mapping);
+                });
     }
 
     /**

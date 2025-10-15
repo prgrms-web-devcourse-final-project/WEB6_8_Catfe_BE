@@ -6,8 +6,10 @@ import com.back.domain.board.post.entity.Post;
 import com.back.domain.board.post.entity.PostBookmark;
 import com.back.domain.board.post.repository.PostBookmarkRepository;
 import com.back.domain.board.post.repository.PostRepository;
+import com.back.domain.file.entity.FileAttachment;
+import com.back.domain.file.repository.FileAttachmentRepository;
 import com.back.domain.user.account.dto.ChangePasswordRequest;
-import com.back.domain.user.account.dto.UpdateUserProfileRequest;
+import com.back.domain.user.account.dto.UserProfileRequest;
 import com.back.domain.user.common.entity.User;
 import com.back.domain.user.common.entity.UserProfile;
 import com.back.domain.user.common.enums.UserStatus;
@@ -20,11 +22,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -59,6 +63,9 @@ class AccountControllerTest {
     private CommentRepository commentRepository;
 
     @Autowired
+    private FileAttachmentRepository fileAttachmentRepository;
+
+    @Autowired
     private TestJwtTokenProvider testJwtTokenProvider;
 
     @Autowired
@@ -69,6 +76,10 @@ class AccountControllerTest {
 
     private String generateAccessToken(User user) {
         return testJwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+    }
+
+    private MultipartFile mockMultipartFile(String filename) {
+        return new MockMultipartFile(filename, filename, "image/png", new byte[]{1, 2, 3});
     }
 
     // ====================== 내 정보 조회 테스트 ======================
@@ -95,7 +106,8 @@ class AccountControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.username").value("myinfo"))
-                .andExpect(jsonPath("$.data.profile.nickname").value("홍길동"));
+                .andExpect(jsonPath("$.data.profile.nickname").value("홍길동"))
+                .andExpect(jsonPath("$.data.profile.profileImageUrl").value("https://cdn.example.com/1.png"));
     }
 
     @Test
@@ -190,7 +202,10 @@ class AccountControllerTest {
 
         String accessToken = generateAccessToken(user);
 
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest(
+        FileAttachment attachment = new FileAttachment("profile_uuid_img.png", mockMultipartFile("profile.png"), user, "https://cdn.example.com/profile/new.png");
+        fileAttachmentRepository.save(attachment);
+
+        UserProfileRequest request = new UserProfileRequest(
                 "새닉네임",
                 "https://cdn.example.com/profile/new.png",
                 "저는 개발자입니다!",
@@ -212,7 +227,8 @@ class AccountControllerTest {
                 .andExpect(jsonPath("$.message").value("회원 정보를 수정했습니다."))
                 .andExpect(jsonPath("$.data.profile.nickname").value("새닉네임"))
                 .andExpect(jsonPath("$.data.profile.bio").value("저는 개발자입니다!"))
-                .andExpect(jsonPath("$.data.profile.birthDate").value("2000-05-10"));
+                .andExpect(jsonPath("$.data.profile.birthDate").value("2000-05-10"))
+                .andExpect(jsonPath("$.data.profile.profileImageUrl").value("https://cdn.example.com/profile/new.png"));
     }
 
     @Test
@@ -231,7 +247,7 @@ class AccountControllerTest {
 
         String accessToken = generateAccessToken(user2);
 
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest("닉1", null, null, null);
+        UserProfileRequest request = new UserProfileRequest("닉1", null, null, null);
 
         // when & then
         mvc.perform(patch("/api/users/me")
@@ -255,7 +271,7 @@ class AccountControllerTest {
 
         String accessToken = generateAccessToken(user);
 
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
+        UserProfileRequest request = new UserProfileRequest("새닉", null, null, null);
 
         // when & then
         mvc.perform(patch("/api/users/me")
@@ -279,7 +295,7 @@ class AccountControllerTest {
 
         String accessToken = generateAccessToken(user);
 
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
+        UserProfileRequest request = new UserProfileRequest("새닉", null, null, null);
 
         // when & then
         mvc.perform(patch("/api/users/me")
@@ -296,7 +312,7 @@ class AccountControllerTest {
     @DisplayName("AccessToken 없음으로 프로필 수정 → 401 Unauthorized (AUTH_001)")
     void updateMyProfile_noAccessToken() throws Exception {
         // given: 요청 바디 준비
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
+        UserProfileRequest request = new UserProfileRequest("새닉", null, null, null);
 
         // when & then
         mvc.perform(patch("/api/users/me")
@@ -312,7 +328,7 @@ class AccountControllerTest {
     @DisplayName("잘못된 AccessToken으로 프로필 수정 → 401 Unauthorized (AUTH_002)")
     void updateMyProfile_invalidAccessToken() throws Exception {
         // given
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
+        UserProfileRequest request = new UserProfileRequest("새닉", null, null, null);
 
         // when & then
         mvc.perform(patch("/api/users/me")
@@ -338,7 +354,7 @@ class AccountControllerTest {
                 user.getId(), user.getUsername(), user.getRole().name()
         );
 
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest("새닉", null, null, null);
+        UserProfileRequest request = new UserProfileRequest("새닉", null, null, null);
 
         // when & then
         mvc.perform(patch("/api/users/me")
