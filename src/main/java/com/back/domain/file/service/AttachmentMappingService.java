@@ -109,6 +109,31 @@ public class AttachmentMappingService {
         attachmentMappingRepository.deleteAllByEntityTypeAndEntityId(entityType, entityId);
     }
 
+    /**
+     * 기존 매핑 중 새 요청(newIds)에 없는 첨부만 삭제
+     * - S3 객체 삭제
+     * - 매핑 테이블 + 파일 정보 삭제
+     */
+    @Transactional
+    public void deleteRemovedAttachments(EntityType entityType, Long entityId, Long userId, List<Long> newIds) {
+        List<AttachmentMapping> mappings =
+                attachmentMappingRepository.findAllByEntityTypeAndEntityId(entityType, entityId);
+
+        for (AttachmentMapping mapping : mappings) {
+            FileAttachment attachment = mapping.getFileAttachment();
+
+            if (attachment == null) continue;
+
+            Long attachmentId = attachment.getId();
+
+            // 새 요청에 포함되지 않은 첨부만 삭제
+            if (!newIds.contains(attachmentId)) {
+                s3Delete(attachment.getStoredName());
+                attachmentMappingRepository.delete(mapping);
+            }
+        }
+    }
+
     private void s3Delete(String fileName) {
         amazonS3.deleteObject(new DeleteObjectRequest(bucket, fileName));
     }

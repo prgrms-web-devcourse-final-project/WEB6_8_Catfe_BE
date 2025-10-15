@@ -5,12 +5,8 @@ import com.back.domain.board.comment.repository.CommentRepository;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.repository.PostRepository;
-import com.back.domain.file.entity.AttachmentMapping;
 import com.back.domain.file.entity.EntityType;
-import com.back.domain.file.entity.FileAttachment;
-import com.back.domain.file.repository.AttachmentMappingRepository;
-import com.back.domain.file.repository.FileAttachmentRepository;
-import com.back.domain.file.service.FileService;
+import com.back.domain.file.service.AttachmentMappingService;
 import com.back.domain.user.account.dto.ChangePasswordRequest;
 import com.back.domain.user.account.dto.UserProfileRequest;
 import com.back.domain.user.account.dto.UserDetailResponse;
@@ -40,9 +36,7 @@ public class AccountService {
     private final UserProfileRepository userProfileRepository;
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
-    private final FileAttachmentRepository fileAttachmentRepository;
-    private final AttachmentMappingRepository attachmentMappingRepository;
-    private final FileService fileService;
+    private final AttachmentMappingService attachmentMappingService;
     private final PasswordEncoder passwordEncoder;
 
     /**
@@ -76,85 +70,22 @@ public class AccountService {
             throw new CustomException(ErrorCode.NICKNAME_DUPLICATED);
         }
 
-
         // UserProfile 업데이트
         UserProfile profile = user.getUserProfile();
         profile.setNickname(request.nickname());
         profile.setBio(request.bio());
         profile.setBirthDate(request.birthDate());
 
-        // TODO: 프로필 이미지 및 매핑 업데이트 리팩토링 필요
         // 프로필 이미지 변경이 있는 경우만 수행
         String newUrl = request.profileImageUrl();
         String oldUrl = profile.getProfileImageUrl();
         if (!Objects.equals(newUrl, oldUrl)) {
-            // 외부 이미지(S3 외부 URL)는 매핑 로직 제외
-            if (isExternalImageUrl(newUrl)) {
-                // 기존 매핑만 제거 (소셜 이미지로 바뀌면 내부 매핑 필요 없음)
-                removeExistingMapping(userId);
-            } else {
-                updateProfileImage(userId, newUrl);
-            }
+            attachmentMappingService.replaceAttachmentByUrl(EntityType.PROFILE, profile.getId(), userId, newUrl);
             profile.setProfileImageUrl(newUrl);
         }
 
         // UserDetailResponse로 변환하여 반환
         return UserDetailResponse.from(user);
-    }
-
-    /**
-     * 내부 저장소(S3) 이미지 교체 로직
-     * - 기존 매핑 및 파일 삭제 후 새 매핑 생성
-     */
-    private void updateProfileImage(Long userId, String newImageUrl) {
-
-        // 기존 매핑 제거
-        removeExistingMapping(userId);
-
-        // 새 이미지가 없는 경우
-        if (newImageUrl == null || newImageUrl.isBlank()) {
-            return;
-        }
-
-        // 새 파일 조회 및 검증
-        FileAttachment newAttachment = fileAttachmentRepository
-                .findByPublicURL(newImageUrl)
-                .orElseThrow(() -> new CustomException(ErrorCode.FILE_NOT_FOUND));
-
-        if (!newAttachment.getUser().getId().equals(userId)) {
-            throw new CustomException(ErrorCode.FILE_ACCESS_DENIED);
-        }
-
-        // 새 매핑 생성 및 저장
-        AttachmentMapping newMapping = new AttachmentMapping(newAttachment, EntityType.PROFILE, userId);
-        attachmentMappingRepository.save(newMapping);
-    }
-
-    /**
-     * 기존 프로필 이미지 매핑 및 파일 삭제
-     */
-    private void removeExistingMapping(Long userId) {
-        attachmentMappingRepository.findByEntityTypeAndEntityId(EntityType.PROFILE, userId)
-                .ifPresent(mapping -> {
-                    FileAttachment oldAttachment = mapping.getFileAttachment();
-                    if (oldAttachment != null) {
-                        fileService.deleteFile(oldAttachment.getId(), userId);
-                    }
-                    attachmentMappingRepository.delete(mapping);
-                });
-    }
-
-    /**
-     * 외부 이미지 URL 판별
-     * - 우리 S3 또는 CDN이 아니면 true
-     * - 필요 시 application.yml에서 환경변수로 관리
-     */
-    private boolean isExternalImageUrl(String url) {
-        if (url == null || url.isBlank()) return true;
-
-        // TODO: 하드 코딩 제거
-        return !(url.startsWith("https://team5-s3-1.s3.ap-northeast-2.amazonaws.com")
-                || url.contains("cdn.example.com"));
     }
 
     /**
@@ -196,9 +127,6 @@ public class AccountService {
         // 사용자 조회 및 상태 검증
         User user = getValidUser(userId);
 
-        // 프로필 이미지 및 매핑 삭제
-        removeExistingMapping(userId);
-
         // 상태 변경 (soft delete)
         user.setUserStatus(UserStatus.DELETED);
 
@@ -211,6 +139,9 @@ public class AccountService {
         // 개인정보 마스킹
         UserProfile profile = user.getUserProfile();
         if (profile != null) {
+            // 프로필 이미지 및 매핑 삭제
+            attachmentMappingService.deleteAttachments(EntityType.PROFILE, profile.getId(), userId);
+
             profile.setNickname("탈퇴한 회원");
             profile.setProfileImageUrl(null);
             profile.setBio(null);
