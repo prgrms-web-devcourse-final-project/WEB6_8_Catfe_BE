@@ -676,10 +676,12 @@ public class RoomService {
 
     /**
      * 멤버 추방 (방장, 부방장만 가능)
+     * VISITOR도 추방 가능
      */
     @Transactional
     public void kickMember(Long roomId, Long targetUserId, Long requesterId) {
         
+        // 1. 요청자 권한 확인
         RoomMember requester = roomMemberRepository.findByRoomIdAndUserId(roomId, requesterId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
 
@@ -687,17 +689,24 @@ public class RoomService {
             throw new CustomException(ErrorCode.NOT_ROOM_MANAGER);
         }
 
-        RoomMember targetMember = roomMemberRepository.findByRoomIdAndUserId(roomId, targetUserId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_ROOM_MEMBER));
+        // 2. 대상자가 온라인 상태인지 확인 (Redis 체크)
+        Set<Long> onlineUserIds = roomParticipantService.getParticipants(roomId);
+        if (!onlineUserIds.contains(targetUserId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_MEMBER);
+        }
 
-        if (targetMember.isHost()) {
+        // 3. 대상자 역할 확인 (DB 조회 - VISITOR는 없을 수 있음)
+        Optional<RoomMember> targetMemberOpt = roomMemberRepository.findByRoomIdAndUserId(roomId, targetUserId);
+        
+        // 방장은 추방 불가
+        if (targetMemberOpt.isPresent() && targetMemberOpt.get().isHost()) {
             throw new CustomException(ErrorCode.CANNOT_KICK_HOST);
         }
 
-        // Redis에서 제거 (강제 퇴장)
+        // 4. Redis에서 제거 (강제 퇴장) - VISITOR 포함 모든 사용자
         roomParticipantService.exitRoom(targetUserId, roomId);
 
-        // 멤버 추방 이벤트 발행
+        // 5. 멤버 추방 이벤트 발행
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
@@ -710,8 +719,9 @@ public class RoomService {
                 )
         );
         
-        log.info("멤버 추방 완료 - RoomId: {}, TargetUserId: {}, RequesterId: {}", 
-                roomId, targetUserId, requesterId);
+        String targetRole = targetMemberOpt.map(m -> m.getRole().name()).orElse("VISITOR");
+        log.info("멤버 추방 완료 - RoomId: {}, TargetUserId: {}, Role: {}, RequesterId: {}", 
+                roomId, targetUserId, targetRole, requesterId);
     }
 
     // ==================== DTO 생성 헬퍼 메서드 ====================
