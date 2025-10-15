@@ -64,6 +64,9 @@ class RoomServiceTest {
     
     @Mock
     private RoomThumbnailService roomThumbnailService;
+    
+    @Mock
+    private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     @InjectMocks
     private RoomService roomService;
@@ -310,7 +313,7 @@ class RoomServiceTest {
         assertThat(testRoom.getTitle()).isEqualTo("변경된 제목");
         assertThat(testRoom.getDescription()).isEqualTo("변경된 설명");
         assertThat(testRoom.getMaxParticipants()).isEqualTo(15);
-        verify(roomThumbnailService, never()).updateThumbnailMapping(any(), any());
+        verify(roomThumbnailService, never()).updateThumbnailMapping(any(), any(), any());  // userId 파라미터 추가
     }
 
     @Test
@@ -345,7 +348,7 @@ class RoomServiceTest {
         // then
         assertThat(testRoom.getStatus()).isEqualTo(RoomStatus.TERMINATED);
         assertThat(testRoom.isActive()).isFalse();
-        verify(roomThumbnailService, times(1)).deleteThumbnailMapping(1L);
+        verify(roomThumbnailService, times(1)).deleteThumbnailMapping(1L, 1L);  // userId 파라미터 추가
     }
 
     @Test
@@ -400,13 +403,15 @@ class RoomServiceTest {
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
         given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of(2L)); // 온라인 사용자 목록
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.empty()); // VISITOR는 DB에 없음
-        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
+        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom)); // Room 조회 추가
 
         // when
         roomService.kickMember(1L, 2L, 1L);
 
         // then
         verify(roomParticipantService, times(1)).exitRoom(2L, 1L); // Redis 퇴장 확인
+        verify(messagingTemplate, times(1)).convertAndSendToUser(eq("2"), eq("/queue/kick"), any()); // WebSocket 메시지 전송 확인
+        verify(eventPublisher, times(1)).publishEvent(any(com.back.domain.notification.event.studyroom.MemberKickedEvent.class)); // 이벤트 발행 확인
     }
 
     @Test
@@ -418,13 +423,15 @@ class RoomServiceTest {
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
         given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of(2L)); // VISITOR가 온라인 상태
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.empty()); // DB에 없음
-        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
+        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom)); // Room 조회 추가
 
         // when
         roomService.kickMember(1L, 2L, 1L);
 
         // then
         verify(roomParticipantService, times(1)).exitRoom(2L, 1L);
+        verify(messagingTemplate, times(1)).convertAndSendToUser(eq("2"), eq("/queue/kick"), any()); // WebSocket 메시지 전송 확인
+        verify(eventPublisher, times(1)).publishEvent(any(com.back.domain.notification.event.studyroom.MemberKickedEvent.class)); // 이벤트 발행 확인
     }
     
     @Test
@@ -448,13 +455,15 @@ class RoomServiceTest {
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 1L)).willReturn(Optional.of(hostMember));
         given(roomParticipantService.getParticipants(1L)).willReturn(java.util.Set.of(2L)); // MEMBER가 온라인 상태
         given(roomMemberRepository.findByRoomIdAndUserId(1L, 2L)).willReturn(Optional.of(targetMember)); // DB에 있음
-        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
+        given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom)); // Room 조회 추가
 
         // when
         roomService.kickMember(1L, 2L, 1L);
 
         // then
         verify(roomParticipantService, times(1)).exitRoom(2L, 1L);
+        verify(messagingTemplate, times(1)).convertAndSendToUser(eq("2"), eq("/queue/kick"), any()); // WebSocket 메시지 전송 확인
+        verify(eventPublisher, times(1)).publishEvent(any(com.back.domain.notification.event.studyroom.MemberKickedEvent.class)); // 이벤트 발행 확인
     }
     
     @Test
@@ -608,7 +617,7 @@ class RoomServiceTest {
         // given
         given(roomRepository.findById(1L)).willReturn(Optional.of(testRoom));
         given(roomParticipantService.getParticipantCount(1L)).willReturn(0L);
-        given(roomThumbnailService.updateThumbnailMapping(eq(1L), eq(789L)))
+        given(roomThumbnailService.updateThumbnailMapping(eq(1L), eq(789L), eq(1L)))  // userId 파라미터 추가
                 .willReturn("https://s3.amazonaws.com/bucket/new-thumbnail.jpg");
 
         // when
@@ -624,6 +633,6 @@ class RoomServiceTest {
         // then
         assertThat(testRoom.getTitle()).isEqualTo("변경된 제목");
         assertThat(testRoom.getThumbnailUrl()).isEqualTo("https://s3.amazonaws.com/bucket/new-thumbnail.jpg");
-        verify(roomThumbnailService, times(1)).updateThumbnailMapping(eq(1L), eq(789L));
+        verify(roomThumbnailService, times(1)).updateThumbnailMapping(eq(1L), eq(789L), eq(1L));  // userId 파라미터 추가
     }
 }

@@ -41,6 +41,10 @@ public enum ErrorCode {
     NOT_ROOM_HOST(HttpStatus.FORBIDDEN, "ROOM_018", "방장 권한이 필요합니다."),
     ROOM_PASSWORD_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "ROOM_019", "이미 비밀번호가 설정되어 있습니다. 비밀번호 변경 API를 사용하세요."),
 
+    // ======================== 방명록 관련 ========================
+    GUESTBOOK_NOT_FOUND(HttpStatus.NOT_FOUND, "GUESTBOOK_001", "존재하지 않는 방명록입니다."),
+    GUESTBOOK_NO_PERMISSION(HttpStatus.FORBIDDEN, "GUESTBOOK_002", "방명록 작성자만 수정/삭제할 수 있습니다."),
+
     // ======================== 초대 코드 관련 ========================
     INVALID_INVITE_CODE(HttpStatus.NOT_FOUND, "INVITE_001", "유효하지 않은 초대 코드입니다."),
     INVITE_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "INVITE_002", "만료된 초대 코드입니다."),
