@@ -8,6 +8,7 @@ import com.back.domain.board.post.repository.PostCategoryRepository;
 import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.file.entity.FileAttachment;
 import com.back.domain.file.repository.FileAttachmentRepository;
+import com.back.domain.file.service.FileService;
 import com.back.domain.user.common.entity.User;
 import com.back.domain.user.common.entity.UserProfile;
 import com.back.domain.user.common.enums.UserStatus;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -63,6 +65,9 @@ class PostControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockBean
+    private FileService fileService;
 
     private String generateAccessToken(User user) {
         return testJwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());

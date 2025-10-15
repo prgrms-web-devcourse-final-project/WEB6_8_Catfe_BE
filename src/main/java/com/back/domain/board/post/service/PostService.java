@@ -17,6 +17,7 @@ import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.entity.FileAttachment;
 import com.back.domain.file.repository.AttachmentMappingRepository;
 import com.back.domain.file.repository.FileAttachmentRepository;
+import com.back.domain.file.service.FileService;
 import com.back.domain.user.common.entity.User;
 import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.exception.CustomException;
@@ -40,6 +41,7 @@ public class PostService {
     private final PostCategoryRepository postCategoryRepository;
     private final FileAttachmentRepository fileAttachmentRepository;
     private final AttachmentMappingRepository attachmentMappingRepository;
+    private final FileService fileService;
 
     /**
      * 게시글 생성 서비스
@@ -183,7 +185,15 @@ public class PostService {
             throw new CustomException(ErrorCode.POST_NO_PERMISSION);
         }
 
-        // AttachmentMapping 매핑 제거
+        // 첨부 파일 삭제
+        List<AttachmentMapping> mappings =
+                attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
+        for (AttachmentMapping mapping : mappings) {
+            FileAttachment fileAttachment = mapping.getFileAttachment();
+            if (fileAttachment != null) {
+                fileService.deleteFile(fileAttachment.getId(), userId);
+            }
+        }
         attachmentMappingRepository.deleteAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
 
         // Post 삭제

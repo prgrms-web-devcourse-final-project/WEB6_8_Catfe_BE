@@ -15,6 +15,7 @@ import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.entity.FileAttachment;
 import com.back.domain.file.repository.AttachmentMappingRepository;
 import com.back.domain.file.repository.FileAttachmentRepository;
+import com.back.domain.file.service.FileService;
 import com.back.domain.user.common.entity.User;
 import com.back.domain.user.common.entity.UserProfile;
 import com.back.domain.user.common.enums.UserStatus;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -59,6 +61,9 @@ class PostServiceTest {
     @Autowired
     private AttachmentMappingRepository attachmentMappingRepository;
 
+    @MockBean
+    private FileService fileService;
+
     // ====================== 게시글 생성 테스트 ======================
 
     @Test
@@ -91,7 +96,7 @@ class PostServiceTest {
         // when
         PostResponse response = postService.createPost(request, user.getId());
 
-        // then
+        // then — DTO 검증
         assertThat(response.title()).isEqualTo("제목");
         assertThat(response.content()).isEqualTo("내용");
         assertThat(response.author().nickname()).isEqualTo("작성자");
@@ -99,6 +104,20 @@ class PostServiceTest {
         assertThat(response.categories().getFirst().name()).isEqualTo("공지");
         assertThat(response.images()).hasSize(2);
         assertThat(response.images().getFirst().id()).isEqualTo(img1.getId());
+
+        // then — DB 매핑 검증
+        List<AttachmentMapping> mappings = attachmentMappingRepository
+                .findAllByEntityTypeAndEntityId(EntityType.POST, response.postId());
+
+        assertThat(mappings).hasSize(2); // 이미지 2개 → 매핑 2개
+        assertThat(mappings)
+                .allSatisfy(mapping -> {
+                    assertThat(mapping.getEntityType()).isEqualTo(EntityType.POST);
+                    assertThat(mapping.getEntityId()).isEqualTo(response.postId());
+                    assertThat(mapping.getFileAttachment()).isNotNull();
+                    assertThat(mapping.getFileAttachment().getId())
+                            .isIn(img1.getId(), img2.getId());
+                });
     }
 
     @Test
@@ -199,11 +218,25 @@ class PostServiceTest {
         PostCategory category = new PostCategory("공지", CategoryType.SUBJECT);
         postCategoryRepository.save(category);
 
+        // 게시글 생성
         Post post = new Post(user, "조회용 제목", "조회용 내용", null);
         post.updateCategories(List.of(category));
         postRepository.save(post);
 
-        // when
+        // 첨부 이미지 추가
+        MockMultipartFile file1 = new MockMultipartFile("file", "img1.png", "image/png", "dummy".getBytes());
+        FileAttachment attachment1 = new FileAttachment("stored_img1.png", file1, user, "https://cdn.example.com/img1.png");
+        fileAttachmentRepository.save(attachment1);
+
+        MockMultipartFile file2 = new MockMultipartFile("file", "img2.png", "image/png", "dummy".getBytes());
+        FileAttachment attachment2 = new FileAttachment("stored_img2.png", file2, user, "https://cdn.example.com/img2.png");
+        fileAttachmentRepository.save(attachment2);
+
+        // 매핑 저장 (EntityType.POST)
+        attachmentMappingRepository.save(new AttachmentMapping(attachment1, EntityType.POST, post.getId()));
+        attachmentMappingRepository.save(new AttachmentMapping(attachment2, EntityType.POST, post.getId()));
+
+        // when: 비로그인 상태에서 조회
         PostDetailResponse response = postService.getPost(post.getId(), null);
 
         // then
@@ -212,9 +245,19 @@ class PostServiceTest {
         assertThat(response.content()).isEqualTo("조회용 내용");
         assertThat(response.author().nickname()).isEqualTo("독자");
         assertThat(response.categories()).extracting("name").containsExactly("공지");
+
+        // 첨부 이미지 검증
+        assertThat(response.images()).hasSize(2);
+        assertThat(response.images())
+                .extracting("url")
+                .containsExactlyInAnyOrder("https://cdn.example.com/img1.png", "https://cdn.example.com/img2.png");
+
+        // 기본 상호작용 상태 검증
         assertThat(response.likeCount()).isZero();
         assertThat(response.bookmarkCount()).isZero();
         assertThat(response.commentCount()).isZero();
+        assertThat(response.likedByMe()).isFalse();
+        assertThat(response.bookmarkedByMe()).isFalse();
     }
 
     @Test
