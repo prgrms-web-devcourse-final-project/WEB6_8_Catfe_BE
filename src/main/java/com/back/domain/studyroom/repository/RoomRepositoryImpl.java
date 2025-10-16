@@ -33,12 +33,12 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
     private final QUser user = QUser.user;
 
     /**
-     * 공개 방 중 입장 가능한 방들 조회 (페이징)
+     * 공개 방 중 입장 가능한 방들 조회 (페이징, TERMINATED 제외)
      * 조회 조건:
      * - 비공개가 아닌 방 (isPrivate = false)
      * - 활성화된 방 (isActive = true)
      * - 입장 가능한 상태 (WAITING 또는 ACTIVE)
-     * 
+     *
      * 참고: 정원 체크는 Redis 기반으로 프론트엔드/서비스에서 수행
      * @param pageable 페이징 정보
      * @return 페이징된 방 목록
@@ -52,7 +52,8 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .where(
                         room.isPrivate.eq(false),
                         room.isActive.eq(true),
-                        room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE)
+                        room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE),  // WAITING, ACTIVE만 (TERMINATED, PAUSED 제외)
+                        room.status.ne(RoomStatus.TERMINATED)  // TERMINATED 명시적 제외
                 )
                 .orderBy(room.createdAt.desc())
                 .offset(pageable.getOffset())
@@ -66,7 +67,8 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .where(
                         room.isPrivate.eq(false),
                         room.isActive.eq(true),
-                        room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE)
+                        room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE),
+                        room.status.ne(RoomStatus.TERMINATED)
                 )
                 .fetchOne();
 
@@ -74,7 +76,7 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
     }
 
     /**
-     * 사용자가 참여 중인 방 조회 (MEMBER 이상만)
+     * 사용자가 참여 중인 방 조회 (MEMBER 이상만, TERMINATED 제외)
      * 조회 조건:
      * - 특정 사용자가 MEMBER 이상으로 등록된 방 (VISITOR 제외)
      * - DB에 저장된 멤버십만 조회
@@ -89,7 +91,8 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .join(room.roomMembers, roomMember)          // 멤버 조인
                 .where(
                         roomMember.user.id.eq(userId),
-                        roomMember.role.ne(com.back.domain.studyroom.entity.RoomRole.VISITOR)  // VISITOR 제외
+                        roomMember.role.ne(com.back.domain.studyroom.entity.RoomRole.VISITOR),  // VISITOR 제외
+                        room.status.ne(RoomStatus.TERMINATED)  // TERMINATED 제외
                 )
                 .fetch();
     }
@@ -160,7 +163,7 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
     }
 
     /**
-     * 인기 방 조회 (참가자 수 기준) - 공개+비공개 포함
+     * 인기 방 조회 (참가자 수 기준, TERMINATED 제외)
      * 
      * 참고: 참가자 수는 Redis에서 조회하므로 DB에서는 정렬 불가
      * 서비스 레이어에서 Redis 데이터로 정렬 필요
@@ -177,7 +180,8 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .selectFrom(room)
                 .leftJoin(room.createdBy, user).fetchJoin()  // N+1 방지
                 .where(
-                        room.isActive.eq(true)
+                        room.isActive.eq(true),
+                        room.status.ne(RoomStatus.TERMINATED)  // TERMINATED 제외
                 )
                 .orderBy(room.createdAt.desc())  // 최신순 (서비스에서 Redis 기반으로 재정렬)
                 .offset(pageable.getOffset())
@@ -189,7 +193,8 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
                 .select(room.count())
                 .from(room)
                 .where(
-                        room.isActive.eq(true)
+                        room.isActive.eq(true),
+                        room.status.ne(RoomStatus.TERMINATED)  // TERMINATED 제외
                 )
                 .fetchOne();
 
@@ -272,14 +277,14 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
     }
 
     /**
-     * 모든 방 조회 (공개 + 비공개 전체)
+     * 모든 방 조회 (공개 + 비공개 전체, TERMINATED 제외)
      * 조회 조건:
      * - 모든 방 (공개 + 비공개)
      * 정렬:
      * 1. 열린 방(WAITING, ACTIVE) 우선
      * 2. 닫힌 방(PAUSED, TERMINATED) 뒤로
      * 3. 최신 생성순
-     * 
+     *
      * 비공개 방은 컨트롤러/서비스 레이어에서 정보 마스킹 합니당
      */
     @Override
@@ -287,8 +292,11 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
         List<Room> rooms = queryFactory
                 .selectFrom(room)
                 .leftJoin(room.createdBy, user).fetchJoin()
+                .where(
+                        room.status.ne(RoomStatus.TERMINATED)  // TERMINATED 제외
+                )
                 .orderBy(
-                        // 열린 방 우선 (0), 닫힌 방 뒤로 (1)
+                        // 열린 방 우선 (0), 일시정지 방 뒤로 (1)
                         room.status.when(RoomStatus.WAITING).then(0)
                                 .when(RoomStatus.ACTIVE).then(0)
                                 .otherwise(1).asc(),
@@ -302,13 +310,16 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
         Long totalCount = queryFactory
                 .select(room.count())
                 .from(room)
+                .where(
+                        room.status.ne(RoomStatus.TERMINATED)  // TERMINATED 제외
+                )
                 .fetchOne();
 
         return new PageImpl<>(rooms, pageable, totalCount != null ? totalCount : 0);
     }
 
     /**
-     * 공개 방 전체 조회
+     * 공개 방 전체 조회 (TERMINATED 제외)
      * 조회 조건:
      * - isPrivate = false
      * - includeInactive에 따라 닫힌 방 포함 여부 결정
@@ -316,9 +327,10 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
      */
     @Override
     public Page<Room> findPublicRoomsWithStatus(boolean includeInactive, Pageable pageable) {
-        BooleanExpression whereClause = room.isPrivate.eq(false);
+        BooleanExpression whereClause = room.isPrivate.eq(false)
+                .and(room.status.ne(RoomStatus.TERMINATED));  // TERMINATED 제외
 
-        // 닫힌 방 제외 옵션
+        // 일시정지 방 제외 옵션
         if (!includeInactive) {
             whereClause = whereClause.and(
                     room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE)
@@ -349,7 +361,7 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
     }
 
     /**
-     * 내가 멤버인 비공개 방 조회
+     * 내가 멤버인 비공개 방 조회 (TERMINATED 제외)
      * 조회 조건:
      * - isPrivate = true
      * - 내가 멤버로 등록된 방
@@ -359,9 +371,10 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
     @Override
     public Page<Room> findMyPrivateRooms(Long userId, boolean includeInactive, Pageable pageable) {
         BooleanExpression whereClause = room.isPrivate.eq(true)
-                .and(roomMember.user.id.eq(userId));
+                .and(roomMember.user.id.eq(userId))
+                .and(room.status.ne(RoomStatus.TERMINATED));  // TERMINATED 제외
 
-        // 닫힌 방 제외 옵션
+        // 일시정지 방 제외 옵션
         if (!includeInactive) {
             whereClause = whereClause.and(
                     room.status.in(RoomStatus.WAITING, RoomStatus.ACTIVE)
@@ -394,7 +407,7 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
     }
 
     /**
-     * 내가 호스트(방장)인 방 조회
+     * 내가 호스트(방장)인 방 조회 (TERMINATED 제외)
      * 조회 조건:
      * - room.createdBy.id = userId
      * 정렬: 열린 방 우선 → 최신순
@@ -404,7 +417,10 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
         List<Room> rooms = queryFactory
                 .selectFrom(room)
                 .leftJoin(room.createdBy, user).fetchJoin()
-                .where(room.createdBy.id.eq(userId))
+                .where(
+                        room.createdBy.id.eq(userId),
+                        room.status.ne(RoomStatus.TERMINATED)  // TERMINATED 제외
+                )
                 .orderBy(
                         room.status.when(RoomStatus.WAITING).then(0)
                                 .when(RoomStatus.ACTIVE).then(0)
@@ -418,7 +434,10 @@ public class RoomRepositoryImpl implements RoomRepositoryCustom {
         Long totalCount = queryFactory
                 .select(room.count())
                 .from(room)
-                .where(room.createdBy.id.eq(userId))
+                .where(
+                        room.createdBy.id.eq(userId),
+                        room.status.ne(RoomStatus.TERMINATED)  // TERMINATED 제외
+                )
                 .fetchOne();
 
         return new PageImpl<>(rooms, pageable, totalCount != null ? totalCount : 0);
