@@ -1,5 +1,6 @@
 package com.back.domain.board.post.service;
 
+import com.amazonaws.services.s3.AmazonS3;
 import com.back.domain.board.common.dto.PageResponse;
 import com.back.domain.board.post.entity.Post;
 import com.back.domain.board.post.entity.PostCategory;
@@ -15,7 +16,7 @@ import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.entity.FileAttachment;
 import com.back.domain.file.repository.AttachmentMappingRepository;
 import com.back.domain.file.repository.FileAttachmentRepository;
-import com.back.domain.file.service.FileService;
+import com.back.domain.file.service.AttachmentMappingService;
 import com.back.domain.user.common.entity.User;
 import com.back.domain.user.common.entity.UserProfile;
 import com.back.domain.user.common.enums.UserStatus;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -61,8 +63,11 @@ class PostServiceTest {
     @Autowired
     private AttachmentMappingRepository attachmentMappingRepository;
 
-    @MockitoBean
-    private FileService fileService;
+    @Autowired
+    private AttachmentMappingService attachmentMappingService;
+
+    @MockBean
+    private AmazonS3 amazonS3; // S3 호출 차단용 mock
 
     // ====================== 게시글 생성 테스트 ======================
 

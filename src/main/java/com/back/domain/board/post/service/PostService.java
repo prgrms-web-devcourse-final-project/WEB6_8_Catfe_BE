@@ -17,7 +17,7 @@ import com.back.domain.file.entity.EntityType;
 import com.back.domain.file.entity.FileAttachment;
 import com.back.domain.file.repository.AttachmentMappingRepository;
 import com.back.domain.file.repository.FileAttachmentRepository;
-import com.back.domain.file.service.FileService;
+import com.back.domain.file.service.AttachmentMappingService;
 import com.back.domain.user.common.entity.User;
 import com.back.domain.user.common.repository.UserRepository;
 import com.back.global.exception.CustomException;
@@ -41,7 +41,7 @@ public class PostService {
     private final PostCategoryRepository postCategoryRepository;
     private final FileAttachmentRepository fileAttachmentRepository;
     private final AttachmentMappingRepository attachmentMappingRepository;
-    private final FileService fileService;
+    private final AttachmentMappingService attachmentMappingService;
 
     /**
      * 게시글 생성 서비스
@@ -169,6 +169,7 @@ public class PostService {
     private List<FileAttachment> updatePostAttachments(Post post, List<Long> newImageIds, Long userId) {
         List<Long> newIds = (newImageIds != null) ? newImageIds : List.of();
 
+        // 기존 매핑 조회
         List<AttachmentMapping> existingMappings =
                 attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
         List<Long> existingIds = existingMappings.stream()
@@ -182,32 +183,26 @@ public class PostService {
                     .toList();
         }
 
-        // 기존 첨부 삭제
-        deletePostAttachments(post, userId);
+        // 기존 중 newIds에 없는 첨부만 삭제
+        attachmentMappingService.deleteRemovedAttachments(EntityType.POST, post.getId(), userId, newIds);
 
-        // 새 첨부 매핑 등록
-        if (newIds.isEmpty()) return List.of();
+        // 새로 추가된 첨부만 매핑 생성
+        List<Long> addedIds = newIds.stream()
+                .filter(id -> !existingIds.contains(id))
+                .toList();
 
-        List<FileAttachment> attachments = validateAndFindAttachments(newIds);
-        attachments.forEach(attachment ->
-                attachmentMappingRepository.save(new AttachmentMapping(attachment, EntityType.POST, post.getId()))
-        );
-        return attachments;
-    }
-
-    /**
-     * 게시글 첨부파일 삭제 (S3 + 매핑)
-     */
-    private void deletePostAttachments(Post post, Long userId) {
-        List<AttachmentMapping> mappings =
-                attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
-        for (AttachmentMapping mapping : mappings) {
-            FileAttachment file = mapping.getFileAttachment();
-            if (file != null) {
-                fileService.deleteFile(file.getId(), userId);
-            }
+        if (!addedIds.isEmpty()) {
+            List<FileAttachment> newAttachments = validateAndFindAttachments(addedIds);
+            newAttachments.forEach(attachment ->
+                    attachmentMappingRepository.save(new AttachmentMapping(attachment, EntityType.POST, post.getId()))
+            );
         }
-        attachmentMappingRepository.deleteAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
+
+        // 최신 매핑 다시 조회
+        return attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.POST, post.getId())
+                .stream()
+                .map(AttachmentMapping::getFileAttachment)
+                .toList();
     }
 
     /**
@@ -231,15 +226,7 @@ public class PostService {
         }
 
         // 첨부 파일 삭제
-        List<AttachmentMapping> mappings =
-                attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
-        for (AttachmentMapping mapping : mappings) {
-            FileAttachment fileAttachment = mapping.getFileAttachment();
-            if (fileAttachment != null) {
-                fileService.deleteFile(fileAttachment.getId(), userId);
-            }
-        }
-        attachmentMappingRepository.deleteAllByEntityTypeAndEntityId(EntityType.POST, post.getId());
+        attachmentMappingService.deleteAttachments(EntityType.POST, post.getId(), userId);
 
         // Post 삭제
         post.remove();
