@@ -6,6 +6,7 @@ import com.back.domain.board.post.enums.CategoryType;
 import com.back.domain.board.post.repository.PostBookmarkRepository;
 import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.board.post.repository.PostCategoryRepository;
+import com.back.domain.board.post.service.PostCategoryMappingService;
 import com.back.domain.user.common.entity.User;
 import com.back.domain.user.common.entity.UserProfile;
 import com.back.domain.user.common.enums.UserStatus;
@@ -38,6 +39,9 @@ class PostRepositoryImplTest {
     private PostBookmarkRepository postBookmarkRepository;
 
     @Autowired
+    private PostCategoryMappingService postCategoryMappingService;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -68,9 +72,9 @@ class PostRepositoryImplTest {
         postRepository.saveAll(List.of(post1, post2, post3));
 
         // 카테고리 매핑
-        post1.updateCategories(List.of(math, teen));
-        post2.updateCategories(List.of(science));
-        post3.updateCategories(List.of(teen, group2));
+        postCategoryMappingService.createMappings(post1, List.of(math.getId(), teen.getId()));
+        postCategoryMappingService.createMappings(post2, List.of(science.getId()));
+        postCategoryMappingService.createMappings(post3, List.of(teen.getId(), group2.getId()));
     }
 
     // ====================== 게시글 다건 검색 테스트 ======================

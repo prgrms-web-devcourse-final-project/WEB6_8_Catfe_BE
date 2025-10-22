@@ -37,4 +37,8 @@ public class PostCategory extends BaseEntity {
     public void addPostCategoryMapping(PostCategoryMapping mapping) {
         this.postCategoryMappings.add(mapping);
     }
+
+    public void removePostCategoryMapping(PostCategoryMapping mapping) {
+        this.postCategoryMappings.remove(mapping);
+    }
 }

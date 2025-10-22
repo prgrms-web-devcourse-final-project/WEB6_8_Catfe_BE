@@ -30,4 +30,11 @@ public class PostCategoryMapping {
         post.addPostCategoryMapping(this);
         category.addPostCategoryMapping(this);
     }
+
+    // -------------------- 헬퍼 메서드 --------------------
+    /** 매핑 삭제 시 연관관계 정리 */
+    public void remove() {
+        this.post.removePostCategoryMapping(this);
+        this.category.removePostCategoryMapping(this);
+    }
 }
