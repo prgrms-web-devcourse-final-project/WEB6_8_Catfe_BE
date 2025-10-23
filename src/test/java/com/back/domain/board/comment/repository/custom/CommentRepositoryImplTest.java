@@ -126,8 +126,10 @@ class CommentRepositoryImplTest {
 
     @Test
     @DisplayName("정렬 조건이 허용되지 않으면 기본 정렬(createdAt DESC)로 동작한다")
-    void getCommentsByPostId_sortFallback() {
+    void getCommentsByPostId_sortFallback() throws InterruptedException {
         // given: 허용되지 않은 정렬 필드 (likeCount만 허용됨)
+        Thread.sleep(5);
+        Comment parent4 = commentRepository.save(Comment.createRoot(post, user, "부모4"));
         PageRequest pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "unknownField"));
 
         // when
@@ -135,7 +137,7 @@ class CommentRepositoryImplTest {
 
         // then
         // createdAt DESC 기본 정렬이 적용되어, 마지막에 생성된 parent3이 먼저 나와야 함
-        assertThat(page.getContent().getFirst().getCommentId()).isEqualTo(parent3.getId());
+        assertThat(page.getContent().getFirst().getCommentId()).isEqualTo(parent4.getId());
     }
 
     // ====================== 특정 사용자의 댓글 목록 조회 테스트 ======================

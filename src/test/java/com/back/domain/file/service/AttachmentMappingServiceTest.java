@@ -60,6 +60,36 @@ class AttachmentMappingServiceTest {
     }
 
     @Test
+    void createAttachments_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        MockMultipartFile file1 = new MockMultipartFile("file1", "a.png", "image/png", "aaa".getBytes());
+        MockMultipartFile file2 = new MockMultipartFile("file2", "b.png", "image/png", "bbb".getBytes());
+
+        Long id1 = fileService.uploadFile(file1, user.getId()).getAttachmentId();
+        Long id2 = fileService.uploadFile(file2, user.getId()).getAttachmentId();
+
+        // when
+        List<FileAttachment> attachments = attachmentMappingService.createAttachments(
+                EntityType.POST,
+                1L,
+                user.getId(),
+                List.of(id1, id2)
+        );
+
+        // then
+        assertThat(attachments).hasSize(2);
+        List<AttachmentMapping> mappings =
+                attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.POST, 1L);
+        assertThat(mappings).hasSize(2);
+        assertThat(mappings.get(0).getFileAttachment().getUser().getId()).isEqualTo(user.getId());
+    }
+
+    @Test
     void deleteAttachments_success() throws Exception {
         // given
         User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
@@ -154,4 +184,65 @@ class AttachmentMappingServiceTest {
         assertThat(findMapping.getFileAttachment().getId()).isEqualTo(newAttachmentId);
     }
 
+    @Test
+    void updateAttachments_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        // 초기 파일 2개 업로드
+        Long id1 = fileService.uploadFile(new MockMultipartFile("a", "a.png", "image/png", "a".getBytes()), user.getId()).getAttachmentId();
+        Long id2 = fileService.uploadFile(new MockMultipartFile("b", "b.png", "image/png", "b".getBytes()), user.getId()).getAttachmentId();
+
+        attachmentMappingService.createAttachments(EntityType.POST, 1L, user.getId(), List.of(id1, id2));
+
+        // 새로운 파일 업로드 (id3 추가)
+        Long id3 = fileService.uploadFile(new MockMultipartFile("c", "c.png", "image/png", "c".getBytes()), user.getId()).getAttachmentId();
+
+        // when (id2 제거, id3 추가)
+        List<FileAttachment> result = attachmentMappingService.updateAttachments(
+                EntityType.POST,
+                1L,
+                user.getId(),
+                List.of(id1, id3)
+        );
+
+        // then
+        assertThat(result).hasSize(2);
+        List<Long> ids = result.stream().map(FileAttachment::getId).toList();
+        assertThat(ids).containsExactlyInAnyOrder(id1, id3);
+
+        // 매핑 테이블도 갱신됨
+        List<AttachmentMapping> mappings =
+                attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.POST, 1L);
+        assertThat(mappings).hasSize(2);
+    }
+
+    @Test
+    void deleteAttachmentsByIds_success() throws Exception {
+        // given
+        User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
+        user.setUserProfile(new UserProfile(user, "홍길동", null, "소개글", LocalDate.of(2000, 1, 1), 1000));
+        user.setUserStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        Long id1 = fileService.uploadFile(new MockMultipartFile("a", "a.png", "image/png", "a".getBytes()), user.getId()).getAttachmentId();
+        Long id2 = fileService.uploadFile(new MockMultipartFile("b", "b.png", "image/png", "b".getBytes()), user.getId()).getAttachmentId();
+
+        attachmentMappingService.createAttachments(EntityType.PROFILE, 100L, user.getId(), List.of(id1, id2));
+
+        // when (id1만 삭제)
+        attachmentMappingService.deleteAttachmentsByIds(user.getId(), List.of(id1));
+
+        // then
+        List<AttachmentMapping> remaining =
+                attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.PROFILE, 100L);
+        assertThat(remaining).hasSize(1);
+        assertThat(remaining.get(0).getFileAttachment().getId()).isEqualTo(id2);
+
+        // 파일 DB에서도 id1은 제거되어야 함
+        assertThat(fileAttachmentRepository.findById(id1)).isEmpty();
+    }
 }

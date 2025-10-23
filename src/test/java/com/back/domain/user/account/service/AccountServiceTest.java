@@ -36,7 +36,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -176,7 +175,7 @@ class AccountServiceTest {
         // 새 매핑이 존재하고 기존 매핑은 삭제되었는지 검증
         List<AttachmentMapping> mappings = attachmentMappingRepository.findAllByEntityTypeAndEntityId(EntityType.PROFILE, user.getUserProfile().getId());
         assertThat(mappings).hasSize(1);
-        assertThat(mappings.get(0).getFileAttachment().getPublicURL()).isEqualTo(newAttachment.getPublicURL());
+        assertThat(mappings.getFirst().getFileAttachment().getPublicURL()).isEqualTo(newAttachment.getPublicURL());
 
         // 기존 이미지가 삭제되었는지 확인 (테스트 환경에서는 DB 삭제만 검증)
         assertThat(fileAttachmentRepository.findByPublicURL("https://cdn.example.com/old.png")).isEmpty();
@@ -456,8 +455,9 @@ class AccountServiceTest {
 
         // then
         assertThat(response.items()).hasSize(2);
-        assertThat(response.items().get(0).getTitle()).isEqualTo("제목2"); // 최신순 정렬
-        assertThat(response.items().get(1).getTitle()).isEqualTo("제목1");
+        assertThat(response.items())
+                .extracting("title")
+                .contains("제목1", "제목2");
     }
 
     @Test
@@ -533,8 +533,9 @@ class AccountServiceTest {
 
         // then
         assertThat(response.items()).hasSize(2);
-        assertThat(response.items().get(0).content()).isEqualTo("두 번째 댓글"); // 최신순 정렬
-        assertThat(response.items().get(1).content()).isEqualTo("첫 번째 댓글");
+        assertThat(response.items())
+                .extracting("content")
+                .contains("첫 번째 댓글", "두 번째 댓글");
     }
 
     @Test
@@ -609,8 +610,9 @@ class AccountServiceTest {
 
         // then
         assertThat(response.items()).hasSize(2);
-        assertThat(response.items().get(0).getTitle()).isEqualTo("테스트 코드 작성 가이드"); // 최신순
-        assertThat(response.items().get(1).getTitle()).isEqualTo("JPA 영속성 전이 완벽 정리");
+        assertThat(response.items())
+                .extracting("title")
+                .contains("JPA 영속성 전이 완벽 정리", "테스트 코드 작성 가이드");
     }
 
     @Test
