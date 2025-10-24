@@ -33,7 +33,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -55,6 +54,9 @@ class PostServiceTest {
     private UserRepository userRepository;
 
     @Autowired
+    private PostCategoryMappingService postCategoryMappingService;
+
+    @Autowired
     private PostCategoryRepository postCategoryRepository;
 
     @Autowired
@@ -62,9 +64,6 @@ class PostServiceTest {
 
     @Autowired
     private AttachmentMappingRepository attachmentMappingRepository;
-
-    @Autowired
-    private AttachmentMappingService attachmentMappingService;
 
     @MockBean
     private AmazonS3 amazonS3; // S3 호출 차단용 mock
@@ -193,12 +192,12 @@ class PostServiceTest {
         postCategoryRepository.saveAll(List.of(c1, c2));
 
         Post post1 = new Post(user, "첫 번째 글", "내용1", null);
-        post1.updateCategories(List.of(c1));
         postRepository.save(post1);
+        postCategoryMappingService.createMappings(post1, List.of(c1.getId()));
 
         Post post2 = new Post(user, "두 번째 글", "내용2", null);
-        post2.updateCategories(List.of(c2));
         postRepository.save(post2);
+        postCategoryMappingService.createMappings(post2, List.of(c2.getId()));
 
         Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
 
@@ -225,8 +224,8 @@ class PostServiceTest {
 
         // 게시글 생성
         Post post = new Post(user, "조회용 제목", "조회용 내용", null);
-        post.updateCategories(List.of(category));
         postRepository.save(post);
+        postCategoryMappingService.createMappings(post, List.of(category.getId()));
 
         // 첨부 이미지 추가
         MockMultipartFile file1 = new MockMultipartFile("file", "img1.png", "image/png", "dummy".getBytes());
@@ -297,8 +296,8 @@ class PostServiceTest {
 
         // 게시글 생성 + 기존 카테고리 세팅
         Post post = new Post(user, "원래 제목", "원래 내용", null);
-        post.updateCategories(List.of(oldCategory));
         postRepository.save(post);
+        postCategoryMappingService.createMappings(post, List.of(oldCategory.getId()));
 
         // 기존 이미지 매핑(다형 매핑 방식으로 직접 저장)
         attachmentMappingRepository.save(new AttachmentMapping(imgOld, EntityType.POST, post.getId()));
@@ -363,8 +362,8 @@ class PostServiceTest {
         postCategoryRepository.save(category);
 
         Post post = new Post(writer, "원래 제목", "원래 내용", null);
-        post.updateCategories(List.of(category));
         postRepository.save(post);
+        postCategoryMappingService.createMappings(post, List.of(category.getId()));
 
         PostRequest request = new PostRequest("수정된 제목", "수정된 내용", null, List.of(category.getId()), null);
 
@@ -387,8 +386,8 @@ class PostServiceTest {
         postCategoryRepository.save(category);
 
         Post post = new Post(user, "원래 제목", "원래 내용", null);
-        post.updateCategories(List.of(category));
         postRepository.save(post);
+        postCategoryMappingService.createMappings(post, List.of(category.getId()));
 
         // 실제 DB에는 없는 카테고리 ID 전달
         PostRequest request = new PostRequest("수정된 제목", "수정된 내용", null, List.of(999L), null);
@@ -412,8 +411,8 @@ class PostServiceTest {
         postCategoryRepository.save(category);
 
         Post post = new Post(user, "원래 제목", "원래 내용", null);
-        post.updateCategories(List.of(category));
         postRepository.save(post);
+        postCategoryMappingService.createMappings(post, List.of(category.getId()));
 
         PostRequest request = new PostRequest(
                 "수정된 제목", "수정된 내용", null,
