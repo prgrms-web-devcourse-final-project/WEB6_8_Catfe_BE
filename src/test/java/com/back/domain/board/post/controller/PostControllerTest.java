@@ -6,6 +6,7 @@ import com.back.domain.board.post.entity.PostCategory;
 import com.back.domain.board.post.enums.CategoryType;
 import com.back.domain.board.post.repository.PostCategoryRepository;
 import com.back.domain.board.post.repository.PostRepository;
+import com.back.domain.board.post.service.PostCategoryMappingService;
 import com.back.domain.file.entity.FileAttachment;
 import com.back.domain.file.repository.FileAttachmentRepository;
 import com.back.domain.file.service.FileService;
@@ -68,6 +69,8 @@ class PostControllerTest {
 
     @MockitoBean
     private FileService fileService;
+    @Autowired
+    private PostCategoryMappingService postCategoryMappingService;
 
     private String generateAccessToken(User user) {
         return testJwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
@@ -261,12 +264,12 @@ class PostControllerTest {
         postCategoryRepository.saveAll(List.of(c1, c2));
 
         Post post1 = new Post(user, "첫 글", "내용1", null);
-        post1.updateCategories(List.of(c1));
         postRepository.save(post1);
+        postCategoryMappingService.createMappings(post1, List.of(c1.getId()));
 
         Post post2 = new Post(user, "두 번째 글", "내용2", null);
-        post2.updateCategories(List.of(c2));
         postRepository.save(post2);
+        postCategoryMappingService.createMappings(post2, List.of(c2.getId()));
 
         // when
         mvc.perform(get("/api/posts")
@@ -295,8 +298,8 @@ class PostControllerTest {
         postCategoryRepository.save(c1);
 
         Post post = new Post(user, "조회 테스트 글", "조회 테스트 내용", null);
-        post.updateCategories(List.of(c1));
         postRepository.save(post);
+        postCategoryMappingService.createMappings(post, List.of(c1.getId()));
 
         // when
         mvc.perform(get("/api/posts/{postId}", post.getId())
@@ -338,8 +341,8 @@ class PostControllerTest {
         postCategoryRepository.save(c1);
 
         Post post = new Post(user, "원래 제목", "원래 내용", null);
-        post.updateCategories(List.of(c1));
         postRepository.save(post);
+        postCategoryMappingService.createMappings(post, List.of(c1.getId()));
 
         String accessToken = generateAccessToken(user);
 
@@ -415,8 +418,8 @@ class PostControllerTest {
         postCategoryRepository.save(c1);
 
         Post post = new Post(writer, "원래 제목", "원래 내용", null);
-        post.updateCategories(List.of(c1));
         postRepository.save(post);
+        postCategoryMappingService.createMappings(post, List.of(c1.getId()));
 
         String accessToken = generateAccessToken(another);
 
@@ -446,8 +449,8 @@ class PostControllerTest {
         postCategoryRepository.save(c1);
 
         Post post = new Post(user, "원래 제목", "원래 내용", null);
-        post.updateCategories(List.of(c1));
         postRepository.save(post);
+        postCategoryMappingService.createMappings(post, List.of(c1.getId()));
 
         String accessToken = generateAccessToken(user);
 

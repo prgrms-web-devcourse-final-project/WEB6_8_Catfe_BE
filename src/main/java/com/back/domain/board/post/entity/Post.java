@@ -98,25 +98,6 @@ public class Post extends BaseEntity {
         this.thumbnailUrl = thumbnailUrl;
     }
 
-    /** 카테고리 일괄 업데이트 */
-    public void updateCategories(List<PostCategory> newCategories) {
-        List<PostCategory> currentCategories = this.getCategories();
-
-        // 제거 대상
-        List<PostCategoryMapping> toRemove = this.getPostCategoryMappings().stream()
-                .filter(mapping -> !newCategories.contains(mapping.getCategory()))
-                .toList();
-
-        // 추가 대상
-        List<PostCategory> toAdd = newCategories.stream()
-                .filter(category -> !currentCategories.contains(category))
-                .toList();
-
-        // 실행
-        toRemove.forEach(this::removePostCategoryMapping);
-        toAdd.forEach(category -> new PostCategoryMapping(this, category));
-    }
-
     /** 좋아요 수 증가 */
     public void increaseLikeCount() {
         this.likeCount++;
@@ -156,7 +137,7 @@ public class Post extends BaseEntity {
     // -------------------- 헬퍼 메서드 --------------------
     /** 게시글에 연결된 카테고리 목록 조회 */
     public List<PostCategory> getCategories() {
-        return postCategoryMappings.stream()
+        return this.postCategoryMappings.stream()
                 .map(PostCategoryMapping::getCategory)
                 .toList();
     }

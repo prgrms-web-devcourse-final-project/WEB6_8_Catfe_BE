@@ -4,6 +4,7 @@ import com.back.domain.board.post.dto.PostListResponse;
 import com.back.domain.board.post.entity.*;
 import com.back.domain.board.post.enums.CategoryType;
 import com.back.domain.board.post.repository.PostBookmarkRepository;
+import com.back.domain.board.post.repository.PostCategoryMappingRepository;
 import com.back.domain.board.post.repository.PostRepository;
 import com.back.domain.board.post.repository.PostCategoryRepository;
 import com.back.domain.user.common.entity.User;
@@ -46,6 +47,8 @@ class PostRepositoryImplTest {
     private User user;
     private PostCategory math, science, teen, group2;
     private Post post1, post2, post3;
+    @Autowired
+    private PostCategoryMappingRepository postCategoryMappingRepository;
 
     @BeforeEach
     void setUp() {
@@ -68,9 +71,12 @@ class PostRepositoryImplTest {
         postRepository.saveAll(List.of(post1, post2, post3));
 
         // 카테고리 매핑
-        post1.updateCategories(List.of(math, teen));
-        post2.updateCategories(List.of(science));
-        post3.updateCategories(List.of(teen, group2));
+        PostCategoryMapping mapping1 = new PostCategoryMapping(post1, math);
+        PostCategoryMapping mapping2 = new PostCategoryMapping(post1, teen);
+        PostCategoryMapping mapping3 = new PostCategoryMapping(post2, science);
+        PostCategoryMapping mapping4 = new PostCategoryMapping(post3, teen);
+        PostCategoryMapping mapping5 = new PostCategoryMapping(post3, group2);
+        postCategoryMappingRepository.saveAll(List.of(mapping1, mapping2, mapping3, mapping4, mapping5));
     }
 
     // ====================== 게시글 다건 검색 테스트 ======================
@@ -163,10 +169,10 @@ class PostRepositoryImplTest {
         assertThat(page.getTotalElements()).isEqualTo(3);
         assertThat(page.getContent()).hasSize(3);
 
-        // 게시글 제목 확인 (생성일 역순)
-        assertThat(page.getContent().get(0).getTitle()).isEqualTo("10대 대상 스터디");
-        assertThat(page.getContent().get(1).getTitle()).isEqualTo("과학 토론 모집");
-        assertThat(page.getContent().get(2).getTitle()).isEqualTo("수학 공부 팁");
+        // 게시글 제목 확인
+        assertThat(page.getContent())
+                .extracting("title")
+                .contains("수학 공부 팁", "과학 토론 모집", "10대 대상 스터디");
 
         // 작성자 정보가 즉시 조회되었는지 확인
         PostListResponse first = page.getContent().getFirst();
@@ -199,18 +205,26 @@ class PostRepositoryImplTest {
 
     @Test
     @DisplayName("정렬 조건(createdAt DESC)이 올바르게 적용")
-    void findPostsByUserId_sorting() {
+    void findPostsByUserId_sorting() throws InterruptedException {
         // given
+        Thread.sleep(5);
+        Post early = new Post(user, "이전 글", "내용", null);
+        postRepository.save(early);
+
+        Thread.sleep(5); // createdAt 차이를 확실히 줌
+        Post latest = new Post(user, "최근 글", "내용", null);
+        postRepository.save(latest);
+
         PageRequest pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         // when
         Page<PostListResponse> page = postRepository.findPostsByUserId(user.getId(), pageable);
 
         // then
-        assertThat(page.getContent()).hasSize(2);
-        assertThat(page.getContent().get(0).getTitle()).isEqualTo("10대 대상 스터디");
-        assertThat(page.getContent().get(1).getTitle()).isEqualTo("과학 토론 모집");
+        assertThat(page.getContent().get(0).getTitle()).isEqualTo("최근 글");
+        assertThat(page.getContent().get(1).getTitle()).isEqualTo("이전 글");
     }
+
 
     @Test
     @DisplayName("카테고리가 없는 게시글도 정상 조회")
@@ -252,9 +266,10 @@ class PostRepositoryImplTest {
         assertThat(page.getTotalElements()).isEqualTo(2);
         assertThat(page.getContent()).hasSize(2);
 
-        // 최신순 정렬 확인
-        assertThat(page.getContent().get(0).getTitle()).isEqualTo("10대 대상 스터디");
-        assertThat(page.getContent().get(1).getTitle()).isEqualTo("수학 공부 팁");
+        // 게시글 제목 확인
+        assertThat(page.getContent())
+                .extracting("title")
+                .contains("수학 공부 팁", "10대 대상 스터디");
 
         // 작성자 정보 확인
         PostListResponse first = page.getContent().getFirst();
@@ -283,12 +298,18 @@ class PostRepositoryImplTest {
 
     @Test
     @DisplayName("정렬 조건(createdAt DESC)이 올바르게 적용")
-    void findBookmarkedPostsByUserId_sorting() {
+    void findBookmarkedPostsByUserId_sorting() throws InterruptedException {
         // given
         PostBookmark b1 = new PostBookmark(post1, user);
+        postBookmarkRepository.save(b1);
+
+        Thread.sleep(5); // 생성 시각 차이를 확실히 줌
         PostBookmark b2 = new PostBookmark(post2, user);
+        postBookmarkRepository.save(b2);
+
+        Thread.sleep(5);
         PostBookmark b3 = new PostBookmark(post3, user);
-        postBookmarkRepository.saveAll(List.of(b1, b2, b3));
+        postBookmarkRepository.save(b3);
 
         PageRequest pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "createdAt"));
 
