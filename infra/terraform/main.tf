@@ -522,7 +522,7 @@ POLICY
 
 # S3 인스턴스 생성
 resource "aws_s3_bucket" "s3_1" {
-  bucket = "team5-s3-1"
+  bucket = "catfe-s3-1"
   tags = {
     Key = "TEAM"
     Value = "devcos-team05"
