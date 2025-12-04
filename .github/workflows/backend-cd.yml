@@ -112,12 +112,12 @@ jobs:
           command: |
             set -Eeuo pipefail
             
-            # 3. 실행 로그(라인 타임스탬프 부착)
+            # 실행 로그(라인 타임스탬프 부착)
             LOG="/tmp/ssm-$(date +%Y%m%d_%H%M%S).log"
             exec > >(awk '{ fflush(); print strftime("[%Y-%m-%d %H:%M:%S]"), $0 }' | tee -a "$LOG")
             exec 2> >(awk '{ fflush(); print strftime("[%Y-%m-%d %H:%M:%S]"), $0 }' | tee -a "$LOG" >&2)
             
-            # 4. 변수 정의
+            # 변수 정의
             source /etc/environment || true
             OWNER_LC="${{ github.repository_owner }}"
             OWNER_LC="${OWNER_LC,,}"
@@ -129,25 +129,25 @@ jobs:
             PORT_IN="${{ env.CONTAINER_PORT }}"
             NET="${{ env.DOCKER_NETWORK }}"
             
-              # 도커 이미지 pull 받기
+            # 최신 Spring 서버 이미지 pull
             echo "🔹 Use image: ${IMAGE}"
             docker pull "${IMAGE}"
             
-            #5. NPM API 토큰 발급
+            # NPM API 토큰 발급
             TOKEN=$(curl -s -X POST http://127.0.0.1:81/api/tokens \
               -H "Content-Type: application/json" \
               -d "{\"identity\": \"admin@npm.com\", \"secret\": \"${PASSWORD:-}\"}" | jq -r '.token')
             
-              # 조회한 토큰과 도메인 검증
+            # 조회한 토큰과 도메인 검증
             [[ -n "${TOKEN}" && "${TOKEN}" != "null" ]] || { echo "NPM token issue failed"; exit 1; }
             [[ -n "${DOMAIN:-}" ]] || { echo "DOMAIN is empty"; exit 1; }
             
-            # 6. 대상 프록시 호스트 ID 조회(도메인 매칭)
+            # 대상 프록시 호스트 ID 조회(도메인 매칭)
             PROXY_ID=$(curl -s -X GET "http://127.0.0.1:81/api/nginx/proxy-hosts" \
               -H "Authorization: Bearer ${TOKEN}" \
               | jq ".[] | select(.domain_names[]==\"${DOMAIN}\") | .id")
             
-              # 조회한 프록시 호스트 ID 검증
+            # 조회한 프록시 호스트 ID 검증
             [[ -n "${PROXY_ID}" && "${PROXY_ID}" != "null" ]] || { echo "Proxy host not found for ${DOMAIN}"; exit 1; }
             
             # 현재 프록시가 바라보는 업스트림(컨테이너명) 조회
@@ -157,7 +157,7 @@ jobs:
 
             echo "🔎 CURRENT_HOST: ${CURRENT_HOST:-none}"
             
-            # 7. 역할(blue/green) 판정 (blue -> 현재 운영 중인 서버, green -> 교체할 서버)
+            # 역할(blue/green) 판정 (blue -> 현재 운영 중인 서버, green -> 교체할 서버)
             if [[ "${CURRENT_HOST:-}" == "${SLOT1}" ]]; then
               BLUE="${SLOT1}"
               GREEN="${SLOT2}"
@@ -175,7 +175,7 @@ jobs:
             fi
             echo "🎨 role -> blue(now): ${BLUE}, green(next): ${GREEN}"
             
-            # 8. Green 역할 컨테이너 
+            # Green 역할 컨테이너 
             docker rm -f "${GREEN}" > /dev/null 2>&1 || true
             echo "run new container -> ${GREEN}"
             docker run -d --name "${GREEN}" \
@@ -184,7 +184,7 @@ jobs:
               -e TZ=Asia/Seoul \
               "${IMAGE}"
             
-            # 9. 헬스체크
+            # 최신 Spring 서버 헬스체크
             echo "⏱ health-check: ${GREEN}"
             TIMEOUT=120
             INTERVAL=3
@@ -199,7 +199,7 @@ jobs:
             done
             [[ "${CODE:-000}" == "200" ]] || { echo "❌ ${GREEN} health failed"; docker logs --tail=200 "${GREEN}" || true; docker rm -f "${GREEN}" || true; exit 1; }
             
-            # 10. 업스트림 전환
+            # 업스트림 전환
             NEW_CFG=$(jq -n --arg host "${GREEN}" --argjson port ${PORT_IN} '{forward_host:$host, forward_port:$port}')
             curl -s -X PUT "http://127.0.0.1:81/api/nginx/proxy-hosts/${PROXY_ID}" \
               -H "Authorization: Bearer ${TOKEN}" \
@@ -207,14 +207,14 @@ jobs:
               -d "${NEW_CFG}" >/dev/null
             echo "🔁 switch upstream → ${GREEN}:${PORT_IN}"
             
-            # 11. 이전 Blue 종료
+            # 이전 Blue 종료
             if [[ "${BLUE}" != "none" ]]; then
               docker stop "${BLUE}" >/dev/null 2>&1 || true
               docker rm "${BLUE}" >/dev/null 2>&1 || true
               echo "🧹 removed old blue: ${BLUE}"
             fi
             
-            # 12. 이미지 정리
+            # Blue 이미지 정리
             {
               docker images --format '{{.Repository}}:{{.Tag}}' \
                 | grep -F "ghcr.io/${OWNER_LC}/${IMAGE_REPOSITORY}:" \
