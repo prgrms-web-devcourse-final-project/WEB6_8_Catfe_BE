@@ -165,6 +165,14 @@ resource "aws_security_group" "sg_1" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # MySQL (port 3306)
+  ingress {
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # 아웃바운드 모든 프로토콜
   egress {
     from_port   = 0
@@ -321,6 +329,18 @@ docker run -d \
   -v /dockerProjects/npm_1/volumes/data:/data \
   -v /dockerProjects/npm_1/volumes/etc/letsencrypt:/etc/letsencrypt \
   jc21/nginx-proxy-manager:latest
+
+# MySQL 설치
+docker run -d \
+  --name mysql_1 \
+  --network common \
+  -e MYSQL_ROOT_PASSWORD=root_pass \
+  -e MYSQL_DATABASE=${var.db_name} \
+  -e MYSQL_USER=${var.db_username} \
+  -e MYSQL_PASSWORD=${var.db_password} \
+  -p 3306:3306 \
+  -v mysql_data:/var/lib/mysql \
+  mysql:8.0
 
 # ghcr.io 로그인
 echo "${var.github_access_token_1}" | docker login ghcr.io -u ${var.github_access_token_1_owner} --password-stdin
