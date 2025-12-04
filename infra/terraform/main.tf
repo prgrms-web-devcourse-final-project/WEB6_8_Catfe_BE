@@ -165,6 +165,14 @@ resource "aws_security_group" "sg_1" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # MySQL (port 3306)
+  ingress {
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # 아웃바운드 모든 프로토콜
   egress {
     from_port   = 0
