@@ -75,8 +75,8 @@ spring:
             user-name-attribute: id
   servlet:
     multipart:
-      max-file-size: 10MB # 업로드할 수 있는 개별 파일의 최대 크기
-      max-request-size: 10MB # 한 요청의 최대 허용 크기
+      max-file-size: 2GB # 업로드할 수 있는 개별 파일의 최대 크기
+      max-request-size: 2GB # 한 요청의 최대 허용 크기
 
   mail:
     host: ${EMAIL_HOST}  # Gmail SMTP 서버 (운영 환경에서는 AWS SES 등으로 변경 권장)
