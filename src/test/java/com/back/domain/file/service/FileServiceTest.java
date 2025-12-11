@@ -11,6 +11,7 @@ import com.back.global.exception.CustomException;
 import com.back.global.exception.ErrorCode;
 import io.findify.s3mock.S3Mock;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -48,6 +49,7 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName("MultiPartFile 업로드 테스트 - 성공")
     void uploadFile() {
         // given
         User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
@@ -71,6 +73,7 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName("파일의 ID로 업로드된 파일 조회 - 성공")
     void readFile() {
         // given
         User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
@@ -93,6 +96,7 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName("기존 파일을 새 MultiPartFile 업데이트 - 성공")
     void updateFile() {
         // given
         User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
@@ -121,6 +125,7 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName("업로드된 파일 삭제 - 성공")
     void deleteFile() {
         // given
         User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));

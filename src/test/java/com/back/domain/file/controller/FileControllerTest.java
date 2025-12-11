@@ -69,7 +69,7 @@ class FileControllerTest {
     }
 
     @Test
-    @DisplayName("파일 업로드 성공")
+    @DisplayName("MultiFile 업로드 - 성공")
     void uploadFile_success() throws Exception {
         // given
         User user = User.createUser("writer", "writer@example.com", passwordEncoder.encode("P@ssw0rd!"));
